@@ -1,0 +1,84 @@
+# timing_model
+
+Python implementation of the RaboResearch industrial decarbonisation
+investment-timing model (real options + NPV), following the v12 restructure
+and coding specification.
+
+A steel producer chooses a single year `T` to irreversibly switch from blast
+furnace to H2-DRI-EAF. The model maximises `NPV(T)` over the horizon and
+separately computes an uncertainty-adjusted carbon-price trigger via a
+Dixit–Pindyck option multiple.
+
+## Four outputs, and why there are four
+
+| Output | Question it answers | Contains option premium? |
+|---|---|---|
+| Trigger `p*'` (€/tCO₂) | At what carbon price does an irreversible switch become rational? | Yes |
+| Crossing year | When does the *path* reach that price? | Yes, plus a price forecast |
+| `T*` | Which year maximises NPV? | No |
+| `T_exp` | Last year in which deferral still adds value | No |
+
+`T*` and the crossing year routinely differ by one to two years. **That gap is
+the option premium expressed in time, not an inconsistency.**
+
+## Layout — the group order is the deliverable
+
+```
+timing_model/
+  params.py        # dataclasses; every field carries unit, currency-year, source
+  primitives.py    # Group I:   b, a(p_H2), CRF, MAC   [MAC diagnostic only]
+  benefit.py       # Group II:  alpha_v(t), B(t)
+  cost.py          # Group III: L(T), s(T), S_s(T), I_prime(T)
+  objective.py     # Group IV:  npv(T), t_star, t_exp, delta(T)
+  option.py        # Group V:   p_M_prime, beta, trigger, crossing_year
+  validate.py      # gate + feasibility guards; raises, never returns a flag
+  results.py       # Outputs, welded to its conditions
+  scenarios.py     # ladder, storylines, sourced ranges, legacy fixture
+  diff_harness.py  # 50 reference cases + the MATLAB diff
+  report.py        # tables + CSV
+```
+
+Imports point forward only, and `tests/test_layering.py` asserts it by walking
+the AST. `cost.py` cannot import `objective.py`; `primitives.py` reaches
+nothing but the parameter container; `cost.py` may not so much as name the load
+factor `u`.
+
+## Usage
+
+```bash
+python -m timing_model.report              # the cumulative stress ladder
+python -m timing_model.report --sigma      # plus the volatility ladder
+python -m timing_model.report --csv        # writes python_results.csv
+pytest -q                                  # 91 tests
+```
+
+## The conditional-outputs mechanic
+
+The recurring failure this rewrite exists to fix is that `T*` and the trigger
+get quoted without the assumptions they are conditional on. `Outputs` is
+frozen and always carries `conditions`; `report.py` **refuses to render** any
+row containing `t_star` or `trigger` unless every condition is populated, and
+prints them under the table. Tests cover each condition key individually.
+
+## Three decisions the code will not make for you
+
+Appendix A §3.5 reserves these to the team. All branches are implemented and
+none is silently defaulted — each is surfaced in the printed conditions of
+every row:
+
+1. **Support basis** — €200 lump or ~€600 stream. `support_basis` switches
+   between netting a stock from capex (`"lump"`, which the MATLAB diff needs)
+   and routing the premium into `B(t)` where a flow belongs (`"stream"`).
+2. **Resale** — `w = 1` drives the entire policy-neutrality finding. Without
+   it the headline result reverses sign.
+3. **Whether €2.60/kg hydrogen is reported as the base case at all.** The
+   market was €8.29/kg on 8 May 2026.
+
+## Status
+
+Read `CALIBRATION.md` before quoting any number from this build.
+`timing_model.m` was not in the working directory, so the cost-side split
+(learning rate, support slope, asset block) is **calibrated against the
+published stress ladder, not sourced**. The validation gate, the trigger column
+and the benefit side reproduce exactly; ladder rows 4–7 do not, and the reasons
+are documented case by case.
