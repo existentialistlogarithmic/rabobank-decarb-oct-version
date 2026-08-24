@@ -107,19 +107,40 @@ class SectorParams:
         metadata=Meta("EUR/t capacity", "2022", "DIW capex, 2022 euros"),
     )
     K_s: float = field(
-        default=600.0,
-        metadata=Meta("EUR/t capacity", "2022", "CALIBRATED - see calibration.py"),
+        default=1200.0,
+        metadata=Meta(
+            "EUR/t capacity",
+            "2022",
+            "integrated BF-BOF greenfield ~$1,100/t (range EUR 1,000-1,500/t); "
+            "gives S_s(2026)=360, the gate value, at age0/L_s below",
+        ),
     )
     L_s: float = field(
-        default=15.0,
-        metadata=Meta("yr", None, "blast-furnace campaign life (CALIBRATED)"),
+        default=20.0,
+        metadata=Meta(
+            "yr",
+            None,
+            "blast-furnace campaign life between relines; 15-20 typical, "
+            "21 achieved at thyssenkrupp Schwelgern 1993-2014",
+        ),
     )
     age0: float = field(
-        default=6.0, metadata=Meta("yr", None, "asset age at t0 (CALIBRATED)")
+        default=14.0,
+        metadata=Meta(
+            "yr",
+            None,
+            "years into campaign at t0; puts T_rel=2032 inside the 2030-2035 "
+            "window in which ~12.7 Mtpa of EU capacity faces a reline decision",
+        ),
     )
     rho: float = field(
-        default=0.20,
-        metadata=Meta("share of K_s", None, "reline cost share (CALIBRATED)"),
+        default=50.0 / 1200.0,
+        metadata=Meta(
+            "share of K_s",
+            None,
+            "rho*K_s = EUR 50/t capacity reline: Salzgitter BF A, EUR 100m "
+            "over >2 Mtpa (2024)",
+        ),
     )
     phi: float = field(
         default=0.5,
@@ -137,8 +158,14 @@ class SectorParams:
         metadata=Meta("dimensionless", None, "Wright exponent, ~15% learning rate"),
     )
     gamma: float = field(
-        default=0.3940,
-        metadata=Meta("1/yr", None, "cumulative-capacity growth (CALIBRATED)"),
+        default=0.4442,
+        metadata=Meta(
+            "1/yr",
+            None,
+            "cumulative H2-DRI capacity growth. THE ONE CALIBRATED CONSTANT; "
+            "sourced band 0.43-0.52 from EU H2-DRI-EAF 2.5 Mt (2025) -> "
+            "15-20 Mt (2030). Implies capex falling 8.2%/yr",
+        ),
     )
 
 
@@ -156,14 +183,21 @@ class PolicyParams:
     )
     s_max: float = field(
         default=200.0,
-        metadata=Meta("EUR/t capacity", "2022", "Investment Booster envelope"),
+        metadata=Meta(
+            "EUR/t capacity", "2022", "Investment Booster envelope, published base"
+        ),
     )
     support_start: int = field(
         default=2028, metadata=Meta("year", None, "Booster window opens")
     )
     lam: float = field(
-        default=-0.0580,
-        metadata=Meta("1/yr", None, "q(t) slope (CALIBRATED; negative = ramping)"),
+        default=0.0,
+        metadata=Meta(
+            "1/yr",
+            None,
+            "q(t) rationing slope. Zero: the mechanism exists but does not "
+            "bind over the base-case decision window",
+        ),
     )
     q_min: float = field(
         default=0.0, metadata=Meta("share", None, "rationing floor, Appendix A eq (6)")

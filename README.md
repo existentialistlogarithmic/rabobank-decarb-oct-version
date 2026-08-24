@@ -77,8 +77,8 @@ every row:
 ## Status
 
 Read `CALIBRATION.md` before quoting any number from this build.
-`timing_model.m` was not in the working directory, so the cost-side split
-(learning rate, support slope, asset block) is **calibrated against the
-published stress ladder, not sourced**. The validation gate, the trigger column
-and the benefit side reproduce exactly; ladder rows 4–7 do not, and the reasons
-are documented case by case.
+`timing_model.m` was not in the working directory, so five of the six cost-side
+constants were sourced from published industry data and one (the learning
+growth rate) calibrated. The validation gate, the trigger column
+and the benefit side reproduce exactly, as do ladder rows 1–3; rows 4–7 do not,
+and the reasons are documented case by case with sources.
