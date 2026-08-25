@@ -28,6 +28,13 @@ from timing_model.validate import GATE, run_gate
 CSV_PATH = "python_results.csv"
 
 
+def plots_out() -> str:
+    """Filename the chart page is written to."""
+    import plots
+
+    return plots.OUT
+
+
 def banner(n: int, title: str) -> None:
     print(f"\n\n{'=' * 78}\n{n}. {title}\n{'=' * 78}")
 
@@ -131,16 +138,24 @@ def section_csv() -> None:
     print("Columns:", ", ".join(cols))
 
 
+def section_charts() -> None:
+    """Write the chart page. Standard library only, like everything else."""
+    banner(8, "CHARTS")
+    import plots
+
+    plots.main()
+
+
 def section_selfcheck() -> int:
     """Standard-library verification - runs everywhere, no packages needed."""
-    banner(8, "SELF-CHECK (standard library only)")
+    banner(9, "SELF-CHECK (standard library only)")
     import selfcheck
 
     return selfcheck.main()
 
 
 def section_tests() -> int:
-    banner(9, "TEST SUITE")
+    banner(10, "TEST SUITE")
     try:
         import pytest
     except ImportError:
@@ -171,15 +186,17 @@ def main() -> int:
         step()
     failures += section_reconciliation()
     section_csv()
+    section_charts()
     failures += section_selfcheck()
     failures += section_tests()
 
-    banner(10, "SUMMARY")
+    banner(11, "SUMMARY")
     if failures:
         print(f"{failures} section(s) reported a problem. See above.")
     else:
         print("Gate passed, negative control behaved, self-check clean.")
         print("Base case: T* = 2029, NPV0 = 1588.29 EUR/t, trigger crossed 2030.")
+        print(f"Charts written to {plots_out()}.")
         print("\nReminder: ladder rows 4-7 do not reproduce the published table.")
         print("CALIBRATION.md documents each one and why.")
     return 1 if failures else 0

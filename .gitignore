@@ -8,3 +8,4 @@ build/
 dist/
 .idea/
 python_results.csv
+charts.html
