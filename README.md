@@ -52,7 +52,9 @@ is closed-form or a small argmax over ~25 years.
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
-python -m timing_model.report              # the cumulative stress ladder
+python run_all.py                          # EVERYTHING: gate, ladders, diff, tests
+
+python -m timing_model.report              # just the cumulative stress ladder
 python -m timing_model.report --sigma      # plus the volatility ladder
 python -m timing_model.report --csv        # writes python_results.csv
 pytest                                     # 91 tests
@@ -69,7 +71,13 @@ pytest                                     # 91 tests
 3. **Tests:** Settings → Tools → Python Integrated Tools → Default test runner
    = **pytest**. Then right-click `tests/` → Run. The `[tool.pytest.ini_options]`
    block in `pyproject.toml` is picked up automatically.
-4. **Running the report:** use a *module* run configuration, not a script one —
+4. **Run everything at once:** right-click `run_all.py` in the Project pane →
+   **Run 'run_all'**. That executes, in order: the validation gate, the base
+   case, the stress ladder, the volatility ladder, the sourced ranges, the
+   50-case reconciliation harness with its negative control, the CSV write,
+   and the full test suite. It exits non-zero if the gate fails, the negative
+   control misbehaves, or any test fails, so it also works as a CI smoke check.
+5. **Running just the report:** use a *module* run configuration, not a script one —
    Run → Edit Configurations → **+** → Python, switch the target dropdown from
    *Script path* to **Module name**, and enter `timing_model.report`. Put any
    flags (`--csv`, `--sigma`) in *Parameters*. Running `report.py` as a plain
