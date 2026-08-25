@@ -45,12 +45,39 @@ factor `u`.
 
 ## Usage
 
+Python 3.11+; `numpy` and `pandas` only. No solver libraries — every equation
+is closed-form or a small argmax over ~25 years.
+
 ```bash
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
 python -m timing_model.report              # the cumulative stress ladder
 python -m timing_model.report --sigma      # plus the volatility ladder
 python -m timing_model.report --csv        # writes python_results.csv
-pytest -q                                  # 91 tests
+pytest                                     # 91 tests
 ```
+
+### PyCharm
+
+1. **Open** the repository root as the project (the folder containing
+   `pyproject.toml`) — not the `timing_model/` package folder, or imports
+   will not resolve.
+2. **Interpreter:** Settings → Project → Python Interpreter → Add → Virtualenv,
+   base interpreter 3.11+. PyCharm then offers to install
+   `requirements.txt` — accept it.
+3. **Tests:** Settings → Tools → Python Integrated Tools → Default test runner
+   = **pytest**. Then right-click `tests/` → Run. The `[tool.pytest.ini_options]`
+   block in `pyproject.toml` is picked up automatically.
+4. **Running the report:** use a *module* run configuration, not a script one —
+   Run → Edit Configurations → **+** → Python, switch the target dropdown from
+   *Script path* to **Module name**, and enter `timing_model.report`. Put any
+   flags (`--csv`, `--sigma`) in *Parameters*. Running `report.py` as a plain
+   script also works because PyCharm puts the content root on `sys.path`, but
+   the module configuration is what matches the documented entry point.
+
+`pip install -e .` is optional and only needed to import `timing_model` from
+outside the project.
 
 ## The conditional-outputs mechanic
 
