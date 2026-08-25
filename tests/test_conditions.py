@@ -12,7 +12,7 @@ import dataclasses
 import pytest
 
 from timing_model.params import ModelError
-from timing_model.report import HEADLINE_FIELDS, render_table, results_frame, row
+from timing_model.report import HEADLINE_FIELDS, render_table, results_table, row
 from timing_model.results import CONDITION_KEYS, Outputs
 from timing_model.scenarios import published_base, run_ladder
 from timing_model.results import outputs
@@ -74,9 +74,9 @@ def test_rendered_table_prints_binding_guards() -> None:
 
 def test_headline_fields_are_the_ones_that_need_guarding() -> None:
     assert HEADLINE_FIELDS == {"t_star", "trigger"}
-    df = results_frame([(r.label, o) for r, o in run_ladder()])
+    table = results_table([(r.label, o) for r, o in run_ladder()])
     for k in CONDITION_KEYS:
-        assert f"cond_{k}" in df.columns
+        assert all(f"cond_{k}" in r for r in table)
 
 
 def test_the_three_unresolved_decisions_are_visible_in_every_row() -> None:
@@ -85,8 +85,7 @@ def test_the_three_unresolved_decisions_are_visible_in_every_row() -> None:
     Option (b) of §3.5(3) is defensible only if the label is on every table,
     not in a footnote.  So: on every row.
     """
-    df = results_frame([(r.label, o) for r, o in run_ladder()])
-    assert df["cond_h2_price"].notna().all()
-    assert df["cond_resale"].notna().all()
-    assert df["cond_support_basis"].notna().all()
-    assert (df["cond_h2_price"].str.len() > 0).all()
+    table = results_table([(r.label, o) for r, o in run_ladder()])
+    for key in ("cond_h2_price", "cond_resale", "cond_support_basis"):
+        assert all(r[key] for r in table), f"{key} empty on some row"
+        assert all(len(str(r[key])) > 0 for r in table)

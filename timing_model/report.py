@@ -8,16 +8,19 @@ outputs mechanic: it refuses to render any row containing ``t_star`` or
 from __future__ import annotations
 
 import argparse
-from typing import Iterable, Mapping, Sequence
-
-import pandas as pd
+import csv
+from typing import Iterable, Sequence
 
 from timing_model.params import ModelError
 from timing_model.results import CONDITION_KEYS, Outputs
 from timing_model.scenarios import Rung, run_ladder, sigma_ladder
 
-__all__ = ["HEADLINE_FIELDS", "row", "results_frame", "render_table",
-           "render_ladder", "write_csv", "main"]
+__all__ = ["HEADLINE_FIELDS", "row", "results_table", "render_table",
+           "render_ladder", "write_csv", "main", "Table"]
+
+#: A table is a list of flat records. Deliberately stdlib-only: every equation
+#: in this model is closed-form, so nothing here needs a dataframe library.
+Table = list[dict[str, object]]
 
 #: Fields that may never be printed without their conditions.
 HEADLINE_FIELDS: frozenset[str] = frozenset({"t_star", "trigger"})
@@ -44,9 +47,27 @@ def row(label: str, o: Outputs) -> dict[str, object]:
     return rec
 
 
-def results_frame(rows: Iterable[tuple[str, Outputs]]) -> pd.DataFrame:
+def results_table(rows: Iterable[tuple[str, Outputs]]) -> Table:
     """Tabulate labelled outputs. Every row carries its conditions."""
-    return pd.DataFrame([row(label, o) for label, o in rows])
+    return [row(label, o) for label, o in rows]
+
+
+def _columns(table: Table) -> list[str]:
+    """Column order, taken from the first record."""
+    return list(table[0]) if table else []
+
+
+def _render_grid(table: Table, columns: Sequence[str]) -> str:
+    """Right-aligned fixed-width text grid, no third-party formatter."""
+    widths = {
+        c: max(len(str(c)), *(len(str(r[c])) for r in table)) if table else len(str(c))
+        for c in columns
+    }
+    lines = ["  ".join(str(c).rjust(widths[c]) for c in columns)]
+    lines += [
+        "  ".join(str(r[c]).rjust(widths[c]) for c in columns) for r in table
+    ]
+    return "\n".join(lines)
 
 
 def render_table(rows: Sequence[tuple[str, Outputs]], title: str = "") -> str:
@@ -56,23 +77,32 @@ def render_table(rows: Sequence[tuple[str, Outputs]], title: str = "") -> str:
     every line, but it is printed *unconditionally* - a table whose rows differ
     in their conditions gets one condition line per row.
     """
-    df = results_frame(rows)
+    table = results_table(rows)
     cond_cols = [f"cond_{k}" for k in CONDITION_KEYS]
-    shown = [c for c in df.columns if c not in cond_cols and c != "binding_guards"]
+    shown = [c for c in _columns(table) if c not in cond_cols and c != "binding_guards"]
     if HEADLINE_FIELDS & set(shown) and not cond_cols:
         raise ModelError("headline fields present with no conditions block")
 
     out: list[str] = []
     if title:
         out += [title, "=" * len(title)]
-    out.append(df[shown].to_string(index=False))
+    out.append(_render_grid(table, shown))
     out.append("")
     out.append("Conditions (every row above is conditional on these):")
-    uniq = df[["scenario", *cond_cols]].drop_duplicates(subset=cond_cols)
-    for _, r in uniq.iterrows():
+    seen: set[tuple[object, ...]] = set()
+    for r in table:
+        key = tuple(r[c] for c in cond_cols)
+        if key in seen:
+            continue
+        seen.add(key)
         bits = ", ".join(f"{k}={r[f'cond_{k}']}" for k in CONDITION_KEYS)
         out.append(f"  [{r['scenario']}] {bits}")
-    guards = [g for gs in df["binding_guards"] for g in gs.split(" | ") if g != "none"]
+    guards = [
+        g
+        for r in table
+        for g in str(r["binding_guards"]).split(" | ")
+        if g != "none"
+    ]
     if guards:
         out.append("")
         out.append("Binding guards:")
@@ -89,11 +119,14 @@ def render_ladder(ladder: Sequence[tuple[Rung, Outputs]] | None = None) -> str:
     )
 
 
-def write_csv(path: str, rows: Iterable[tuple[str, Outputs]]) -> pd.DataFrame:
+def write_csv(path: str, rows: Iterable[tuple[str, Outputs]]) -> Table:
     """Write ``python_results.csv`` in the schema the MATLAB diff expects."""
-    df = results_frame(rows)
-    df.to_csv(path, index=False)
-    return df
+    table = results_table(rows)
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=_columns(table))
+        writer.writeheader()
+        writer.writerows(table)
+    return table
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -109,8 +142,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         print()
         print(render_table(sigma_ladder(), "Volatility ladder (Appendix A §3.4)"))
     if args.csv:
-        write_csv(args.csv, [(r.label, o) for r, o in pairs])
-        print(f"\nwrote {args.csv}")
+        table = write_csv(args.csv, [(r.label, o) for r, o in pairs])
+        print(f"\nwrote {args.csv} ({len(table)} rows)")
     return 0
 
 

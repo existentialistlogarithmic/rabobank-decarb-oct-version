@@ -86,11 +86,14 @@ def section_ranges() -> None:
 def section_reconciliation() -> int:
     """The 50-case grid, the self-diff, and the negative control."""
     banner(6, "RECONCILIATION HARNESS")
+    from collections import Counter
+
     cases = reference_cases()
     df = run_cases(cases)
     print(f"Reference grid: {len(cases)} cases in legacy mode "
           f"(u=1, lump support, p_H2=2.60, nominal, kappa=1).\n")
-    print(df.groupby("group").size().to_string())
+    for group, n in sorted(Counter(str(r["group"]) for r in df).items()):
+        print(f"  {group:<24}{n:>3}")
 
     failures = 0
     if diff(df, df):
@@ -99,9 +102,12 @@ def section_reconciliation() -> int:
     else:
         print("\nSelf-diff clean (0 mismatches).")
 
-    matlab = df.copy()
-    matlab.loc[matlab["case"] == "base", "npv0"] += 5.0
-    matlab.loc[matlab["case"] == "sigma_crisis", "t_star"] += 1
+    matlab = [dict(r) for r in df]
+    for r in matlab:
+        if r["case"] == "base":
+            r["npv0"] = float(r["npv0"]) + 5.0
+        if r["case"] == "sigma_crisis":
+            r["t_star"] = int(r["t_star"]) + 1
     found = diff(df, matlab)
     print("\nNegative control - perturb one NPV by EUR 5 and one T* by one year:")
     for m in found:
@@ -119,17 +125,27 @@ def section_reconciliation() -> int:
 
 def section_csv() -> None:
     banner(7, "CSV OUTPUT")
-    df = write_csv(CSV_PATH, [(r.label, o) for r, o in run_ladder()])
-    print(f"Wrote {CSV_PATH} ({len(df)} rows, {len(df.columns)} columns).")
-    print("Columns:", ", ".join(df.columns))
+    table = write_csv(CSV_PATH, [(r.label, o) for r, o in run_ladder()])
+    cols = list(table[0]) if table else []
+    print(f"Wrote {CSV_PATH} ({len(table)} rows, {len(cols)} columns).")
+    print("Columns:", ", ".join(cols))
+
+
+def section_selfcheck() -> int:
+    """Standard-library verification - runs everywhere, no packages needed."""
+    banner(8, "SELF-CHECK (standard library only)")
+    import selfcheck
+
+    return selfcheck.main()
 
 
 def section_tests() -> int:
-    banner(8, "TEST SUITE")
+    banner(9, "TEST SUITE")
     try:
         import pytest
     except ImportError:
-        print("pytest not installed - skipping. `pip install -r requirements.txt`")
+        print("pytest is not installed, so the 91-test suite is skipped.")
+        print("Section 8 above covers the same load-bearing claims without it.")
         return 0
     code = pytest.main(["-q", "tests"])
     return 0 if code == 0 else 1
@@ -155,13 +171,14 @@ def main() -> int:
         step()
     failures += section_reconciliation()
     section_csv()
+    failures += section_selfcheck()
     failures += section_tests()
 
-    banner(9, "SUMMARY")
+    banner(10, "SUMMARY")
     if failures:
         print(f"{failures} section(s) reported a problem. See above.")
     else:
-        print("Gate passed, negative control behaved, all tests passed.")
+        print("Gate passed, negative control behaved, self-check clean.")
         print("Base case: T* = 2029, NPV0 = 1588.29 EUR/t, trigger crossed 2030.")
         print("\nReminder: ladder rows 4-7 do not reproduce the published table.")
         print("CALIBRATION.md documents each one and why.")

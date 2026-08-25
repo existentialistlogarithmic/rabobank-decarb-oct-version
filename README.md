@@ -45,32 +45,38 @@ factor `u`.
 
 ## Usage
 
-Python 3.11+; `numpy` and `pandas` only. No solver libraries — every equation
-is closed-form or a small argmax over ~25 years.
+**Python 3.11+ and nothing else.** The package has zero third-party
+dependencies — no numpy, no pandas, no solver libraries. Every equation is
+closed-form or a small argmax over ~25 years, and a test asserts the package
+imports nothing outside the standard library. If you cannot install packages,
+everything below still works.
 
 ```bash
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-
-python run_all.py                          # EVERYTHING: gate, ladders, diff, tests
+python run_all.py                          # EVERYTHING: gate, ladders, diff, self-check
+python selfcheck.py                        # 21 load-bearing claims, stdlib only
 
 python -m timing_model.report              # just the cumulative stress ladder
 python -m timing_model.report --sigma      # plus the volatility ladder
 python -m timing_model.report --csv        # writes python_results.csv
-pytest                                     # 91 tests
 ```
+
+`pytest` is the only optional extra, and runs the full 91-test suite in
+`tests/`. Without it, `selfcheck.py` verifies the same load-bearing claims —
+gate, base case, ladder, guards, conditions mechanic, negative control,
+layering — using only the standard library. `run_all.py` runs the self-check
+always and the pytest suite when it is available.
 
 ### PyCharm
 
 1. **Open** the repository root as the project (the folder containing
    `pyproject.toml`) — not the `timing_model/` package folder, or imports
    will not resolve.
-2. **Interpreter:** Settings → Project → Python Interpreter → Add → Virtualenv,
-   base interpreter 3.11+. PyCharm then offers to install
-   `requirements.txt` — accept it.
-3. **Tests:** Settings → Tools → Python Integrated Tools → Default test runner
-   = **pytest**. Then right-click `tests/` → Run. The `[tool.pytest.ini_options]`
-   block in `pyproject.toml` is picked up automatically.
+2. **Interpreter:** Settings → Project → Python Interpreter — any 3.11+
+   interpreter works. **No packages need installing.** If PyCharm offers to
+   install `requirements.txt`, that is only `pytest`, and it is optional.
+3. **Tests:** if you have pytest, set Settings → Tools → Python Integrated
+   Tools → Default test runner = **pytest**, then right-click `tests/` → Run.
+   If you cannot install it, right-click `selfcheck.py` → Run instead.
 4. **Run everything at once:** right-click `run_all.py` in the Project pane →
    **Run 'run_all'**. That executes, in order: the validation gate, the base
    case, the stress ladder, the volatility ladder, the sourced ranges, the

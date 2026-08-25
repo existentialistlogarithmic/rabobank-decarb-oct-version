@@ -15,8 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Final, Sequence
 
-import pandas as pd
-
+from timing_model.report import Table
 from timing_model.params import Params, ScenarioParams
 from timing_model.results import Outputs, outputs
 from timing_model.scenarios import legacy_fixture
@@ -136,10 +135,13 @@ def reference_cases() -> list[Case]:
     return cases
 
 
-def run_cases(cases: Sequence[Case] | None = None) -> pd.DataFrame:
-    """Run the grid and return the CSV schema the MATLAB diff expects."""
+def run_cases(cases: Sequence[Case] | None = None) -> Table:
+    """Run the grid and return the CSV schema the MATLAB diff expects.
+
+    A plain list of records - see :data:`timing_model.report.Table`.
+    """
     cases = cases if cases is not None else reference_cases()
-    rows = []
+    rows: Table = []
     for c in cases:
         o: Outputs = outputs(c.params, c.scenario, gate=False)
         rows.append(
@@ -156,7 +158,7 @@ def run_cases(cases: Sequence[Case] | None = None) -> pd.DataFrame:
                 ),
             }
         )
-    return pd.DataFrame(rows)
+    return rows
 
 
 @dataclass(frozen=True)
@@ -173,7 +175,7 @@ class Mismatch:
 
 
 def diff(
-    python_df: pd.DataFrame, matlab_df: pd.DataFrame, npv_tol: float = NPV_TOL
+    python_rows: Table, matlab_rows: Table, npv_tol: float = NPV_TOL
 ) -> list[Mismatch]:
     """Compare two result frames case by case.
 
@@ -182,16 +184,16 @@ def diff(
     other are reported as mismatches rather than skipped.
     """
     out: list[Mismatch] = []
-    pi = python_df.set_index("case")
-    mi = matlab_df.set_index("case")
-    for case in sorted(set(pi.index) | set(mi.index)):
-        if case not in pi.index:
+    pi = {str(r["case"]): r for r in python_rows}
+    mi = {str(r["case"]): r for r in matlab_rows}
+    for case in sorted(set(pi) | set(mi)):
+        if case not in pi:
             out.append(Mismatch(case, "case", "missing", "present"))
             continue
-        if case not in mi.index:
+        if case not in mi:
             out.append(Mismatch(case, "case", "present", "missing"))
             continue
-        a, b = pi.loc[case], mi.loc[case]
+        a, b = pi[case], mi[case]
         for fld in ("t_star", "crossing_year"):
             if int(a[fld]) != int(b[fld]):
                 out.append(Mismatch(case, fld, int(a[fld]), int(b[fld])))

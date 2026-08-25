@@ -28,7 +28,7 @@ LEVELS: dict[str, int] = {
     "results": 7,
     "scenarios": 8,
     "report": 9,
-    "diff_harness": 9,
+    "diff_harness": 10,   # imports report for the Table alias
 }
 
 

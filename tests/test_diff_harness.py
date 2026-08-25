@@ -63,9 +63,12 @@ def test_diff_of_a_frame_with_itself_is_empty() -> None:
 def test_negative_control_flags_exactly_two_mismatches() -> None:
     """Perturb one NPV by EUR 5 and one T* by one year; both must be flagged."""
     py = run_cases()
-    matlab = py.copy()
-    matlab.loc[matlab["case"] == "base", "npv0"] += 5.0
-    matlab.loc[matlab["case"] == "sigma_crisis", "t_star"] += 1
+    matlab = [dict(r) for r in py]
+    for r in matlab:
+        if r["case"] == "base":
+            r["npv0"] = float(r["npv0"]) + 5.0
+        if r["case"] == "sigma_crisis":
+            r["t_star"] = int(r["t_star"]) + 1
 
     found = diff(py, matlab)
     assert len(found) == 2, f"expected exactly 2, got {[str(m) for m in found]}"
@@ -78,7 +81,7 @@ def test_negative_control_flags_exactly_two_mismatches() -> None:
 
 def test_diff_reports_cases_missing_from_either_side() -> None:
     py = run_cases()
-    matlab = py[py["case"] != "base"].copy()
+    matlab = [dict(r) for r in py if r["case"] != "base"]
     found = diff(py, matlab)
     assert [m.case for m in found] == ["base"]
     assert found[0].matlab == "missing"
@@ -90,8 +93,10 @@ def test_npv_tolerance_is_tighter_than_the_negative_control_perturbation() -> No
 
 def test_a_perturbation_inside_tolerance_is_not_flagged() -> None:
     py = run_cases()
-    matlab = py.copy()
-    matlab.loc[matlab["case"] == "base", "npv0"] += NPV_TOL / 2.0
+    matlab = [dict(r) for r in py]
+    for r in matlab:
+        if r["case"] == "base":
+            r["npv0"] = float(r["npv0"]) + NPV_TOL / 2.0
     assert diff(py, matlab) == []
 
 
@@ -102,8 +107,8 @@ def test_every_reference_case_yields_a_commitment_year_in_legacy_mode() -> None:
     shows a commitment year.  The case only disappears once the corrections are
     applied, which is why the ladder and not this grid is the honest headline.
     """
-    df = run_cases()
-    assert (df["t_star"] > 0).all()
+    rows = run_cases()
+    assert all(int(r["t_star"]) > 0 for r in rows)
 
 
 def test_beyond_horizon_is_encoded_as_minus_one_not_dropped() -> None:
@@ -119,7 +124,7 @@ def test_beyond_horizon_is_encoded_as_minus_one_not_dropped() -> None:
         p,
         replace(sc, p_H2=8.29, price_basis="real"),
     )
-    df = run_cases([hopeless])
-    assert len(df) == 1
-    assert df.loc[0, "t_star"] == -1
-    assert df.loc[0, "crossing_year"] == -1
+    rows = run_cases([hopeless])
+    assert len(rows) == 1
+    assert rows[0]["t_star"] == -1
+    assert rows[0]["crossing_year"] == -1
