@@ -55,6 +55,7 @@ everything below still works.
 python run_all.py                          # EVERYTHING: gate, ladders, diff, self-check
 python selfcheck.py                        # 21 load-bearing claims, stdlib only
 
+python plots.py                            # charts -> charts.html (open in a browser)
 python -m timing_model.report              # just the cumulative stress ladder
 python -m timing_model.report --sigma      # plus the volatility ladder
 python -m timing_model.report --csv        # writes python_results.csv

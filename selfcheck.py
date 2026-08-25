@@ -247,6 +247,59 @@ def _stdlib_only() -> None:
             assert not (banned & set(names)), f"{path.name} imports {names}"
 
 
+@check("finding: lever classes are exactly disjoint (value / threshold / both)")
+def _orthogonal() -> None:
+    from analysis import lever_classes
+
+    ls = lever_classes()
+    klasses = {l.klass for l in ls}
+    assert "value only" in klasses and "threshold only" in klasses, klasses
+    # the defining property: a value-only lever moves the trigger by EXACTLY zero
+    for l in ls:
+        if l.klass == "value only":
+            assert abs(l.d_trigger_pct) < 1e-9, f"{l.name} trigger {l.d_trigger_pct}"
+        if l.klass == "threshold only":
+            assert abs(l.d_npv_pct) < 1e-9, f"{l.name} NPV {l.d_npv_pct}"
+
+
+@check("finding: volatility is a pure threshold lever, support a pure value lever")
+def _instruments() -> None:
+    from analysis import lever_classes
+
+    by = {l.name: l for l in lever_classes()}
+    assert by["volatility -> CfD"].klass == "threshold only"
+    assert by["support s_max x2"].klass == "value only"
+
+
+@check("finding: utilisation inverts at a hydrogen price inside the sourced range")
+def _inversion() -> None:
+    from analysis import utilisation_inversion
+
+    flip = utilisation_inversion()
+    assert flip is not None, "no sign flip found"
+    assert 2.5 <= flip <= 20.0, flip
+
+
+@check("finding: a reline capture region exists and T* equals T_rel inside it")
+def _capture() -> None:
+    from analysis import reline_capture
+
+    rc = reline_capture()
+    assert rc.capture_from is not None
+    for age, t_rel, t_star, _ in rc.rows:
+        if age >= rc.capture_from:
+            assert t_star == t_rel, f"age {age}: T* {t_star} != reline {t_rel}"
+
+
+@check("finding: trigger stability under r is cancellation of two larger moves")
+def _cancellation() -> None:
+    from analysis import rate_cancellation
+
+    rs = rate_cancellation()
+    assert rs.d_break_even_pct > 0 and rs.d_multiple_pct < 0, "not opposing"
+    assert abs(rs.d_trigger_pct) < abs(rs.d_break_even_pct) / 4, "no cancellation"
+
+
 def main() -> int:
     """Print each claim and return 0 only if every one passed."""
     print(f"selfcheck - {len(_results)} claims, standard library only\n")
