@@ -153,9 +153,11 @@ def section_charts() -> None:
     banner(9, "CHARTS AND FINDINGS REPORT")
     import findings_report
     import plots
+    import surface
 
     plots.main()
     findings_report.main()
+    surface.main()
 
 
 def section_selfcheck() -> int:

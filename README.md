@@ -158,6 +158,23 @@ and dark mode. Light mode puts two series below 3:1 against the surface, so
 every series is also direct-labelled and every chart carries a table view —
 identity is never colour alone.
 
+## The fleet surface
+
+`surface.py` writes `surface.html`: net present value as a surface over **both**
+the commitment year and the plant's age, rotatable in the browser. Every other
+chart fixes one and varies the other.
+
+Three-dimensional charts are usually the wrong choice, and the test is whether
+the *shape* is the finding. Here it is. A diagonal cliff traces the reline year
+across the fleet — older plants reline sooner — and the highest ground runs
+along its near side. That is Finding 3 for every plant at once instead of one at
+a time. Exact values come from the flat heatmap underneath; the 3D view is for
+the shape, never for reading numbers off.
+
+Rendered with plain Canvas 2D and a painter's algorithm. No WebGL, no libraries,
+and the projection re-fits itself to the frame so the surface cannot overflow at
+any angle you drag to.
+
 ## Four outputs, and why there are four
 
 | Output | Question it answers | Contains option premium? |
@@ -188,6 +205,8 @@ timing_model/
 analysis.py            # derives the structural findings
 findings_report.py     # -> findings.html, the findings written out in full
 plots.py               # -> charts.html, nine charts, no matplotlib
+surface.py             # -> surface.html, the fleet surface in rotatable 3D
+ARTICLE.md             # working table of contents for the write-up
 selfcheck.py           # 26 stdlib assertions, for when pytest is unavailable
 run_all.py             # runs everything above in one go
 ```
@@ -212,6 +231,7 @@ python selfcheck.py                        # 26 load-bearing claims, stdlib only
 python analysis.py                         # the five findings, with evidence
 python plots.py                            # charts -> charts.html
 python findings_report.py                  # findings.html, the full write-up
+python surface.py                          # surface.html, the 3D fleet surface
 python -m timing_model.report              # just the cumulative stress ladder
 python -m timing_model.report --sigma      # plus the volatility ladder
 python -m timing_model.report --csv        # writes python_results.csv
