@@ -104,6 +104,14 @@ chart is sound, and the reline mechanism is real, but the exact year differs
 plant by plant. Relining schedules are published per plant, so this is one
 input that can be checked rather than forecast.
 
+## The article
+
+`article.py` writes **`article.html`** — the finished piece, roughly 2,200
+words, with both figures generated from the model at write time so the text
+cannot drift from the code. Thesis: *every input in this decision is a forecast
+except one — the date the furnace must be rebuilt — and that one binds harder
+than the carbon price.*
+
 ## Findings
 
 `analysis.py` **derives** these rather than asserting them; each returns the
@@ -206,6 +214,7 @@ analysis.py            # derives the structural findings
 findings_report.py     # -> findings.html, the findings written out in full
 plots.py               # -> charts.html, nine charts, no matplotlib
 surface.py             # -> surface.html, the fleet surface in rotatable 3D
+article.py             # -> article.html, THE FINISHED PIECE
 ARTICLE.md             # working table of contents for the write-up
 selfcheck.py           # 26 stdlib assertions, for when pytest is unavailable
 run_all.py             # runs everything above in one go
@@ -232,6 +241,7 @@ python analysis.py                         # the five findings, with evidence
 python plots.py                            # charts -> charts.html
 python findings_report.py                  # findings.html, the full write-up
 python surface.py                          # surface.html, the 3D fleet surface
+python article.py                          # article.html, the finished article
 python -m timing_model.report              # just the cumulative stress ladder
 python -m timing_model.report --sigma      # plus the volatility ladder
 python -m timing_model.report --csv        # writes python_results.csv

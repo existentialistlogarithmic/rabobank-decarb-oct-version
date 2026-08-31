@@ -151,6 +151,7 @@ def section_findings() -> None:
 def section_charts() -> None:
     """Write the chart page. Standard library only, like everything else."""
     banner(9, "CHARTS AND FINDINGS REPORT")
+    import article
     import findings_report
     import plots
     import surface
@@ -158,6 +159,7 @@ def section_charts() -> None:
     plots.main()
     findings_report.main()
     surface.main()
+    article.main()
 
 
 def section_selfcheck() -> int:
