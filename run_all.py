@@ -138,9 +138,17 @@ def section_csv() -> None:
     print("Columns:", ", ".join(cols))
 
 
+def section_observed() -> None:
+    """Observed inputs from Eurostat, and the floor they put under hydrogen."""
+    banner(8, "OBSERVED DATA (Eurostat)")
+    import eurostat
+
+    eurostat.main()
+
+
 def section_findings() -> None:
     """The derived structural findings, with their evidence."""
-    banner(8, "STRUCTURAL FINDINGS")
+    banner(9, "STRUCTURAL FINDINGS")
     import analysis
 
     for i, fnd in enumerate(analysis.all_findings(), 1):
@@ -150,7 +158,7 @@ def section_findings() -> None:
 
 def section_charts() -> None:
     """Write the chart page. Standard library only, like everything else."""
-    banner(9, "CHARTS AND FINDINGS REPORT")
+    banner(10, "CHARTS AND FINDINGS REPORT")
     import article
     import findings_report
     import plots
@@ -164,14 +172,14 @@ def section_charts() -> None:
 
 def section_selfcheck() -> int:
     """Standard-library verification - runs everywhere, no packages needed."""
-    banner(10, "SELF-CHECK (standard library only)")
+    banner(11, "SELF-CHECK (standard library only)")
     import selfcheck
 
     return selfcheck.main()
 
 
 def section_tests() -> int:
-    banner(11, "TEST SUITE")
+    banner(12, "TEST SUITE")
     try:
         import pytest
     except ImportError:
@@ -202,12 +210,13 @@ def main() -> int:
         step()
     failures += section_reconciliation()
     section_csv()
+    section_observed()
     section_findings()
     section_charts()
     failures += section_selfcheck()
     failures += section_tests()
 
-    banner(12, "SUMMARY")
+    banner(13, "SUMMARY")
     if failures:
         print(f"{failures} section(s) reported a problem. See above.")
     else:

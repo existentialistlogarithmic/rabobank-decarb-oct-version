@@ -104,6 +104,39 @@ chart is sound, and the reline mechanism is real, but the exact year differs
 plant by plant. Relining schedules are published per plant, so this is one
 input that can be checked rather than forecast.
 
+## Observed inputs, and the hydrogen floor
+
+`eurostat.py` pulls two real series from Eurostat's open API and caches them, so
+the model still runs with no network.
+
+**What real data can and cannot do here.** NPV, the trigger and `T*` are model
+*outputs* — no statistical agency publishes them. Official statistics can
+replace *inputs*, and two matter:
+
+- **Euro-area HICP** grounds the deflator. Latest: **2.1%/yr**, against the
+  model's assumed 2.0% — consistent, so the largest unit correction stands.
+- **Industrial electricity prices** (band IE, 20–70 GWh/yr, excluding taxes)
+  put a hard floor under the hydrogen price, because electrolysis is mostly a
+  way of buying electricity.
+
+At roughly 55 kWh per kg of hydrogen, the electricity bill *alone* — before
+electrolyser capex, compression, storage or transport — comes to:
+
+| | Sweden | France | Spain | Poland | Netherlands | Germany | Italy |
+|---|---|---|---|---|---|---|---|
+| €/kWh | 0.072 | 0.078 | 0.099 | 0.106 | 0.113 | 0.136 | 0.146 |
+| **€/kg floor** | **3.94** | **4.30** | **5.45** | **5.82** | **6.24** | **7.50** | **8.05** |
+
+**The base case assumes €2.60/kg. That is below the electricity bill alone, in
+every European steel-producing country** — 1.5× under even in Sweden, the
+cheapest. This is not a forecast disagreement; it is an arithmetic floor from
+official statistics, and it independently corroborates the €8.29/kg market
+assessment as being in the right region.
+
+Two inputs **cannot** be sourced from open data and need a market-data
+terminal: the EUA price series (which sets the price path, drift `mu` and
+volatility `sigma`) and commercial hydrogen assessments.
+
 ## The article
 
 `article.py` writes **`article.html`** — the finished piece, roughly 2,200
@@ -210,6 +243,7 @@ timing_model/
   scenarios.py     # ladder, storylines, sourced ranges, legacy fixture
   diff_harness.py  # 50 reference cases + the MATLAB diff
   report.py        # tables + CSV
+eurostat.py            # observed inputs from Eurostat, cached for offline use
 analysis.py            # derives the structural findings
 findings_report.py     # -> findings.html, the findings written out in full
 plots.py               # -> charts.html, nine charts, no matplotlib
@@ -237,6 +271,7 @@ everything below still works.
 python run_all.py                          # EVERYTHING: gate, ladders, diff, self-check
 python selfcheck.py                        # 26 load-bearing claims, stdlib only
 
+python eurostat.py                         # observed inputs + the hydrogen floor
 python analysis.py                         # the five findings, with evidence
 python plots.py                            # charts -> charts.html
 python findings_report.py                  # findings.html, the full write-up

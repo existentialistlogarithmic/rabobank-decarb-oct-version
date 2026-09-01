@@ -300,6 +300,29 @@ def _cancellation() -> None:
     assert abs(rs.d_trigger_pct) < abs(rs.d_break_even_pct) / 4, "no cancellation"
 
 
+@check("observed data: the base-case hydrogen price is below the power bill everywhere")
+def _h2_floor() -> None:
+    """Eurostat industrial power alone puts EUR 2.60/kg out of reach.
+
+    Runs from the committed cache, so it needs no network.
+    """
+    import eurostat
+
+    s = eurostat.refresh(offline=True)
+    floors = {k[-2:]: eurostat.hydrogen_power_floor(v.value)
+              for k, v in s.items() if k.startswith("power_")}
+    assert len(floors) >= 5, floors
+    assert min(floors.values()) > 2.60, f"cheapest floor {min(floors.values()):.2f}"
+
+
+@check("observed data: the model deflator matches euro-area HICP within 1pp")
+def _deflator() -> None:
+    import eurostat
+
+    hicp = eurostat.refresh(offline=True)["hicp"].value
+    assert abs(hicp - 2.0) < 1.0, hicp
+
+
 def main() -> int:
     """Print each claim and return 0 only if every one passed."""
     print(f"selfcheck - {len(_results)} claims, standard library only\n")
