@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import html
 
+import eurostat
 from timing_model.cost import reline_year
 from timing_model.objective import npv, npv_curve
 from timing_model.params import Params, ScenarioParams
@@ -123,6 +124,65 @@ def fig2() -> str:
             f"asset age in 2026</text>{''.join(parts)}</svg>")
 
 
+# ------------------------------------------------- observed hydrogen floor
+CORRECTED = Params().with_policy(kappa=0.94)
+
+
+def country_cases() -> tuple[list[tuple[str, float, int | None, float]], float]:
+    """For each member state: power-only H2 floor, and whether a case exists.
+
+    Returns rows of (geo, floor EUR/kg, T* or None, best NPV) plus the
+    hydrogen price at which a commitment year first appears.
+    """
+    obs = eurostat.refresh(offline=True)
+    rows = []
+    for k, v in obs.items():
+        if not k.startswith("power_"):
+            continue
+        fl = eurostat.hydrogen_power_floor(v.value)
+        sc = ScenarioParams(u=0.85, p_H2=fl, price_basis="real")
+        c = npv_curve(CORRECTED, sc)
+        T = max(c, key=c.get)
+        rows.append((k[-2:], fl, T if c[T] > 0 else None, c[T]))
+    rows.sort(key=lambda r: r[1])
+    lo, hi = 1.0, 9.0
+    for _ in range(50):
+        m = (lo + hi) / 2
+        sc = ScenarioParams(u=0.85, p_H2=m, price_basis="real")
+        cc = npv_curve(CORRECTED, sc)
+        if max(cc.values()) > 0:
+            lo = m
+        else:
+            hi = m
+    return rows, (lo + hi) / 2
+
+
+def fig_floor(rows, breakeven: float) -> str:
+    """Power-only hydrogen floor by country, against the break-even price."""
+    W, H, L, T, B = 720, 340, 74, 26, 46
+    hi = max(max(r[1] for r in rows), breakeven) * 1.16
+    X = lambda v: sc_(v, 0, hi, L, W - 150)
+    step = (H - T - B) / len(rows)
+    bh = min(19.0, step * 0.66)
+    parts = []
+    refs = ((2.60, "assumed 2.60", "asum"),
+            (breakeven, f"break-even {breakeven:.2f}", "be"))
+    for v, lab, cls in refs:                      # behind the bars and labels
+        parts.append(f'<line class="rule {cls}" x1="{X(v):.1f}" y1="{T}" '
+                     f'x2="{X(v):.1f}" y2="{H-B}"/>')
+        parts.append(f'<text class="an am {cls}" x="{X(v):.1f}" y="{H-B+17}">{lab}</text>')
+    for i, (g, fl, ts, _) in enumerate(rows):
+        cy = T + step * (i + 0.5)
+        ok = fl < breakeven
+        parts.append(f'<rect class="bar {"ok" if ok else "no"}" x="{L}" '
+                     f'y="{cy-bh/2:.1f}" width="{X(fl)-L:.1f}" height="{bh:.1f}"/>')
+        parts.append(f'<text class="tk ar" x="{L-9}" y="{cy+4:.1f}">{g}</text>')
+        parts.append(f'<text class="val" x="{X(fl)+8:.1f}" y="{cy+4:.1f}">'
+                     f'{fl:.2f}  {"case exists" if ok else "no case"}</text>')
+    return (f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="Power-only hydrogen '
+            f'cost floor by country against the break-even price">'
+            f"{''.join(parts)}</svg>")
+
 CSS = """
 :root{--ground:#f3f5f6;--surface:#fff;--sunk:#eaeef0;--ink:#0e1417;--ink2:#465259;
 --muted:#79868f;--rule:#dce2e6;--accent:#0a5f6b;--soft:#e2eff0;--sig:#b2481f;
@@ -176,6 +236,13 @@ figcaption b{color:var(--ink);font-weight:600}
 .ln.s0{stroke:var(--s0)}.ln.s1{stroke:var(--s1)}
 .mk.s0{fill:var(--s0)}.mk.s1{fill:var(--s1)}
 .mk{stroke:var(--surface);stroke-width:2}
+.bar{stroke:var(--surface);stroke-width:2}
+.bar.ok{fill:var(--accent)}.bar.no{fill:var(--s0)}
+.rule{stroke-width:2}.rule.be{stroke:var(--sig);stroke-dasharray:6 4}
+.rule.asum{stroke:var(--ink2);stroke-dasharray:2 4}
+.an.be{fill:var(--sig)}.an.asum{fill:var(--ink2)}
+.val{font-family:"IBM Plex Sans",sans-serif;font-size:11px;fill:var(--ink2);
+font-variant-numeric:tabular-nums}
 .dl{font-family:"IBM Plex Sans",sans-serif;font-size:11.5px;font-weight:600}
 .dl.s0{fill:var(--s0)}.dl.s1{fill:var(--s1)}
 .tk{font-family:"IBM Plex Mono",monospace;font-size:10.5px;fill:var(--muted)}
@@ -207,233 +274,240 @@ footer p{margin:0 0 .7rem}
 
 
 def build() -> str:
+    rows, be = country_cases()
+    live = [r for r in rows if r[2] is not None]
+    dead = [r for r in rows if r[2] is None]
+    cheapest = rows[0]
+    hicp = eurostat.refresh(offline=True)["hicp"]
+    f0 = fig_floor(rows, be)
     f1, cur = fig1()
-    base, corr = cur["base"], cur["corr"]
+    base = cur["base"]
     f2 = fig2()
-    rows = "".join(
-        f'<tr><td>{y}</td><td class="hi">{base[y]:,.0f}</td>'
-        f"<td>{(base[y]-base[2029])/base[2029]*100:+.1f}%</td></tr>"
-        for y in (2028, 2029, 2030, 2031, 2032, 2033))
+    ctab = "".join(
+        f'<tr><td>{g}</td><td>{fl:,.2f}</td>'
+        f'<td class="{"hi" if ts else ""}">{ts if ts else "none"}</td>'
+        f"<td>{v:,.0f}</td></tr>" for g, fl, ts, v in rows)
+    names = {"SE": "Sweden", "FR": "France", "ES": "Spain", "PL": "Poland",
+             "BE": "Belgium", "NL": "the Netherlands", "DE": "Germany",
+             "AT": "Austria", "IT": "Italy"}
+    livenames = " and ".join(names[g] for g, *_ in live)
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>The Only Date That Isn't a Forecast</title>
+<title>Below the Electricity Bill</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap">
 <style>{CSS}</style></head><body><main class="page">
 
 <span class="kicker">Energy transition &middot; steel</span>
-<h1>The only date that isn't a forecast</h1>
-<p class="stand">Europe's steel decarbonisation debate is conducted in carbon
-prices and hydrogen costs, both of them forecasts. The decision that actually
-binds is written in a maintenance schedule &mdash; and for a large part of the
-fleet it has already been taken.</p>
+<h1>Below the electricity bill</h1>
+<p class="stand">Europe's green steel case rests on a hydrogen price of
+&euro;2.60 a kilo. Official electricity statistics say that is less than the
+power it takes to make it &mdash; in every steel-producing country in the
+Union. What survives is not a sector case. It is a map of two countries and a
+maintenance schedule.</p>
 <div class="meta"><span>RaboResearch &middot; Energy Transition</span>
 <span>Explanatory framework, not investment advice</span></div>
 
 <h2><span class="no">01</span>The question is when, not whether</h2>
-<p class="lead">A European steel producer runs a blast furnace. It burns coal,
-it emits roughly 1.9 tonnes of CO&#8322; per tonne of steel, and it is expensive
-to run under a carbon price that is going up. A cleaner route exists &mdash;
-hydrogen-based direct reduction feeding an electric arc furnace &mdash; which
-emits about 0.1 tonnes instead.</p>
-<p>Almost nobody in the industry now argues about whether that switch happens.
-The argument is about <strong>when</strong>. And timing is a harder question
-than it looks, because the decision is irreversible in both directions. Commit
-early and you buy equipment before it has come down the cost curve, and before
-subsidy windows open. Commit late and you spend years paying a carbon bill you
-could have avoided &mdash; and you may spend several hundred million euros
-rebuilding a furnace you are about to switch off.</p>
-<p>We built a model to answer that question. It maximises the net present value
-of switching in each possible year, and separately computes the carbon price at
-which committing becomes rational once irreversibility is priced. What follows
-is what it said, including the parts we did not expect.</p>
+<p class="lead">A European steel producer runs a blast furnace. It emits roughly
+1.9 tonnes of CO&#8322; per tonne of steel. A cleaner route exists &mdash;
+hydrogen-based direct reduction feeding an electric arc furnace &mdash; at about
+0.1 tonnes instead. Almost nobody argues about whether that switch happens. The
+argument is about <strong>when</strong>, and it is a hard question because the
+decision cannot be undone in either direction.</p>
+<p>We built a model to answer it: maximise the value of switching in each
+possible year, and separately compute the carbon price at which committing
+becomes rational once irreversibility is priced. Then we went looking for the
+assumption most likely to be load-bearing. It was not the carbon price.</p>
 
-<h2><span class="no">02</span>The answer is a window, not a year</h2>
-<p>Our published base case gives an optimal commitment year of <strong>2029</strong>,
-worth about &euro;1,588 per tonne of annual capacity. That number has been
-quoted. It should not have been, at least not on its own.</p>
+<h2><span class="no">02</span>A number that does not survive the electricity bill</h2>
+<p>Making hydrogen by electrolysis is, in cost terms, mostly a way of buying
+electricity. Hydrogen carries about 33 kWh of energy per kilo, and a real
+system delivers it at roughly 60% efficiency &mdash; so <strong>about 55 kWh of
+electricity per kilo of hydrogen</strong>. That number is not a forecast. It is
+thermodynamics and a plant efficiency.</p>
+<p>Eurostat publishes what large industrial users actually pay for electricity,
+excluding taxes and levies. Multiply the two.</p>
+<figure class="wide">{f0}
+<figcaption><b>Figure 1. The hydrogen price floor, from official electricity
+prices.</b> Electricity cost alone at 55 kWh/kg, for a large industrial user
+(band IE, 20&ndash;70 GWh a year, excluding taxes), latest Eurostat half-year.
+Teal bars clear the break-even hydrogen price of
+&euro;{be:.2f}/kg; grey bars do not. The dotted line is the
+&euro;2.60/kg the base case assumes.</figcaption></figure>
+<p>The cheapest electricity in European steel, in {names[cheapest[0]]}, implies a
+floor of <strong>&euro;{cheapest[1]:.2f} per kilo</strong>. That is
+{cheapest[1]/2.60:.1f} times the assumed price. And this is a floor in the
+strict sense: it excludes the electrolyser, its stack replacements,
+compression, storage and every metre of pipe between the electrolyser and the
+furnace. Delivered hydrogen is strictly more expensive than this, everywhere.</p>
+<p class="pull">The base case assumes a hydrogen price below the cost of the
+electricity needed to make it &mdash; in all nine countries. That is not a
+forecast disagreement. It is an arithmetic floor from official statistics.</p>
+<p>It also settles an argument we had been having internally. A commercial
+assessment put Spanish hydrogen at &euro;8.29/kg in May 2026, which we had been
+treating as a pessimistic stress case against a &euro;2.60 base. The electricity
+data says the assessment is in the right region and <strong>the base case is
+the outlier</strong>.</p>
+
+<h2><span class="no">03</span>What is left is a geography, not a sector</h2>
+<p>Put each country's floor back through the model &mdash; corrected for load
+factor, for the hot-metal benchmark, and for a consistent real price basis. A
+commitment year first appears at a hydrogen price of
+<strong>&euro;{be:.2f}/kg</strong>. Above that, there is no year in the horizon
+in which switching is worth more than not switching.</p>
+<div class="tw"><table><thead><tr><th>Country</th>
+<th>Power-only floor, &euro;/kg</th><th>Commitment year</th>
+<th>Value, &euro;/t capacity</th></tr></thead><tbody>{ctab}</tbody></table></div>
+<p><strong>{livenames} clear the bar. Nobody else does.</strong> Spain misses it
+by {abs(dead[0][1]-be):.2f} of a euro &mdash; well inside the error of any
+number on this page, so read it as a coin toss rather than a verdict. The rest
+of the fleet is not marginal; it is a long way underwater, and the gap is
+electricity prices rather than anything to do with steel.</p>
+<p>Two cautions, both of which cut against the survivors. These floors ignore
+every hydrogen cost except the power, so {names[live[0][0]]} and
+{names[live[1][0]]} clear the bar only on the assumption that hydrogen costs
+nothing beyond its electricity. And the two countries that qualify are the two
+with the most hydro and nuclear on their systems &mdash; which is a statement
+about their grids, not about their steelmakers.</p>
+
+<h2><span class="no">04</span>Even where the case exists, a maintenance date sets it</h2>
+<p>Look at the commitment years in that table. Where a case survives at all, it
+is <strong>2032</strong> &mdash; and 2032 is not an economic optimum. It is the
+year our reference plant must reline.</p>
+<p>A blast furnace is not a permanent object. Its refractory lining burns out
+over fifteen to twenty years, after which the furnace is stripped and rebuilt.
+Salzgitter spent &euro;100m on one in 2024; thyssenkrupp spent over &euro;200m
+on its largest, after a campaign of twenty-one years. It is routine, scheduled,
+unavoidable heavy maintenance &mdash; and it is a fork. Arrive at it and you
+either spend the money on the old asset or you switch.</p>
 <figure class="wide">{f1}
-<figcaption><b>Figure 1. What committing in each year is worth.</b> Grey is the
-model as originally published; teal applies four corrections &mdash; a load
-factor (real furnaces run at 75&ndash;85%, not 100%), a benchmark applied to the
-right tonne, a consistent real-versus-nominal basis, and an explicit hydrogen
-price. Dots mark each curve's best year. The shaded band is the plateau; the
-dashed line is the reline.</figcaption></figure>
-<p>Look at the top of the curve. It is almost flat:</p>
-<div class="tw"><table><thead><tr><th>Commit in</th>
-<th>Worth, &euro;/t capacity</th><th>vs. best year</th></tr></thead>
-<tbody>{rows}</tbody></table></div>
-<p>The gap between 2029 and 2030 is <strong>seven euros out of
-&euro;1,588</strong>. Half of one percent. Every input feeding that number is a
-forecast &mdash; the carbon price, the hydrogen price, the learning rate on
-capex &mdash; and none of them is accurate to half a percent. Publishing "2029"
-implies a precision the curve cannot support.</p>
-<p class="pull">The honest output is a window: any year from 2028 to 2032 is
-within four percent of the best. Inside that band, the model has no opinion.</p>
+<figcaption><b>Figure 2. What committing in each year is worth.</b> Grey is the
+model as first published; teal applies the corrections. The shaded band is the
+plateau &mdash; every year in it sits within four percent of the best, so the
+model has no real opinion inside it. The dashed line is the reline, and one
+year past it costs &euro;{base[2032]-base[2033]:,.0f} per tonne in a single
+step.</figcaption></figure>
+<p>Notice the asymmetry. The top of the curve is nearly flat: committing in
+2029 is worth &euro;{base[2029]:,.0f} and committing in 2030 is worth
+&euro;{base[2030]:,.0f} &mdash; seven euros apart on fifteen hundred. Every
+input feeding those numbers is a forecast, and none is accurate to half a
+percent. But one year past the reline costs thirty percent.</p>
+<p class="pull">The peak is soft because the inputs are uncertain. The deadline
+is sharp because it is not a forecast at all &mdash; it is a calendar.</p>
+<p>That is the one input in this model that can be checked rather than
+projected. Relining schedules are planned years ahead and published plant by
+plant across the European fleet.</p>
 
-<h2><span class="no">03</span>The deadline, however, is real</h2>
-<p>Now look one year further. Committing in 2032 is worth &euro;1,520.
-Committing in 2033 is worth &euro;1,062. <strong>One year later costs
-&euro;458 &mdash; about thirty percent of the case &mdash; in a single
-step.</strong></p>
-<p>That step is the <strong>reline</strong>. A blast furnace is not a permanent
-object. Its refractory lining burns out over roughly fifteen to twenty years,
-after which the furnace has to be stripped and rebuilt. Salzgitter spent
-&euro;100m relining one furnace in 2024; thyssenkrupp spent over &euro;200m on
-its largest, after a campaign that had run twenty-one years. It is a routine,
-scheduled, unavoidable piece of heavy maintenance.</p>
-<p>It is also a fork. A producer arriving at its reline date must either spend
-that money on the old asset or switch. Commit at or before the reline and the
-spend is avoided entirely. Commit after and it has been paid, on a furnace with
-a few years left in it. <strong>The loss is taken twice: once in cash, once in
-the avoidance given up.</strong></p>
-<p>What makes this different from everything else in the model is not its size.
-It is its epistemic status. The carbon price is a forecast. The hydrogen price
-is a forecast. The learning rate is a forecast. <strong>The reline date is a
-calendar.</strong> Relining schedules are planned years ahead and published
-plant by plant across the European fleet.</p>
-<p class="pull">Every input in this decision is a forecast except one &mdash;
-and that one binds harder than the carbon price does.</p>
-
-<h2><span class="no">04</span>The fleet is locking itself out, one reline at a time</h2>
-<p>Widen from one plant to all of them. Figure 2 shows what committing in each
-year is worth, for plants at every stage of their furnace campaign.</p>
+<h2><span class="no">05</span>The fleet is locking itself out</h2>
 <figure class="wide">{f2}
-<figcaption><b>Figure 2. The same decision, for the whole fleet.</b> Darker is
-worth more; rows are plants at each stage of a furnace campaign. The rust line traces each plant's reline year; it sweeps diagonally
-because an older furnace relines sooner. Value collapses on crossing that line
-&mdash; and the best ground in the whole picture runs along its near
-side.</figcaption></figure>
-<p>Two things follow. First, past about sixteen years into a campaign the
-optimal commitment year stops being an economic choice at all: it becomes the
-reline year, exactly. The producer is no longer choosing when to switch. It is
-choosing not to spend the rebuild.</p>
-<p>Second, and more usefully, <strong>value peaks about two years short of a
-reline</strong> &mdash; not at the newest asset and not at the most decrepit. A
-plant one further year along loses roughly &euro;200 per tonne, and the reason
-is not the furnace. It is that EU support opens in 2028. A producer whose reline
-falls in 2027 must commit before the money exists, and forfeits the envelope
-entirely. <strong>The cliff is the subsidy calendar colliding with the
-maintenance calendar</strong>, and neither one is a forecast.</p>
-<p>This has an uncomfortable implication for the fleet as a whole. Since 2020,
-European producers have relined furnaces representing roughly 26 million tonnes
-of annual capacity. Each of those decisions bought another campaign &mdash;
-fifteen to twenty years of committed blast-furnace operation. On this model's
-logic, those plants are not slow to decarbonise. <strong>They are locked
-out</strong>, and the lock has a published expiry date.</p>
+<figcaption><b>Figure 3. The same decision, for every plant.</b> Darker is worth
+more; rows are plants at each stage of a furnace campaign. The rust line traces
+each plant's reline year &mdash; it sweeps diagonally because an older furnace
+relines sooner. Value collapses on crossing it, and the best ground runs along
+its near side.</figcaption></figure>
+<p>Past about sixteen years into a campaign, the optimal year stops being a
+choice at all: it becomes the reline year exactly. The producer is not choosing
+when to switch. It is choosing not to spend the rebuild.</p>
+<p>Value peaks about two years short of a reline &mdash; not at the newest asset
+and not at the most decrepit. A plant one year further along loses roughly
+&euro;200 a tonne, and the reason is not the furnace. EU support opens in 2028,
+so a producer whose reline falls in 2027 must commit before the money exists.
+<strong>The cliff is the subsidy calendar colliding with the maintenance
+calendar</strong>, and neither is a forecast.</p>
+<p>Since 2020, European producers have relined furnaces representing roughly 26
+million tonnes of annual capacity. Each of those decisions bought another
+campaign. On this model's logic those plants are not slow to decarbonise
+&mdash; <strong>they are locked out, and the lock has a published expiry
+date.</strong></p>
 
-<h2><span class="no">05</span>Two instruments that cannot substitute for each other</h2>
+<h2><span class="no">06</span>Which instrument actually moves this</h2>
 <p>The model produces two distinct numbers: what switching is worth, and the
-carbon price at which switching becomes rational under irreversibility. We
-tested every parameter against both, expecting a spectrum. We got a partition.</p>
-<p>Five parameters &mdash; the load factor, the size of the support envelope,
-whether free allowances can be resold, the price basis, and which policy vintage
-applies &mdash; move the value and move the threshold by <strong>exactly
-zero</strong>. Two &mdash; both volatility settings &mdash; move the threshold
-and leave the value at <strong>exactly zero</strong>. Only four move both.</p>
-<p>Those zeros are not small numbers. They are structural: the threshold is a
-closed-form expression in which the load factor, the resale switch, the support
-envelope and the price path simply do not appear. A parameter cannot move a
-quantity it is not in.</p>
-<div class="box"><h3>Why this matters for policy design</h3>
+carbon price at which it becomes rational under irreversibility. We tested every
+parameter against both, expecting a spectrum. We got a partition.</p>
+<p>Five parameters &mdash; load factor, support envelope, allowance resale,
+price basis, policy vintage &mdash; move the value and move the threshold by
+<strong>exactly zero</strong>. Two, both volatility settings, move the threshold
+and leave the value at <strong>exactly zero</strong>. Only four move both. Those
+zeros are structural, not small: the threshold is a closed-form expression that
+does not contain the load factor, the resale switch, the support envelope or the
+price path.</p>
+<div class="box"><h3>Why this matters for instrument design</h3>
 <p>A contract-for-difference collapses volatility. It moves the threshold and
-<em>cannot</em> improve the project's value. A capital grant raises the value
-and <em>cannot</em> bring the threshold closer.</p>
-<p>So the two common failure modes look alike in a spreadsheet and need
-different instruments. If a case fails because the carbon price never reaches
-the trigger, more grant money makes the project more valuable at a price that
-never arrives. <strong>No amount of subsidy fixes a volatility problem.</strong>
-At realised carbon-market volatility the trigger is &euro;202/tCO&#8322; and the
-price path does not reach it until the mid-2040s &mdash; beyond any
-recognisable investment horizon.</p></div>
-
-<h2><span class="no">06</span>Where the case actually fails</h2>
-<p>None of the above is what breaks the steel case today. Hydrogen is. Our base
-case assumes &euro;2.60/kg. The Platts assessment for Spain on 8 May 2026 was
-<strong>&euro;8.29/kg</strong>. At that price the model finds no commitment year
-anywhere in the horizon, and the trigger rises from &euro;110 to
-&euro;367/tCO&#8322;.</p>
-<p>Along the way it produces the one result we found genuinely counterintuitive.
-The load factor multiplies the entire annual benefit &mdash; including the
-operating penalty, which is negative. While avoided carbon costs outweigh the
-hydrogen bill, running the plant harder is worth more, exactly as
-project-finance intuition expects. Once the hydrogen bill dominates, the load
-factor multiplies a negative number.</p>
-<p class="pull">Above &euro;7.17/kg, the sensitivity of value to utilisation
-changes sign. Running the plant less is worth more &mdash; and today's market
-price is on the wrong side of that line.</p>
-<div class="box"><h3>Read this before quoting the previous paragraph</h3>
-<p>That is a statement about the sign of a sensitivity, not a recommendation.
-At those hydrogen prices the project's value is negative in every commitment
-year; a lower load factor makes it <em>less</em> negative. "Run it less" is what
-the arithmetic says about a plant that should not be built yet.</p>
-<p>The operational point stands, though, and it is not obvious: on the wrong
-side of that threshold, a minimum-utilisation covenant &mdash; standard
-protection in project finance &mdash; would compel the borrower to destroy
-value. The exposure to size is a revolving facility driven by the hydrogen
-price, not a term loan driven by capacity.</p></div>
+<em>cannot</em> improve the project's value. A capital grant raises the value and
+<em>cannot</em> bring the threshold closer. The two common failure modes look
+alike in a spreadsheet and need different instruments.</p>
+<p>Neither of them, though, is the binding constraint here. A hydrogen cost floor
+is not a threshold problem or a value problem &mdash; it is an input price.
+<strong>No carbon contract and no capital grant moves an electricity price.</strong>
+The instrument that would is one aimed at industrial power costs, which is a
+different policy conversation from the one the sector is currently having.</p></div>
 
 <h2><span class="no">07</span>Two things we would have got wrong</h2>
 <p>Our earlier drafts reported the trigger as insensitive to the discount rate,
-which sounded like robustness. It is not. Taking the rate from 6% to 10% moves
-the break-even carbon price by <strong>+304%</strong> and the option multiple by
-<strong>&minus;68%</strong>. Their product moves 29%. Two large opposing
-movements nearly annihilate, and what survives gets reported as stability. A
-cancellation fails differently from a robust result: both terms are driven by
-the gap between the discount rate and the price drift, so anything that changes
-the gap rather than the level breaks the offset.</p>
-<p>The second is subtler. Running our own scenario grid and correlating the
-outputs suggests value and threshold are strongly coupled, at &minus;0.87 &mdash;
-flatly contradicting the exact independence in section 5. Both results are
-correct. The grid varies hydrogen price and capex, which are two of the four
-parameters that move both outputs, so they dominate the variance and manufacture
-the correlation. <strong>The correlation is a property of the sampling; the
-independence is a property of the model.</strong> An analyst working from the
-matrix alone would reach for the wrong instrument.</p>
+which sounded like robustness. Taking the rate from 6% to 10% moves the
+break-even carbon price <strong>+304%</strong> and the option multiple
+<strong>&minus;68%</strong>; their product moves 29%. Two large opposing
+movements nearly annihilate, and the residue gets reported as stability. A
+cancellation fails differently from a robust result: both terms run off the gap
+between the discount rate and the price drift, so anything that changes the gap
+rather than the level breaks it.</p>
+<p>The second is subtler. Correlating outputs across our own scenario grid
+suggests value and threshold are coupled at &minus;0.87, contradicting the exact
+independence above. Both are correct. The grid varies hydrogen price and capex,
+two of the four parameters that move both outputs, so they dominate the variance
+and manufacture the correlation. <strong>The correlation is a property of the
+sampling; the independence is a property of the model.</strong></p>
 
 <h2><span class="no">08</span>What this means for origination</h2>
 <p>A term sheet on a &euro;2&ndash;4bn conversion is negotiated eighteen to
-twenty-four months ahead of commitment. If the decision window opens in 2028,
-the mandate conversations are happening now.</p>
-<p>More concretely, this model says the screening question is not "which
-producer has the best carbon economics". It is <strong>"which producer is about
-two years from a reline"</strong>. That is answerable from published maintenance
-schedules rather than from a price forecast, and it identifies clients whose
-deadline is close enough to force a decision and far enough away to still catch
-the support window.</p>
-<p>It also flags what is <em>not</em> financeable. The write-off of the
-incumbent asset is not a loan; it is an impairment that hits book equity in the
-year of commitment, precisely when the borrower needs headroom. And the gap
-between financial close and subsidy disbursement is itself a financing need that
-the model does not currently price.</p>
+twenty-four months ahead of commitment. That makes the screening question
+narrower than the sector conversation suggests, and answerable from published
+data rather than forecasts. It has two filters, in this order:</p>
+<p><strong>First, electricity.</strong> On today's industrial power prices the
+arithmetic only works where power is cheapest. That is a shorter list than
+"European steel", and it is checkable each half-year as Eurostat updates.</p>
+<p><strong>Second, the reline calendar.</strong> Within that list, the client
+worth a conversation is the one roughly two years short of a rebuild &mdash;
+close enough that the deadline forces a decision, far enough that the support
+window is still open.</p>
+<p>It also flags what is not financeable. The write-off of the incumbent asset is
+not a loan; it is an impairment landing on book equity in the year of
+commitment, exactly when the borrower needs headroom.</p>
 
 <h2><span class="no">09</span>What we are not claiming</h2>
 <div class="box cond"><h3>Conditions</h3>
-<p>Every figure here is conditional on: hydrogen at &euro;2.60/kg, allowance
-resale permitted, support treated as a &euro;200/t lump rather than a per-tonne
-flow, nominal carbon prices, and a load factor of 0.85. Three of those are
-genuine open decisions rather than settled inputs, and each materially changes
-the result.</p>
-<p>The cost-side parameters that set the reline date are <strong>calibrated
-against published results, not independently sourced</strong>. The mechanism is
-robust and the shape of Figure 2 is sound, but the specific year differs plant
-by plant and should be taken from that plant's own schedule. Reconciliation
-against the reference implementation is incomplete: four rows of our correction
-ladder do not yet reproduce, and the fifty-case comparison has not been run.</p>
-<p>Our reconstruction of the post-2028 free-allocation schedule is not yet
-checked against the legal annex, and the non-steel sectors have not had the
-calibration or units review that steel has &mdash; we publish their ordering
-only.</p></div>
-<p>None of that changes the argument. The plateau is flat because the inputs are
-uncertain, and the deadline is sharp because it is not a forecast. Those two
-facts point in the same direction regardless of which hydrogen price you
-believe.</p>
+<p>The electricity floors are power-only and therefore optimistic by
+construction; they are a lower bound on hydrogen cost, not an estimate of it.
+They use band IE industrial prices excluding taxes, which suits a large steel
+plant but is not a contracted price &mdash; a producer with a long-term PPA may
+do better, and one exposed to spot may do worse. Euro-area inflation is
+{hicp.value:.1f}% ({hicp.period}, Eurostat), consistent with the 2% deflator the
+model uses.</p>
+<p>Model results remain conditional on allowance resale being permitted, support
+treated as a lump rather than a per-tonne flow, and a load factor of 0.85. The
+cost-side parameters that set the reline date are <strong>calibrated against
+published results, not independently sourced</strong>: the mechanism is robust
+and Figure 3's shape is sound, but the specific year must come from each plant's
+own schedule. Reconciliation against the reference implementation is incomplete
+&mdash; four rows of our correction ladder do not yet reproduce and the
+fifty-case comparison has not been run. Our reconstruction of the post-2028
+free-allocation schedule is not yet checked against the legal annex, and
+non-steel sectors have not had the calibration this one has, so we publish their
+ordering only.</p></div>
+<p>None of that touches the central point. A hydrogen price below the cost of
+the electricity that makes it is not a modelling assumption that needs
+sensitivity analysis. It is an assumption that needs replacing &mdash; and when
+you replace it, the European steel case stops being a question about carbon
+prices and becomes a question about power prices and maintenance schedules.</p>
 
 <footer>
-<p>Model and full derivations are open in the project repository. Figures are
-generated from the model at publication time rather than transcribed.</p>
+<p>Electricity and inflation data from Eurostat, retrieved via its public API and
+cached with the model. Figures are generated from the model at publication time
+rather than transcribed. Model and derivations are open in the project
+repository.</p>
 <p>This is an explanatory framework, not investment advice. Results are
 conditional on the stated assumptions and on legislation still subject to
 co-decision.</p>

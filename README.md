@@ -140,10 +140,15 @@ volatility `sigma`) and commercial hydrogen assessments.
 ## The article
 
 `article.py` writes **`article.html`** — the finished piece, roughly 2,200
-words, with both figures generated from the model at write time so the text
-cannot drift from the code. Thesis: *every input in this decision is a forecast
-except one — the date the furnace must be rebuilt — and that one binds harder
-than the carbon price.*
+words, with all three figures generated from the model and from Eurostat at
+write time, so the text cannot drift from the code.
+
+**Thesis:** the base case assumes hydrogen at €2.60/kg, which is below the cost
+of the electricity needed to make it in every European steel-producing country.
+Replace that assumption with the observed floor and the sector case becomes a
+map: a commitment year exists in Sweden and France, is a coin toss in Spain, and
+does not exist anywhere else. Where it does exist, the year is 2032 — a reline
+date, not an economic optimum.
 
 ## Findings
 
