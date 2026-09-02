@@ -1,0 +1,42 @@
+{
+  "hicp_ea": {
+    "period": "2025",
+    "value": 2.1
+  },
+  "power_AT": {
+    "period": "2025-S2",
+    "value": 0.1419
+  },
+  "power_BE": {
+    "period": "2025-S2",
+    "value": 0.1115
+  },
+  "power_DE": {
+    "period": "2025-S2",
+    "value": 0.1363
+  },
+  "power_ES": {
+    "period": "2025-S2",
+    "value": 0.0991
+  },
+  "power_FR": {
+    "period": "2025-S2",
+    "value": 0.0782
+  },
+  "power_IT": {
+    "period": "2025-S2",
+    "value": 0.1463
+  },
+  "power_NL": {
+    "period": "2025-S2",
+    "value": 0.1134
+  },
+  "power_PL": {
+    "period": "2025-S2",
+    "value": 0.1058
+  },
+  "power_SE": {
+    "period": "2025-S2",
+    "value": 0.0716
+  }
+}

@@ -1,0 +1,6 @@
+# The model itself needs NOTHING beyond the Python 3.11+ standard library.
+# `python run_all.py` and `python selfcheck.py` work with no install at all.
+#
+# pytest is optional: it runs the full 91-test suite in tests/.
+# Without it, `python selfcheck.py` verifies the same load-bearing claims.
+pytest>=7.4
