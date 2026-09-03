@@ -42,10 +42,11 @@ model. See :func:`framing_gap`.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
-from typing import Final, Mapping, Sequence
+from typing import Final
 
-import eurostat
+from data import eurostat
 from timing_model.params import Params, ScenarioParams
 from timing_model.results import outputs
 
@@ -112,12 +113,18 @@ def point(geo: str, theta: float, series: Mapping[str, object] | None = None,
     return SourcingPoint(geo, theta, price, eps, o.t_star, o.npv0, o.trigger, curve)
 
 
-def frontier(geo: str, steps: int = THETA_STEPS, scale: float = 1.0,
+def frontier(geo: str, steps: int | None = None, scale: float = 1.0,
              series: Mapping[str, object] | None = None,
              with_curves: bool = False) -> list[SourcingPoint]:
-    """The whole frontier for one member state, all-grey to all-green."""
+    """The whole frontier for one member state, all-grey to all-green.
+
+    ``steps`` defaults to :data:`THETA_STEPS` read at call time, so a test that
+    shrinks the grid gets a smaller frontier rather than the value that happened
+    to be bound when this module was imported.
+    """
+    n = THETA_STEPS if steps is None else steps
     s = series if series is not None else eurostat.refresh(offline=True)
-    return [point(geo, i / (steps - 1), s, scale, with_curves) for i in range(steps)]
+    return [point(geo, i / (n - 1), s, scale, with_curves) for i in range(n)]
 
 
 def theta_at_price(geo: str, price: float,

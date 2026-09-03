@@ -12,14 +12,13 @@ Sits above Group V so that Groups I-V keep their forward-only import order.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Mapping
 
 from timing_model.benefit import carbon_price_path
 from timing_model.cost import residual_value, switching_cost
 from timing_model.objective import npv, npv_curve, t_exp, t_exp_marginal, t_star
 from timing_model.option import (
-    BEYOND_HORIZON,
     beta,
     break_even_price,
     crossing_year,

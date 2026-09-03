@@ -95,7 +95,7 @@ def test_capex_clamp_binds_and_is_recorded(p: Params, sc: ScenarioParams) -> Non
 
 
 def test_crossing_year_returns_none_and_a_reason_not_never() -> None:
-    path = {y: 50.0 for y in range(2026, 2051)}
+    path = dict.fromkeys(range(2026, 2051), 50.0)
     year, reason = crossing_year(400.0, path, 2050)
     assert year is None
     assert reason == BEYOND_HORIZON
@@ -113,6 +113,7 @@ def test_currency_tags_present_on_every_monetary_field(p: Params, sc: ScenarioPa
 
 def test_currency_tag_violation_is_detected() -> None:
     from dataclasses import dataclass, field
+
     from timing_model.params import Meta
 
     @dataclass(frozen=True)

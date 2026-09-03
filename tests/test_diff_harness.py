@@ -14,7 +14,6 @@ from timing_model.diff_harness import (
     reference_cases,
     run_cases,
 )
-from timing_model.params import ScenarioParams
 from timing_model.scenarios import corrected_base
 
 

@@ -18,8 +18,9 @@ against per-tonne-**product**:
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
-from typing import Final, Literal, Mapping
+from typing import Final, Literal
 
 __all__ = [
     "Meta",
@@ -271,14 +272,14 @@ class Params:
     sector: SectorParams = field(default_factory=SectorParams)
     policy: PolicyParams = field(default_factory=PolicyParams)
 
-    def with_common(self, **kw: object) -> "Params":
+    def with_common(self, **kw: object) -> Params:
         """Return a copy with ``kw`` applied to :attr:`common`."""
         return replace(self, common=replace(self.common, **kw))
 
-    def with_sector(self, **kw: object) -> "Params":
+    def with_sector(self, **kw: object) -> Params:
         """Return a copy with ``kw`` applied to :attr:`sector`."""
         return replace(self, sector=replace(self.sector, **kw))
 
-    def with_policy(self, **kw: object) -> "Params":
+    def with_policy(self, **kw: object) -> Params:
         """Return a copy with ``kw`` applied to :attr:`policy`."""
         return replace(self, policy=replace(self.policy, **kw))

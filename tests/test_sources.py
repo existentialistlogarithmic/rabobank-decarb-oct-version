@@ -12,7 +12,7 @@ import dataclasses
 
 import pytest
 
-import sources
+from reporting import sources
 from timing_model import benefit, params
 
 

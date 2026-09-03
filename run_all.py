@@ -9,8 +9,7 @@ behave, or any test fails, so it doubles as a CI smoke check.
 
 from __future__ import annotations
 
-import sys
-from typing import Callable
+from collections.abc import Callable
 
 from timing_model.diff_harness import diff, reference_cases, run_cases
 from timing_model.params import ModelError
@@ -30,7 +29,7 @@ CSV_PATH = "python_results.csv"
 
 def plots_out() -> str:
     """Filename the chart page is written to."""
-    import plots
+    from reporting import plots
 
     return plots.OUT
 
@@ -146,9 +145,8 @@ def section_observed() -> None:
     every checkable input next to the statistic that bears on it.
     """
     banner(8, "OBSERVED DATA (Eurostat, ECB)")
-    import ecb
-    import eurostat
-    import grounding
+    from analysis import grounding
+    from data import ecb, eurostat
 
     eurostat.main()
     print()
@@ -165,10 +163,9 @@ def section_findings() -> None:
     intensity are treated as the single parameter they physically are.
     """
     banner(9, "STRUCTURAL FINDINGS")
-    import analysis
-    import sourcing
+    from analysis import findings, sourcing
 
-    for i, fnd in enumerate(analysis.all_findings(), 1):
+    for i, fnd in enumerate(findings.all_findings(), 1):
         print(f"\n  {i}. {fnd.title}")
         print(f"     {fnd.statement}")
     print()
@@ -183,12 +180,7 @@ def section_documents() -> int:
     disagree about any input's value.
     """
     banner(10, "CHARTS, FINDINGS REPORT AND SOURCES")
-    import article
-    import explorer
-    import findings_report
-    import plots
-    import sources
-    import surface
+    from reporting import article, explorer, findings_report, plots, sources, surface
 
     plots.main()
     findings_report.main()
@@ -211,7 +203,7 @@ def section_tests() -> int:
     try:
         import pytest
     except ImportError:
-        print("pytest is not installed, so the 206-test suite is skipped.")
+        print("pytest is not installed, so the 219-test suite is skipped.")
         print("Section 11 above covers the same load-bearing claims without it.")
         return 0
     code = pytest.main(["-q", "tests"])

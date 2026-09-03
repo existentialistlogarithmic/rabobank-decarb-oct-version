@@ -28,8 +28,8 @@ from __future__ import annotations
 import json
 from typing import Final
 
-import eurostat
-import sourcing
+from analysis import sourcing
+from data import eurostat
 from timing_model.benefit import carbon_price_path
 from timing_model.params import Params, ScenarioParams
 from timing_model.results import outputs
@@ -74,7 +74,7 @@ def build_payload() -> dict:
                      "theta": None if theta is None else round(theta, 4)}
 
     endpoints = {geo: dict(zip(("green", "grey"),
-                               (round(v, 3) for v in sourcing.endpoints(geo, series))))
+                               (round(v, 3) for v in sourcing.endpoints(geo, series)), strict=False))
                  for geo in geos}
     crossover = {geo: sourcing.crossover_multiple(geo, series) for geo in geos}
     framing = {geo: [round(v, 1) for v in sourcing.framing_gap(geo, series)]

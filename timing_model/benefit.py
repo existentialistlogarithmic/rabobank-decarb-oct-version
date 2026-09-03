@@ -8,10 +8,11 @@ Imports only :mod:`timing_model.params` and :mod:`timing_model.primitives`
 
 from __future__ import annotations
 
-from typing import Final, Mapping
+from collections.abc import Mapping
+from typing import Final
 
 from timing_model.params import ModelError, Params, ScenarioParams
-from timing_model.primitives import effective_eps_inc, abatement_intensity, opex_penalty
+from timing_model.primitives import abatement_intensity, effective_eps_inc, opex_penalty
 
 __all__ = [
     "carbon_price_path",

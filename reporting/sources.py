@@ -47,8 +47,9 @@ from __future__ import annotations
 
 import dataclasses
 import pathlib
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Final, Mapping, Sequence
+from typing import Final
 
 from timing_model import benefit, params
 
@@ -532,6 +533,16 @@ GAPS: Final[tuple[tuple[str, str], ...]] = (
      "are not published as a series."),
 )
 
+#: Dotted names in the register are the model's public vocabulary and stay put
+#: when files move; this maps their first segment to wherever the code now lives.
+_PROVIDER_MODULES: Final[Mapping[str, str]] = {
+    "eurostat": "data.eurostat",
+    "ecb": "data.ecb",
+    "observed": "data.observed",
+    "grounding": "analysis.grounding",
+    "sourcing": "analysis.sourcing",
+}
+
 _CLASSES: Final[Mapping[str, type]] = {
     "common": params.CommonParams,
     "sector": params.SectorParams,
@@ -542,8 +553,10 @@ def _root(group: str) -> object:
     """Object a dotted parameter name is resolved against."""
     if group in _CLASSES:
         return _CLASSES[group]()
-    if group in ("eurostat", "ecb", "observed", "grounding"):
-        return __import__(group)
+    if group in _PROVIDER_MODULES:
+        import importlib
+
+        return importlib.import_module(_PROVIDER_MODULES[group])
     if group == "scenarios":
         from timing_model import scenarios
 
@@ -641,7 +654,7 @@ def by_status(status: str) -> tuple[Claim, ...]:
 
 def _observed_rows() -> list[tuple[str, str, str, str]]:
     """Observed series from the committed cache. Never touches the network."""
-    import eurostat
+    from data import eurostat
 
     rows: list[tuple[str, str, str, str]] = []
     for ser in eurostat.refresh(offline=True).values():

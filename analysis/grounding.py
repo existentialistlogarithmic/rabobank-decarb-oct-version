@@ -26,11 +26,11 @@ Reading the verdicts
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Final, Sequence
+from typing import Final
 
-import ecb
-import eurostat
+from data import ecb, eurostat
 from timing_model.benefit import carbon_price_path
 from timing_model.params import Params, ScenarioParams
 from timing_model.scenarios import published_base
@@ -216,10 +216,10 @@ def _table(rows: Sequence[Grounding]) -> str:
     head = ("param", "model", "observed", "verdict")
     cells = [head] + [(r.param, r.model, r.observed, r.verdict) for r in rows]
     widths = [max(len(row[i]) for row in cells) + 2 for i in range(4)]
-    out = ["  " + "".join(c.ljust(w) for c, w in zip(head, widths)).rstrip(),
+    out = ["  " + "".join(c.ljust(w) for c, w in zip(head, widths, strict=False)).rstrip(),
            "  " + "-" * (sum(widths) - 2)]
     for row in cells[1:]:
-        out.append("  " + "".join(c.ljust(w) for c, w in zip(row, widths)).rstrip())
+        out.append("  " + "".join(c.ljust(w) for c, w in zip(row, widths, strict=False)).rstrip())
     return "\n".join(out)
 
 

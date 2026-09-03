@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import argparse
 import csv
-from typing import Iterable, Sequence
+from collections.abc import Iterable, Sequence
 
 from timing_model.params import ModelError
 from timing_model.results import CONDITION_KEYS, Outputs

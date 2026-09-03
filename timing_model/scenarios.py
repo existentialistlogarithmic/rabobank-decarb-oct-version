@@ -10,10 +10,11 @@ row adding one correction to the row above - is the honest presentation.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
-from typing import Callable, Final, Mapping, Sequence
+from typing import Final
 
-from timing_model.params import Params, ScenarioParams, SIGMA_REGIMES
+from timing_model.params import SIGMA_REGIMES, Params, ScenarioParams
 from timing_model.results import Outputs, outputs
 
 __all__ = [

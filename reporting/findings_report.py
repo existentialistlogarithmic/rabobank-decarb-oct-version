@@ -8,8 +8,12 @@ produced it. Standard library only.
 from __future__ import annotations
 
 import html
-from analysis import (
-    lever_classes, output_correlations, rate_cancellation, reline_capture,
+
+from analysis.findings import (
+    lever_classes,
+    output_correlations,
+    rate_cancellation,
+    reline_capture,
     utilisation_inversion,
 )
 from timing_model.cost import reline_year, support
@@ -157,16 +161,16 @@ def stat(v: str, label: str, sig: bool = False) -> str:
 
 def f1() -> str:
     ls = lever_classes()
-    val = [l for l in ls if l.klass == "value only"]
-    thr = [l for l in ls if l.klass == "threshold only"]
-    both = [l for l in ls if l.klass == "both"]
+    val = [lv for lv in ls if lv.klass == "value only"]
+    thr = [lv for lv in ls if lv.klass == "threshold only"]
+    both = [lv for lv in ls if lv.klass == "both"]
     rows = "".join(
-        f"<tr><td>{esc(l.name)}</td>"
-        f'<td class="{"zero" if abs(l.d_npv_pct) < 1e-9 else ("pos" if l.d_npv_pct > 0 else "neg")}">'
-        f"{l.d_npv_pct:+.3f}%</td>"
-        f'<td class="{"zero" if abs(l.d_trigger_pct) < 1e-9 else ("pos" if l.d_trigger_pct > 0 else "neg")}">'
-        f"{l.d_trigger_pct:+.3f}%</td>"
-        f"<td>{esc(l.klass)}</td></tr>" for l in ls)
+        f"<tr><td>{esc(lv.name)}</td>"
+        f'<td class="{"zero" if abs(lv.d_npv_pct) < 1e-9 else ("pos" if lv.d_npv_pct > 0 else "neg")}">'
+        f"{lv.d_npv_pct:+.3f}%</td>"
+        f'<td class="{"zero" if abs(lv.d_trigger_pct) < 1e-9 else ("pos" if lv.d_trigger_pct > 0 else "neg")}">'
+        f"{lv.d_trigger_pct:+.3f}%</td>"
+        f"<td>{esc(lv.klass)}</td></tr>" for lv in ls)
     return f"""
 <article class="finding" id="f1">
   <div class="fhead">

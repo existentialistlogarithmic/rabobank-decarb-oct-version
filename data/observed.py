@@ -20,8 +20,9 @@ import json
 import pathlib
 import urllib.error
 import urllib.request
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Callable, Final, Mapping
+from typing import Final
 
 TIMEOUT: Final[int] = 25
 

@@ -35,7 +35,7 @@ from __future__ import annotations
 import pathlib
 from typing import Final
 
-from observed import Series, cache_read, cache_write, fetch_or_cache, get_json
+from data.observed import Series, cache_read, cache_write, fetch_or_cache, get_json
 
 CACHE = pathlib.Path(__file__).with_name("eurostat_cache.json")
 BASE = "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data"

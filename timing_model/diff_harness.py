@@ -12,11 +12,12 @@ flagged.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
-from typing import Final, Sequence
+from typing import Final
 
-from timing_model.report import Table
 from timing_model.params import Params, ScenarioParams
+from timing_model.report import Table
 from timing_model.results import Outputs, outputs
 from timing_model.scenarios import legacy_fixture
 

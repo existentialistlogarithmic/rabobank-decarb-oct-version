@@ -93,7 +93,73 @@ def test_every_public_function_has_a_docstring() -> None:
     for module in sorted(LEVELS):
         tree = ast.parse((PKG / f"{module}.py").read_text())
         for node in tree.body:
-            if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
-                if not node.name.startswith("_") and not ast.get_docstring(node):
-                    missing.append(f"{module}.{node.name}")
+            if (isinstance(node, (ast.FunctionDef, ast.ClassDef))
+                    and not node.name.startswith("_")
+                    and not ast.get_docstring(node)):
+                missing.append(f"{module}.{node.name}")
     assert not missing, f"missing docstrings: {missing}"
+
+
+# --------------------------------------------------------------------------
+# Top-level packages. Same rule as the model's group order, one level up: a
+# layer may import from lower layers only, so a reader can stop at any package
+# boundary and still have something that runs.
+# --------------------------------------------------------------------------
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+#: Strict order. `data` deliberately sits BELOW the model and must not import
+#: it: an observation is not allowed to depend on what the model does with it.
+PACKAGE_LEVELS: dict[str, int] = {
+    "timing_model": 0,
+    "data": 1,
+    "analysis": 2,
+    "reporting": 3,
+}
+
+LOCAL_PACKAGES = set(PACKAGE_LEVELS)
+
+
+def _package_imports(path: pathlib.Path) -> set[str]:
+    """Top-level local packages imported by one file, by AST walk."""
+    found: set[str] = set()
+    for node in ast.walk(ast.parse(path.read_text())):
+        if isinstance(node, ast.ImportFrom) and node.level == 0:
+            head = (node.module or "").split(".")[0]
+            if head in LOCAL_PACKAGES:
+                found.add(head)
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                head = alias.name.split(".")[0]
+                if head in LOCAL_PACKAGES:
+                    found.add(head)
+    return found
+
+
+@pytest.mark.parametrize("package", sorted(PACKAGE_LEVELS))
+def test_packages_import_only_downwards(package: str) -> None:
+    level = PACKAGE_LEVELS[package]
+    for path in sorted((ROOT / package).glob("*.py")):
+        for dep in _package_imports(path) - {package}:
+            assert PACKAGE_LEVELS[dep] < level, (
+                f"{package}/{path.name} imports {dep} "
+                f"(level {PACKAGE_LEVELS[dep]} >= {level}): layers run one way"
+            )
+
+
+def test_observed_data_does_not_depend_on_the_model() -> None:
+    """`data` answers "what is true", not "what does the model need".
+
+    If a provider imported `timing_model` it would be a short step to shaping a
+    series to suit an assumption, which is the failure this whole layer exists
+    to prevent.
+    """
+    for path in sorted((ROOT / "data").glob("*.py")):
+        assert "timing_model" not in _package_imports(path), path.name
+
+
+def test_nothing_below_reporting_imports_reporting() -> None:
+    """Generated pages are leaves. The model must never read its own report."""
+    for package in ("timing_model", "data", "analysis"):
+        for path in sorted((ROOT / package).glob("*.py")):
+            assert "reporting" not in _package_imports(path), f"{package}/{path.name}"

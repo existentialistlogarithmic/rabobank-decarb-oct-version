@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import pytest
 
-import eurostat
-import explorer
-import sourcing
+from analysis import sourcing
+from data import eurostat
+from reporting import explorer
 from timing_model.params import Params, ScenarioParams
 
 GEOS = eurostat.STEEL_GEOS
@@ -149,7 +149,7 @@ def test_the_frontier_changes_no_registered_default(series: dict) -> None:
 # ------------------------------------------------------------ the page itself
 
 @pytest.fixture(scope="module")
-def small_payload(monkeypatch_module: None = None) -> dict:
+def small_payload() -> dict:
     """A reduced grid: same code path, few enough runs to check every point."""
     import unittest.mock as mock
 

@@ -9,21 +9,18 @@ gross capex is a modelling signal, not a free plant").
 from __future__ import annotations
 
 from dataclasses import fields, is_dataclass
-from typing import Final, Sequence
+from typing import Final
 
 from timing_model.benefit import free_allocation_factor
 from timing_model.cost import residual_value, switching_cost
 from timing_model.objective import npv_curve, t_exp_marginal, t_star
 from timing_model.option import beta, break_even_price, option_multiple, trigger_price
 from timing_model.params import (
-    CommonParams,
     ModelError,
     Params,
-    PolicyParams,
     ScenarioParams,
-    SectorParams,
 )
-from timing_model.primitives import abatement_intensity, crf, mac, opex_penalty
+from timing_model.primitives import abatement_intensity, crf, mac
 
 __all__ = ["GATE", "GATE_S_S", "run_gate", "run_guards", "check_currency_tags",
            "validated", "GATE_TOL"]

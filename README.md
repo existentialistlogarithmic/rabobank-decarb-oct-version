@@ -1,432 +1,375 @@
-# timing_model
+# timing_model — steel decarbonisation investment timing
 
 Python implementation of the RaboResearch industrial decarbonisation
-investment-timing model (real options + NPV), following the v12 restructure
-and coding specification.
+investment-timing model (real options + NPV), following the v12 restructure and
+coding specification.
 
-A steel producer chooses a single year `T` to irreversibly switch from blast
-furnace to H2-DRI-EAF. The model maximises `NPV(T)` over the horizon and
-separately computes an uncertainty-adjusted carbon-price trigger via a
-Dixit–Pindyck option multiple.
+A European integrated steel producer has to pick one year `T` to switch
+irreversibly from blast furnace to H2-DRI-EAF. The model picks it two ways —
+by maximising NPV over the commitment year, and by a Dixit–Pindyck real-options
+trigger on the carbon price — and reports where the two disagree.
 
-## Figure 1, explained from scratch
+Python 3.11+. **No third-party dependencies.** `pytest` is optional.
 
-*The first chart in `charts.html`. If you know nothing about this model, start here.*
+```
+python run_all.py     # 13 sections, ~40 s, exits non-zero if anything fails
+```
 
-### The situation
+Read `CALIBRATION.md` before quoting a number, and `SOURCES.md` before calling
+one sourced.
 
-A European steel producer runs a **blast furnace** — the traditional way of
-making steel, which burns coal and emits a lot of CO₂. A cleaner alternative
-exists: **H₂-DRI-EAF**, which uses hydrogen instead of coal. It is expensive to
-build, currently more expensive to run, and **cannot be undone once built**.
+---
 
-The producer is not asking *whether* to switch. It is asking **when**. Switch
-too early and you pay for expensive equipment and miss subsidies that have not
-opened yet. Switch too late and you spend years paying a carbon bill you could
-have avoided — and you may pay to rebuild a blast furnace you are about to
-abandon.
+## Contents
 
-### What the chart shows
+| Section | |
+|---|---|
+| [What it computes](#what-it-computes) | the four outputs, and why there are four |
+| [Repository layout](#repository-layout) | four layers, import direction enforced |
+| [Running it](#running-it) | entry points and generated artefacts |
+| [Where the numbers come from](#where-the-numbers-come-from) | sourced / observed / assumed / fitted |
+| [Results](#results) | base case and the correction ladder |
+| [Findings](#findings) | twelve, in three groups |
+| [The sourcing frontier](#the-sourcing-frontier) | the largest single correction |
+| [Verification](#verification) | what is tested, and what that does not cover |
+| [Known limitations](#known-limitations) | what does not reproduce, and why |
 
-- **Horizontal axis — the year the producer commits.** This is the year the
-  board signs off and money is committed, not the year the plant starts
-  running.
-- **Vertical axis — what committing in that year is worth**, in euros per tonne
-  of annual capacity, expressed in today's money. Higher is better.
+---
 
-So for every possible commitment year, the chart shows what committing in *that*
-year would be worth. The **peak of a line is that line's best year.**
+## What it computes
 
-### The four lines
+Four outputs, because the decision has two halves and each half has a "when"
+and a "whether".
 
-They are **cumulative**: each one adds a correction to the line above it. None
-of them is a scenario or a guess — all four are fixes to errors in the
-originally published version.
-
-| Line | What it adds | Best year | Peak value |
-|---|---|---|---|
-| **Blue** — as published | The model as originally published | 2029 | €1,588 |
-| **Orange** — + load factor | The original assumed the plant runs 100% of the time. Real blast furnaces run 75–85%. Set to 85%. | 2030 | €1,294 |
-| **Green** — + hot metal | A units fix. The EU emissions benchmark is measured per tonne of *molten iron*; we were applying it to *finished steel*. | 2030 | €1,166 |
-| **Yellow** — + real vs nominal | We discount future money at 8% *after inflation*, but the carbon price forecast was *before inflation*. Put both on the same basis. | 2031 | €754 |
-
-The bottom line is the most defensible one.
-
-### What it says about timing — two things
-
-**1. The best year is not really a single year.** The top of the curve is almost
-flat:
-
-| Commit in | Worth | vs. the best year |
+| Output | Question | Contains an option premium? |
 |---|---|---|
-| 2028 | €1,573 | −1.0% |
-| **2029** | **€1,588** | **best** |
-| 2030 | €1,581 | −0.5% |
-| 2031 | €1,556 | −2.0% |
-| 2032 | €1,520 | −4.3% |
+| `T*` | Which year maximises NPV? | No |
+| `T_exp` | Last year in which deferral still adds value | No |
+| `p*'` | Carbon price at which committing beats waiting | Yes |
+| crossing year | First year the price path reaches `p*'` | Yes |
 
-The difference between 2029 and 2030 is **€7 out of €1,588** — half of one
-percent. Every input here is a forecast, so a half-percent gap is noise.
-Quoting "2029" implies a precision the chart does not support. **The honest
-answer is a window: 2028 to 2032.**
+`T*` and the crossing year routinely differ by one to two years. That gap is
+the option premium expressed in time, not an inconsistency. The report layer
+refuses to print either without the conditions it was computed under.
 
-**2. But the deadline is real.** One year past the window:
+**Unit discipline.** The largest error class in this project is euros per tonne
+of *annual capacity* against euros per tonne of *product*. Capex, support and
+every NPV are per tonne of capacity; the operating penalty, the benefit flow
+and the carbon terms are per tonne of product. The load factor `u` is the only
+bridge between them — it multiplies `B(t)` and never `I'(T)` — and an AST test
+fails the build if `cost.py` so much as names it.
 
-> 2032: €1,520  →  2033: €1,062  —  **a €458 drop, about 30%, in one year**
+## Repository layout
 
-That is the **reline**. A blast furnace must be stripped and rebuilt roughly
-every 20 years; this one is due in 2032. Commit at or before the reline and the
-producer never spends that money. Commit after and they have just paid to
-rebuild a furnace they are about to shut — a loss taken twice, once in cash and
-once in the saving given up.
+Four layers. Imports run one way only, and `tests/test_layering.py` walks the
+AST to prove it, so you can stop reading at any layer boundary and still have
+something that runs.
 
-The drop appears in **all four lines at almost the same size** (€423–458),
-because unlike everything else in the model it does not depend on any forecast.
-**It is a maintenance date.**
+```
+timing_model/        the model — 11 modules in strict group order
+  params.py            dataclasses; every field carries unit, currency year, source
+  primitives.py        Group I:   b, a(p_H2), CRF, MAC        [MAC is diagnostic]
+  benefit.py           Group II:  alpha_v(t), B(t)
+  cost.py              Group III: L(T), s(T), S_s(T), I'(T)
+  objective.py         Group IV:  npv(T), t_star, t_exp, delta(T)
+  option.py            Group V:   p'_M, beta, trigger, crossing_year
+  validate.py          gate + feasibility guards; raises, never returns a flag
+  results.py           Outputs, welded to the conditions they hold under
+  scenarios.py         ladder, storylines, sourced ranges, legacy fixture
+  diff_harness.py      50 reference cases + the MATLAB diff
+  report.py            tables + CSV
 
-> **The peak is soft; the deadline is hard.** Do not argue about 2029 versus
-> 2030. Do not miss 2032.
+data/                observed inputs — may NOT import the model
+  observed.py          shared series type; the fetch-then-cache contract
+  eurostat.py          energy prices, producer prices, capacity utilisation
+  ecb.py               yield curve and policy rate
+  *_cache.json         committed, so the model runs with no network
 
-### One pattern worth noticing
+analysis/            studies that run on the model without changing it
+  findings.py          the five structural findings and their evidence
+  grounding.py         each input vs the statistic that bears on it, with a verdict
+  sourcing.py          the hydrogen sourcing frontier
 
-As the corrections are applied, the best year moves 2029 → 2030 → 2030 → 2031.
-Two years in total. The value goes €1,588 → €754 — **it more than halves.**
+reporting/           generated deliverables — nothing imports these
+  sources.py           -> SOURCES.md, the provenance register (audited)
+  plots.py             -> charts.html, nine SVG charts, no matplotlib
+  surface.py           -> surface.html, rotatable 3D fleet surface
+  findings_report.py   -> findings.html, the derivations in full
+  article.py           -> article.html, the written piece
+  explorer.py          -> explorer.html, the interactive frontier
 
-The corrections barely move the date and gut the value. **The date is robust;
-the number is not.** If anyone quotes €1,588, that is the figure that will not
-survive scrutiny — not the year.
+run_all.py           every section, in order
+selfcheck.py         38 stdlib assertions, for when pytest is unavailable
+```
 
-### Before you use this
+`data/` sitting *below* the model is deliberate. If a provider could import
+`timing_model`, it would be a short step to shaping a series to suit an
+assumption, so a test forbids it outright.
 
-The reline date is set by cost-side parameters that are **calibrated, not taken
-from the reference implementation** — see `CALIBRATION.md`. The *shape* of the
-chart is sound, and the reline mechanism is real, but the exact year differs
-plant by plant. Relining schedules are published per plant, so this is one
-input that can be checked rather than forecast.
+## Running it
 
-## Observed inputs, and the two hydrogen floors
+```
+python run_all.py               # gate, ladders, reconciliation, pages, checks
+python selfcheck.py             # 38 assertions, standard library only
+python -m pytest tests          # 219 tests
+python -m analysis.sourcing     # the frontier, as a table
+python -m analysis.grounding    # inputs against observed data
+python -m reporting.explorer    # rebuild explorer.html
+```
 
-`eurostat.py` and `ecb.py` pull twenty-six real series from the Eurostat and
-ECB open APIs and cache them, so the model still runs with no network. A test
-patches the fetch function to raise, proving the offline path never reaches for
-one.
+Generated artefacts land at the repo root and are gitignored: `charts.html`,
+`findings.html`, `surface.html`, `article.html`, `explorer.html`,
+`python_results.csv`. `SOURCES.md` is generated too but committed, because it
+is meant to be read in the repository — do not edit it by hand.
 
-**What real data can and cannot do here.** NPV, the trigger and `T*` are model
-*outputs* — no statistical agency publishes them. Official statistics can
-replace *inputs*, and six matter:
+The validation gate runs first and raises on failure. Nothing downstream prints
+if the nine published quantities do not reproduce: a number that has not been
+checked against its reference is worse than no number.
 
-- **Euro-area HICP** grounds the deflator. Latest: **2.1%/yr**, against the
-  model's assumed 2.0% — consistent, so the largest unit correction stands.
-- **Industrial electricity prices** (band IE, 20–70 GWh/yr, excluding taxes)
-  put a floor under *green* hydrogen, because electrolysis is mostly a way of
-  buying electricity.
-- **Industrial gas prices** (band I5, excluding taxes) put a lower floor under
-  *grey* hydrogen — and the lower floor is the binding one.
-- **Producer prices** for capital goods (MIG_CAG) and basic metals (C24)
-  restate a €2022 figure in today's money. They have moved in opposite
-  directions since 2022: plant **+8.4%**, steel **−11.0%**.
-- **Capacity utilisation** (euro-area business survey) is the reference point
-  for the load factor: **78.2%** observed against a model default of 0.85.
-- **ECB 10Y AAA yield** decomposes the 8% hurdle rate: **3.36%** nominal, a
-  **1.23%** real risk-free rate after HICP, so the model embeds a **6.8pp**
-  risk premium.
+## Where the numbers come from
 
-At roughly 55 kWh per kg of hydrogen, the electricity bill *alone* — before
-electrolyser capex, compression, storage or transport — comes to:
+`reporting/sources.py` holds one entry per model input and generates
+`SOURCES.md`. It is executable rather than prose because a hand-maintained
+bibliography drifts within a week — a default moves, the markdown does not, and
+the citation now vouches for a number nobody uses. `audit()` fails the run if
+any parameter is uncited, cited twice, or quotes a value the model no longer
+runs on.
 
-| | Sweden | France | Spain | Poland | Netherlands | Germany | Italy |
-|---|---|---|---|---|---|---|---|
-| €/kWh | 0.072 | 0.078 | 0.099 | 0.106 | 0.113 | 0.136 | 0.146 |
-| **€/kg floor** | **3.94** | **4.30** | **5.45** | **5.82** | **6.24** | **7.50** | **8.05** |
+Inputs are classified by **what would falsify them**, not by whether a link
+exists:
 
-**The base case assumes €2.60/kg. That is below the electricity bill alone, in
-every European steel-producing country** — 1.5× under even in Sweden, the
-cheapest. This is not a forecast disagreement; it is an arithmetic floor from
-official statistics, and it independently corroborates the €8.29/kg market
-assessment as being in the right region.
+| Status | Count | Meaning |
+|---|---|---|
+| `gate` | 9 | re-derived by the validation gate on every run |
+| `sourced` | 24 | a primary, openly reachable publication says this |
+| `observed` | 5 | an official statistic, cached with its period |
+| `assumed` | 17 | a modelling choice with a rationale and no external authority |
+| `fitted` | 1 | solved backwards from a published result |
+| `unverified` | 3 | rests on a document nobody here has opened |
 
-**The gas series says something sharper.** Grey hydrogen — gas at best-in-class
-reforming plus the ETS cost of the CO₂ it emits — floors at **€2.00–2.36/kg**
-across the same nine states. So €2.60/kg is not a green price anywhere; it is
-approximately the price of *unabated fossil* hydrogen. And that route emits 9 kg
-CO₂ per kg of hydrogen, which at 55 kg H₂ per tonne of steel is **0.49 tCO₂/t —
-five times the 0.1 tCO₂/t the model credits the clean route with.**
+The one fitted constant is `gamma = 0.4442`, the H2-DRI capacity growth rate,
+solved from `NPV(2029) = 1588.3` with everything else held at its sourced or
+published value. It lands inside the 43–52%/yr band implied by published EU
+capacity plans, which is corroboration, not derivation.
 
-The price and the emission intensity cannot both be right. Either `p_H2` rises
-to a green floor and the case weakens, or `eps_cln` rises to grey and the
-abatement the whole model is valuing largely disappears. `grounding.py` reports
-this as a `contradiction`, the only one in the table, and a self-check fails if
-it ever silently resolves itself.
+The three `unverified` entries are the live to-do list: the €8.29/kg Platts
+assessment (licensed, taken from the specification), and the COM(2026)
+free-allocation floor and its year range (mechanism confirmed, annex not read
+line by line). Tests fail if any of them is ever presented as sourced.
 
-Two inputs **cannot** be sourced from open data and need a market-data
-terminal: the EUA price series (which sets the price path, drift `mu` and
-volatility `sigma`) and commercial hydrogen assessments.
+### Observed data
 
-## The sourcing frontier — and what it costs the headline
+26 series from Eurostat and the ECB, fetched once and committed to
+`data/*_cache.json`. A test patches each provider's fetch function to raise and
+asserts an offline run still produces every number — a model whose output
+depends on whether a web service answered this morning is not reproducible.
 
-The model asks for a hydrogen price and a clean-route emission intensity as two
-independent inputs. Physically they are **one** input: hydrogen is bought
-somewhere between reformed gas and electrolysed power, and where you buy it sets
-the price *and* the emissions. `sourcing.py` ties them to a single parameter —
-the green share `θ` — and re-runs the model along it. Three results follow, none
-of which the model can see while the two inputs are held independent.
+| Series | Grounds |
+|---|---|
+| Euro-area HICP | the deflator (2.1% observed against 2.0% assumed) |
+| Industrial electricity, band IE, 9 states | the green hydrogen floor |
+| Industrial gas, band I5, 9 states | the grey hydrogen floor |
+| Producer prices, capital goods and basic metals | currency-year restatement |
+| Capacity utilisation, euro area | the load factor |
+| ECB 10Y AAA yield, policy rate | the discount rate's decomposition |
 
-**1. Value falls monotonically as hydrogen gets greener.** At the model's own
-carbon path, fossil hydrogen wins on NPV in every member state. Going green buys
-abatement worth `Δb · p` and costs `m_H2 · (green − grey)` — and at €76–112/tCO₂
-the cost side wins.
+`analysis/grounding.py` puts each input next to the statistic that bears on it
+and states a verdict — `consistent`, `optimistic`, `below observed floor`, or
+`contradiction`. It changes nothing. An observed statistic is not automatically
+the right model input: a risk-free rate is not a hurdle rate, and all-industry
+utilisation is not blast-furnace load. Adopting the observed real risk-free
+rate as `r` would trip the model's own `r − mu` guard, and there is a test that
+demonstrates it.
 
-**2. Green hydrogen needs 2.0–6.5× the carbon price to overtake grey.**
+## Results
 
-| | SE | FR | ES | PL | BE | NL | DE | AT | IT |
-|---|---|---|---|---|---|---|---|---|---|
-| **2026 EUA needed** | €152 | €193 | €308 | €322 | €359 | €383 | €471 | €484 | €496 |
-| **× central path** | 2.0 | 2.5 | 4.1 | 4.2 | 4.7 | 5.0 | 6.2 | 6.4 | 6.5 |
+Base case, exactly as published:
 
-The ordering follows the **absolute €/kg spread** between the two routes, not
-the power-to-gas ratio — the ratio ordering is different, and wrong. Both sides
-of the crossover are differences, so no ratio enters it. A test asserts the
-spread explains the ordering *and* that the ratio does not, because "obvious" is
-how the wrong mechanism gets published.
+| | |
+|---|---|
+| `T*` | 2029 |
+| NPV at `T*` | €1,588.29 / t capacity, discounted to 2026 |
+| trigger `p*'` | €109.52 / tCO₂ |
+| crossing year | 2030 |
 
-**3. Sourcing moves the commitment year by up to 17 years.** `T*` runs from 2028
-on all-grey to 2032 (SE, FR) or 2045 (AT, IT) on all-green. Hydrogen sourcing is
-a *timing* lever; the model treats it as a cost axis.
+The peak is nearly flat — 2028 gives €1,573 and 2030 gives €1,581 — so 2029 is
+a window, not a date. One year past it the picture changes sharply: 2033 drops
+to €1,062, because the €200/t support window has closed and the reline decision
+has already been taken.
 
-**What it costs the headline.** The published pair — €2.60/kg with
-`eps_cln = 0.1` — is not a point anyone can occupy: it is a grey price with green
-emissions. Hold the price and make the intensity consistent with it, and NPV
-falls by **22.6% (SE) to 33.5% (IT)**. That share of the published number was
-never available at any sourcing decision.
+**Correction ladder**, cumulative, each row adding one fix:
 
-`explorer.html` makes this explorable: pick a member state, drag the green share
-and the carbon path, and watch the value, the commitment year and the trigger
-move together. Every number on the page is computed in Python by the same
-`timing_model` code and embedded — the page selects and draws, it does not model
-— and a test recomputes each embedded point and fails if the two ever disagree.
+| Row | `T*` | NPV | trigger |
+|---|---|---|---|
+| published base | 2029 | 1,588 | 109.5 |
+| + load factor 0.85 | 2030 | 1,294 | 109.5 |
+| + hot-metal conversion κ = 0.94 | 2030 | 1,166 | 116.9 |
+| + real rather than nominal | 2031 | 754 | 116.9 |
+| + hydrogen at €8.29/kg | beyond horizon | −49 | 366.9 |
 
-## The article
-
-`article.py` writes **`article.html`** — the finished piece, roughly 2,200
-words, with all three figures generated from the model and from Eurostat at
-write time, so the text cannot drift from the code.
-
-**Thesis:** the base case assumes hydrogen at €2.60/kg, which is below the cost
-of the electricity needed to make it in every European steel-producing country.
-Replace that assumption with the observed floor and the sector case becomes a
-map: a commitment year exists in Sweden and France, is a coin toss in Spain, and
-does not exist anywhere else. Where it does exist, the year is 2032 — a reline
-date, not an economic optimum.
+Rows 1–3 reproduce the published table exactly. Rows 4–7 do not; see
+[Known limitations](#known-limitations).
 
 ## Findings
 
-`analysis.py` **derives** these rather than asserting them; each returns the
-evidence that produced it, and each is pinned by a check in `selfcheck.py` so it
-cannot silently break. `findings_report.py` writes **`findings.html`**, which
-explains every one in full — the mechanism, why it matters, and what would break
-it — with every number pulled live from the model.
+Twelve, in three groups. Each is derived by code, printed by `run_all.py`, and
+pinned by a test so it cannot invert silently.
 
-**1. The levers are orthogonal, and the split is exact.** Five parameters move
-the decision's *value* and its threshold by exactly 0.000%; two move the
-*threshold* and leave value at exactly 0.000%; only four move both. It is
-structure, not approximation — the trigger is
-`(I0 + phi*S_s - a/r)(r - mu)/b x beta/(beta-1)`, a formula the load factor,
-resale switch, support envelope and price basis do not appear in. So a CfD moves
-the threshold and *cannot* improve value; a grant moves value and *cannot* bring
-the trigger closer. **No amount of grant money fixes a volatility problem.**
+**Structural** — `analysis/findings.py`, from the model alone:
 
-**2. Utilisation inverts from asset to liability at €7.17/kg hydrogen.**
-`dNPV/du` changes sign there — above it, running the plant *less* raises NPV,
-because the load factor multiplies a benefit flow that has gone negative. The
-May 2026 market price of €8.29/kg is on the wrong side, so a minimum-utilisation
-covenant would be pointed backwards. (Read the caveat in `findings.html`: this
-is the sign of a sensitivity on a case that is NPV-negative throughout, not
-advice to build a plant and idle it.)
+1. **The levers are exactly orthogonal.** Five parameters move NPV and leave
+   the trigger at 0.000%; two move the trigger and leave NPV at 0.000%; four
+   move both. The trigger formula does not contain the load factor, resale,
+   support or the price path. A CfD and a grant are therefore complements, not
+   substitutes — they act on different halves of the decision.
+2. **Utilisation inverts at €7.17/kg hydrogen.** Above it, running the plant
+   *less* raises NPV, because `u` multiplies a flow that has gone negative. A
+   covenant written around a minimum utilisation would point the wrong way.
+   (Caveat: this is the sign of a sensitivity on an NPV-negative case.)
+3. **Past 16 years into a campaign, `T*` stops being a choice.** It equals the
+   reline date exactly. Value peaks at age 18; the cliff at age 19 is the €200
+   of support forfeited by committing before the window opens in 2028.
+4. **The trigger's robustness to the discount rate is cancellation.** Taking
+   `r` from 6% to 10% moves the break-even +304% and the option multiple −68%.
+   Report the two factors, not the product.
+5. **The correlation matrix would mislead you.** Across 81 scenarios NPV and
+   the trigger correlate −0.87, contradicting finding 1. The ensemble
+   manufactured the correlation; the structure says the true value is zero.
 
-**3. Past 16 years into a campaign, `T*` stops being a choice.** From that age
-the optimal year equals the reline year *exactly* — the calendar takes the
-decision. Value peaks at age 18, two years short of a reline, and the cliff one
-year later is the €200 support envelope forfeited by committing before the 2028
-window opens, not the steel.
+**From observed data** — `analysis/grounding.py`:
 
-**4. The trigger's robustness to the discount rate is cancellation.** Taking `r`
-from 6% to 10% moves the break-even price **+304%** and the option multiple
-**−68%**; the product moves **+29%**. Report the two factors, not the product.
+6. **€2.60/kg is a fossil hydrogen price.** It sits below every green floor
+   (€3.94–8.05/kg, electricity alone) and inside the grey band (€2.00–2.36/kg,
+   gas plus its ETS cost). Grey hydrogen emits 9 kgCO₂/kg, i.e. 0.49 tCO₂ per
+   tonne of steel at 55 kg H₂/t — five times the `eps_cln = 0.1` the model
+   credits the clean route with. **The price and the intensity cannot both
+   hold.**
+7. **`u = 0.85` is optimistic.** Euro-area capacity utilisation is 78.2%
+   (2025-Q4). The published base row runs `u = 1.00`, a furnace that never
+   stops.
+8. **The currency year cuts both ways.** Since 2022 capital goods are +8.4%
+   while steel output prices are −11.0%. Per-capacity terms are quoted in a
+   trough year and per-product terms in a peak one, in a model whose central
+   error class is confusing the two.
+9. **The 8% hurdle rate is a 6.8pp risk premium.** The ECB 10Y AAA yield is
+   3.36% nominal, 1.23% real after HICP. Given finding 4, that decomposition is
+   load-bearing.
 
-**5. The correlation matrix would mislead you.** Across 81 scenarios value and
-threshold read as anti-correlated at −0.87, contradicting finding 1. Both are
-right: the ensemble varies the two levers that move *both* outputs, so it
-manufactures the coupling. The correlation is a property of the sampling; the
-orthogonal split is a property of the model.
+**From the sourcing frontier** — `analysis/sourcing.py`, below.
 
-## Charts
+## The sourcing frontier
 
-`plots.py` writes a self-contained `charts.html` — theme-aware, hover tooltips,
-legends, direct labels and a table view under every chart. No matplotlib, no
-pandas: the SVG is generated directly. Four charts on the decision (NPV by year,
-price path against trigger, the stress ladder, the volatility ladder) and five
-on the findings above.
-
-The categorical palette is validated for colour-vision deficiency in both light
-and dark mode. Light mode puts two series below 3:1 against the surface, so
-every series is also direct-labelled and every chart carries a table view —
-identity is never colour alone.
-
-## The fleet surface
-
-`surface.py` writes `surface.html`: net present value as a surface over **both**
-the commitment year and the plant's age, rotatable in the browser. Every other
-chart fixes one and varies the other.
-
-Three-dimensional charts are usually the wrong choice, and the test is whether
-the *shape* is the finding. Here it is. A diagonal cliff traces the reline year
-across the fleet — older plants reline sooner — and the highest ground runs
-along its near side. That is Finding 3 for every plant at once instead of one at
-a time. Exact values come from the flat heatmap underneath; the 3D view is for
-the shape, never for reading numbers off.
-
-Rendered with plain Canvas 2D and a painter's algorithm. No WebGL, no libraries,
-and the projection re-fits itself to the frame so the surface cannot overflow at
-any angle you drag to.
-
-## Four outputs, and why there are four
-
-| Output | Question it answers | Contains option premium? |
-|---|---|---|
-| Trigger `p*'` (€/tCO₂) | At what carbon price does an irreversible switch become rational? | Yes |
-| Crossing year | When does the *path* reach that price? | Yes, plus a price forecast |
-| `T*` | Which year maximises NPV? | No |
-| `T_exp` | Last year in which deferral still adds value | No |
-
-`T*` and the crossing year routinely differ by one to two years. **That gap is
-the option premium expressed in time, not an inconsistency.**
-
-## Layout — the group order is the deliverable
+The model asks for a hydrogen price and a clean-route emission intensity as two
+independent inputs. Physically they are one: hydrogen is bought somewhere
+between reformed gas and electrolysed power, and where you buy it sets the
+price *and* the emissions. Tie them to a single parameter, the green share `θ`:
 
 ```
-timing_model/
-  params.py        # dataclasses; every field carries unit, currency-year, source
-  primitives.py    # Group I:   b, a(p_H2), CRF, MAC   [MAC diagnostic only]
-  benefit.py       # Group II:  alpha_v(t), B(t)
-  cost.py          # Group III: L(T), s(T), S_s(T), I_prime(T)
-  objective.py     # Group IV:  npv(T), t_star, t_exp, delta(T)
-  option.py        # Group V:   p_M_prime, beta, trigger, crossing_year
-  validate.py      # gate + feasibility guards; raises, never returns a flag
-  results.py       # Outputs, welded to its conditions
-  scenarios.py     # ladder, storylines, sourced ranges, legacy fixture
-  diff_harness.py  # 50 reference cases + the MATLAB diff
-  report.py        # tables + CSV
-eurostat.py            # observed inputs from Eurostat, cached for offline use
-observed.py            # shared series type + the offline caching rule
-ecb.py                 # observed interest rates from the ECB Data Portal
-grounding.py           # model inputs vs observed data, one verdict per row
-sourcing.py            # the hydrogen sourcing frontier: p_H2 and eps_cln as ONE input
-explorer.py            # -> explorer.html, the frontier, interactive
-sources.py             # -> SOURCES.md, provenance register, audited against the code
-analysis.py            # derives the structural findings
-findings_report.py     # -> findings.html, the findings written out in full
-plots.py               # -> charts.html, nine charts, no matplotlib
-surface.py             # -> surface.html, the fleet surface in rotatable 3D
-article.py             # -> article.html, THE FINISHED PIECE
-ARTICLE.md             # working table of contents for the write-up
-selfcheck.py           # 38 stdlib assertions, for when pytest is unavailable
-run_all.py             # runs everything above in one go
+p_H2(θ)    = θ·green + (1−θ)·grey_gas
+eps_cln(θ) = 0.1 + (1−θ)·0.495
 ```
 
-Imports point forward only, and `tests/test_layering.py` asserts it by walking
-the AST. `cost.py` cannot import `objective.py`; `primitives.py` reaches
-nothing but the parameter container; `cost.py` may not so much as name the load
-factor `u`.
+Reforming emits CO₂ once, so it is charged once — through `eps_cln`, where the
+model's carbon path and free allocation apply to it. That is why `grey_gas` is
+the gas cost *without* its ETS component; charging it in the price as well
+would double-count. The base case does the reverse: it takes the grey price and
+books the green emissions.
 
-## Usage
+10. **Fossil hydrogen wins on NPV in every member state, monotonically in θ.**
+    Going green buys abatement worth `Δb·p` and costs `m_H2·(green − grey)`;
+    at €76–112/tCO₂ the cost side wins. Green needs 2.0× the central path in
+    Sweden and 6.5× in Italy to overtake:
 
-**Python 3.11+ and nothing else.** The package has zero third-party
-dependencies — no numpy, no pandas, no solver libraries. Every equation is
-closed-form or a small argmax over ~25 years, and a test asserts the package
-imports nothing outside the standard library. If you cannot install packages,
-everything below still works.
+    | | SE | FR | ES | PL | BE | NL | DE | AT | IT |
+    |---|---|---|---|---|---|---|---|---|---|
+    | 2026 EUA needed | €152 | €193 | €308 | €322 | €359 | €383 | €471 | €484 | €496 |
+    | × central path | 2.0 | 2.5 | 4.1 | 4.2 | 4.7 | 5.0 | 6.2 | 6.4 | 6.5 |
 
-```bash
-python run_all.py                          # EVERYTHING: gate, ladders, diff, self-check
-python selfcheck.py                        # 26 load-bearing claims, stdlib only
+    The ordering follows the **absolute €/kg spread** between the two routes,
+    not the power-to-gas ratio. Both sides of the crossover are differences, so
+    no ratio enters it, and the ratio ordering is genuinely different — PL/ES
+    and DE/AT/IT swap. A test asserts that the spread explains the ordering
+    *and* that the ratio does not, because "obvious" is how the wrong mechanism
+    gets published.
+11. **Sourcing moves the commitment year by up to 17 years** — 2028 all-grey,
+    2032 (SE, FR) to 2045 (AT, IT) all-green. It is a timing lever, and the
+    model treats it as a cost axis.
+12. **The published pair costs 22.6–33.5% of NPV.** €2.60/kg with
+    `eps_cln = 0.1` is not a point anyone can occupy. Hold the price, make the
+    intensity consistent with it, and NPV falls by that much. That share of the
+    published number was never available at any sourcing decision.
 
-python eurostat.py                         # observed inputs + the hydrogen floor
-python analysis.py                         # the five findings, with evidence
-python plots.py                            # charts -> charts.html
-python findings_report.py                  # findings.html, the full write-up
-python surface.py                          # surface.html, the 3D fleet surface
-python article.py                          # article.html, the finished article
-python -m timing_model.report              # just the cumulative stress ladder
-python -m timing_model.report --sigma      # plus the volatility ladder
-python -m timing_model.report --csv        # writes python_results.csv
-```
+`explorer.html` makes this explorable: pick a member state, drag the green
+share and the carbon path, and watch value, commitment year and trigger move
+together against the published NPV. The model is **not** reimplemented in
+JavaScript — 891 runs are computed in Python and embedded, the page selects and
+draws, and a test recomputes every embedded point and fails if the two ever
+disagree.
 
-`pytest` is the only optional extra, and runs the full 91-test suite in
-`tests/`. Without it, `selfcheck.py` verifies the same load-bearing claims —
-gate, base case, ladder, guards, conditions mechanic, negative control,
-layering — using only the standard library. `run_all.py` runs the self-check
-always and the pytest suite when it is available.
+## Verification
 
-### PyCharm
+| Layer | What it covers |
+|---|---|
+| validation gate | nine published quantities to 1e-3 relative, before anything prints |
+| feasibility guards | `r − mu`, `u ∈ (0,1]`, monotone allocation, non-negative residual, capex clamp — all raise, never return a flag |
+| 219 pytest tests | units, layering, findings, provenance, observed data, generated pages |
+| 38 self-checks | the same load-bearing claims with no third-party packages |
+| diff harness | 50-case grid, self-diff, and a negative control that must flag exactly two |
+| `ruff` | clean on `F, E, W, I, UP, B, C4, SIM, RET`; config and exceptions in `pyproject.toml` |
 
-1. **Open** the repository root as the project (the folder containing
-   `pyproject.toml`) — not the `timing_model/` package folder, or imports
-   will not resolve.
-2. **Interpreter:** Settings → Project → Python Interpreter — any 3.11+
-   interpreter works. **No packages need installing.** If PyCharm offers to
-   install `requirements.txt`, that is only `pytest`, and it is optional.
-3. **Tests:** if you have pytest, set Settings → Tools → Python Integrated
-   Tools → Default test runner = **pytest**, then right-click `tests/` → Run.
-   If you cannot install it, right-click `selfcheck.py` → Run instead.
-4. **Run everything at once:** right-click `run_all.py` in the Project pane →
-   **Run 'run_all'**. That executes, in order: the validation gate, the base
-   case, the stress ladder, the volatility ladder, the sourced ranges, the
-   50-case reconciliation harness with its negative control, the CSV write,
-   and the full test suite. It exits non-zero if the gate fails, the negative
-   control misbehaves, or any test fails, so it also works as a CI smoke check.
-5. **Running just the report:** use a *module* run configuration, not a script one —
-   Run → Edit Configurations → **+** → Python, switch the target dropdown from
-   *Script path* to **Module name**, and enter `timing_model.report`. Put any
-   flags (`--csv`, `--sigma`) in *Parameters*. Running `report.py` as a plain
-   script also works because PyCharm puts the content root on `sys.path`, but
-   the module configuration is what matches the documented entry point.
+Two of those exist because of specific misses. `tests/test_reporting.py` builds
+every page, because a variable rename once passed the linter and the whole unit
+suite and then broke three pages: code that only runs inside `run_all.py` is
+code that is tested nowhere. And the provenance audit exists because editing
+docs by string replacement silently no-ops on a miss, which cost three README
+sections once.
 
-`pip install -e .` is optional and only needed to import `timing_model` from
-outside the project.
+**What none of this covers.** The model has never been diffed against the
+MATLAB reference, because there is no reference. The harness, the fixture and
+the negative control are built and tested; drop a reference CSV beside them and
+`diff()` completes.
 
-## The conditional-outputs mechanic
+## Known limitations
 
-The recurring failure this rewrite exists to fix is that `T*` and the trigger
-get quoted without the assumptions they are conditional on. `Outputs` is
-frozen and always carries `conditions`; `report.py` **refuses to render** any
-row containing `t_star` or `trigger` unless every condition is populated, and
-prints them under the table. Tests cover each condition key individually.
+| Item | Published | Computed | Cause |
+|---|---|---|---|
+| ladder row 4 `T*` | 2030 | 2031 | level right to €1; the peak is €8 late on a curve that is flat across 2030–2032 |
+| ladder rows 5–7 NPV | −188 | −49 | at `a = −373` the curve rises monotonically to 2050 and the published value sits on it around 2044. `T*` = "beyond horizon" reproduces, which is the row's actual finding |
+| F8 vintage delta | +7.82 / −122 | +8.97 / −161 | `f_com2026(t)` reconstructed, not read off the legal annex |
+
+Two places where the specification's own text does not hold, both pinned by
+tests:
+
+- **As `σ → 0` the option multiple does not go to 1.** It goes to `r/(r−mu)` =
+  2.667. Waiting is rewarded by the drift alone; the multiple collapses to 1
+  only if the drift is zero too.
+- **"Never" is wrong for the trigger at market volatility.** At `σ = 0.45` the
+  trigger is €202.5 and the path crosses it in 2043. The correct phrasing is
+  "beyond any recognisable investment horizon".
+
+The published §3.3 ranges for `a` and `p_H2` also contradict each other: the
+`a` band is (−320, −25), but `a(2.50) = −54.5` and `a(8.29) = −372.95`, so the
+top of the hydrogen band falls below the bottom of the `a` band. The model uses
+the endogenous `a(p_H2)`.
 
 ## Three decisions the code will not make for you
 
-Appendix A §3.5 reserves these to the team. All branches are implemented and
-none is silently defaulted — each is surfaced in the printed conditions of
-every row:
+Appendix A §3.5 reserves these. They are left at their published values so that
+they have to be chosen deliberately rather than inherited.
 
-1. **Support basis** — €200 lump or ~€600 stream. `support_basis` switches
-   between netting a stock from capex (`"lump"`, which the MATLAB diff needs)
-   and routing the premium into `B(t)` where a flow belongs (`"stream"`).
-2. **Resale** — `w = 1` drives the entire policy-neutrality finding. Without
-   it the headline result reverses sign.
-3. **Whether €2.60/kg hydrogen is reported as the base case at all.** The
-   market was €8.29/kg on 8 May 2026.
+1. **Support basis** — a lump-sum capex grant or a per-tCO₂ stream. The stream
+   belongs in `B(t)` structurally; the lump is what was published.
+2. **Resale** — `w = 1` drives the entire policy-neutrality finding. Without it
+   the headline result reverses sign.
+3. **Whether €2.60/kg is reported as the base case at all.** Findings 6 and 12
+   say it is a fossil price carrying green emissions, at a cost of a quarter to
+   a third of the NPV.
 
 ## Status
 
-Read `CALIBRATION.md` before quoting any number from this build, and
-`SOURCES.md` before presenting one as sourced — it sorts every input by what
-would falsify it: re-derived by the gate, backed by a primary publication,
-observed in official statistics, assumed, fitted, or resting on a document
-nobody on this build has opened.
-`SOURCES.md` is generated, and `sources.audit()` fails the run if any citation
-quotes a value the model no longer uses.
-`timing_model.m` was not in the working directory, so five of the six cost-side
-constants were sourced from published industry data and one (the learning
-growth rate) calibrated. The validation gate, the trigger column
-and the benefit side reproduce exactly, as do ladder rows 1–3; rows 4–7 do not,
-and the reasons are documented case by case with sources.
+The validation gate, the trigger column, the benefit side and ladder rows 1–3
+reproduce exactly. Rows 4–7 do not, and each is documented with its cause.
+`timing_model.m` was never available, so five of the six cost-side constants
+were sourced from published industry data and one was calibrated.
+
+`HANDOFF.md` carries the locked numbers, the open items and the traps.

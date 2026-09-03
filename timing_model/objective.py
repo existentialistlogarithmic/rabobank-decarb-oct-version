@@ -30,7 +30,7 @@ def reinvestment_term(T: int, p: Params) -> float:
     """
     t_rel = reline_year(p)
     magnitude = discount(t_rel, p) * p.sector.rho * p.sector.K_s
-    return magnitude if T <= t_rel else -magnitude
+    return magnitude if t_rel >= T else -magnitude
 
 
 def benefit_pv(T: int, p: Params, sc: ScenarioParams) -> float:

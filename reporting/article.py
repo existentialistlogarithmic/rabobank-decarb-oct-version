@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import html
 
-import eurostat
+from data import eurostat
 from timing_model.cost import reline_year
 from timing_model.objective import npv, npv_curve
 from timing_model.params import Params, ScenarioParams

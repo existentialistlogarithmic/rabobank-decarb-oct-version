@@ -21,23 +21,21 @@ from __future__ import annotations
 
 import html
 import json
-from dataclasses import replace
-from typing import Iterable, Sequence
+from collections.abc import Iterable, Sequence
 
-from timing_model.benefit import carbon_price_path
-from timing_model.objective import npv_curve
-from timing_model.params import Params, ScenarioParams
-from timing_model.results import Outputs
-from timing_model.scenarios import STRESS_LADDER, published_base, run_ladder, sigma_ladder
-from analysis import (
+from analysis.findings import (
+    _d_npv_du,
     all_findings,
     lever_classes,
     output_correlations,
     rate_cancellation,
     reline_capture,
     utilisation_inversion,
-    _d_npv_du,
 )
+from timing_model.benefit import carbon_price_path
+from timing_model.objective import npv_curve
+from timing_model.params import Params, ScenarioParams
+from timing_model.scenarios import STRESS_LADDER, published_base, run_ladder, sigma_ladder
 
 OUT = "charts.html"
 
@@ -118,7 +116,7 @@ def legend(names: Sequence[str], slots: Sequence[int]) -> str:
         return ""
     items = "".join(
         f'<span class="lg"><i class="sw s{s}"></i>{esc(n)}</span>'
-        for n, s in zip(names, slots)
+        for n, s in zip(names, slots, strict=False)
     )
     return f'<div class="legend">{items}</div>'
 
@@ -181,13 +179,13 @@ def chart_npv() -> str:
         "<figcaption><h3>NPV by commitment year</h3>"
         "<p>Peak = T*. Markers show each argmax; the step at 2032 is the reline, "
         "where avoided reinvestment flips to paid.</p></figcaption>"
-        + legend([l for l, _ in curves], range(4))
+        + legend([lab for lab, _ in curves], range(4))
         + f'<svg viewBox="0 0 {W} {H}" role="img" class="plot" '
           f'data-pts="{esc(json.dumps(pts))}">'
           f'<text class="axt" transform="rotate(-90 16 {H / 2})" x="16" y="{H / 2}">'
           "EUR / t capacity</text>" + "".join(parts) +
         '<g class="hov" hidden><line class="cross"/></g></svg>'
-        + table(["Year"] + [l for l, _ in curves],
+        + table(["Year"] + [lab for lab, _ in curves],
                 ([t] + [f"{c[t]:,.0f}" for _, c in curves] for t in years),
                 "Table view - NPV by year")
         + "</figure>"
@@ -518,8 +516,8 @@ def chart_levers() -> str:
     categorical slots - which is exactly the number of classes.
     """
     levers = lever_classes()
-    xs = [l.d_trigger_pct for l in levers]
-    ys = [l.d_npv_pct for l in levers]
+    xs = [lv.d_trigger_pct for lv in levers]
+    ys = [lv.d_npv_pct for lv in levers]
     xr = max(abs(min(xs)), abs(max(xs))) * 1.35 or 1
     yr = max(abs(min(ys)), abs(max(ys))) * 1.30 or 1
 
@@ -534,14 +532,14 @@ def chart_levers() -> str:
     parts = [axes(xt, yt, Y(0.0)),
              f'<line class="axis" x1="{X(0.0):.1f}" y1="{PAD_T}" '
              f'x2="{X(0.0):.1f}" y2="{H - PAD_B}"/>']
-    marks = [(Y(l.d_npv_pct), i, l.name) for i, l in enumerate(levers)]
+    marks = [(Y(lv.d_npv_pct), i, lv.name) for i, lv in enumerate(levers)]
     label_y = {i: y for y, i, _ in declutter(marks, gap=15.0)}
     mid_x = (PAD_L + W - PAD_R) / 2
-    for i, l in enumerate(levers):
-        sl = CLASS_SLOT[l.klass]
-        cx, cy = X(l.d_trigger_pct), Y(l.d_npv_pct)
-        tip = (f"{l.name} - {l.klass} | NPV {l.d_npv_pct:+.3f}% "
-               f"| trigger {l.d_trigger_pct:+.3f}%")
+    for i, lv in enumerate(levers):
+        sl = CLASS_SLOT[lv.klass]
+        cx, cy = X(lv.d_trigger_pct), Y(lv.d_npv_pct)
+        tip = (f"{lv.name} - {lv.klass} | NPV {lv.d_npv_pct:+.3f}% "
+               f"| trigger {lv.d_trigger_pct:+.3f}%")
         parts.append(f'<circle class="mk s{sl}" cx="{cx:.1f}" cy="{cy:.1f}" r="6" '
                      f'data-tip="{esc(tip)}"><title>{esc(tip)}</title></circle>')
         ly = label_y[i]
@@ -554,7 +552,7 @@ def chart_levers() -> str:
             parts.append(f'<line class="lead" x1="{cx:.1f}" y1="{cy:.1f}" '
                          f'x2="{lx + (4 if right else -4):.1f}" y2="{ly - 4:.1f}"/>')
         parts.append(f'<text class="val {anc}" x="{lx:.1f}" y="{ly:.1f}">'
-                     f"{esc(l.name)}</text>")
+                     f"{esc(lv.name)}</text>")
     return (
         '<figure class="card">'
         "<figcaption><h3>Lever map: which knob moves which output</h3>"
@@ -569,8 +567,8 @@ def chart_levers() -> str:
           f'<text class="axt" x="{W / 2}" y="{H - 6}">change in trigger</text>'
         + "".join(parts) + "</svg>"
         + table(["Lever", "d NPV %", "d trigger %", "Class"],
-                ([l.name, f"{l.d_npv_pct:+.3f}", f"{l.d_trigger_pct:+.3f}", l.klass]
-                 for l in levers),
+                ([lv.name, f"{lv.d_npv_pct:+.3f}", f"{lv.d_trigger_pct:+.3f}", lv.klass]
+                 for lv in levers),
                 "Table view - levers")
         + "</figure>"
     )
@@ -596,7 +594,7 @@ def chart_inversion() -> str:
     yt = [(Y(v), f"{v:,.0f}") for v in nice_ticks(lo, hi, 5)]
     xt = [(X(h), f"{h:.0f}") for h in hs if abs(h - round(h)) < 1e-9 and int(h) % 2 == 0]
     d = " ".join(f"{'M' if k == 0 else 'L'}{X(h):.1f},{Y(v):.1f}"
-                 for k, (h, v) in enumerate(zip(hs, ds)))
+                 for k, (h, v) in enumerate(zip(hs, ds, strict=False)))
     parts = [axes(xt, yt, Y(0.0)), f'<path class="ln s0" d="{d}"/>']
     if flip:
         fx = X(flip)
@@ -611,7 +609,7 @@ def chart_inversion() -> str:
     parts.append(f'<text class="note am s1" x="{px:.1f}" y="{PAD_T + 14}">'
                  "Platts 8.29</text>")
     pts = [{"x": round(X(h), 1), "t": f"{h:.2f} EUR/kg", "v": [round(v, 1)]}
-           for h, v in zip(hs, ds)]
+           for h, v in zip(hs, ds, strict=False)]
     return (
         '<figure class="card">'
         "<figcaption><h3>Utilisation: asset or liability?</h3>"
@@ -627,7 +625,7 @@ def chart_inversion() -> str:
         + "".join(parts) +
         '<g class="hov" hidden><line class="cross"/></g></svg>'
         + table(["p_H2 (EUR/kg)", "dNPV/du"],
-                ([f"{h:.2f}", f"{v:,.1f}"] for h, v in zip(hs, ds)),
+                ([f"{h:.2f}", f"{v:,.1f}"] for h, v in zip(hs, ds, strict=False)),
                 "Table view - utilisation sensitivity")
         + "</figure>"
     )
@@ -658,7 +656,7 @@ def chart_capture() -> str:
                      f"capture region - T* = reline year</text>")
     for i, (ser, lab) in enumerate(((rel, "reline year"), (star, "T*"))):
         d = " ".join(f"{'M' if k == 0 else 'L'}{X(a):.1f},{Y(v):.1f}"
-                     for k, (a, v) in enumerate(zip(ages, ser)))
+                     for k, (a, v) in enumerate(zip(ages, ser, strict=False)))
         parts.append(f'<path class="ln s{i}" d="{d}"/>')
     bx = X(rc.best_age)
     parts.append(f'<circle class="mk s2" cx="{bx:.1f}" '
@@ -666,7 +664,7 @@ def chart_capture() -> str:
     parts.append(f'<text class="note am s2" x="{bx:.1f}" y="{PAD_T - 8}">'
                  f"best value: age {rc.best_age}</text>")
     pts = [{"x": round(X(a), 1), "t": f"age {a}", "v": [r, s]}
-           for a, r, s in zip(ages, rel, star)]
+           for a, r, s in zip(ages, rel, star, strict=False)]
     return (
         '<figure class="card">'
         "<figcaption><h3>When the calendar takes the decision</h3>"
@@ -716,7 +714,7 @@ def chart_cancellation() -> str:
     ends = []
     for i, (n, vals) in enumerate(idx):
         d = " ".join(f"{'M' if k == 0 else 'L'}{X(r):.1f},{Y(v):.1f}"
-                     for k, (r, v) in enumerate(zip(rates, vals)))
+                     for k, (r, v) in enumerate(zip(rates, vals, strict=False)))
         parts.append(f'<path class="ln s{i}" d="{d}"/>')
         ends.append((Y(vals[-1]), i, n))
     for y, i, n in declutter(ends):

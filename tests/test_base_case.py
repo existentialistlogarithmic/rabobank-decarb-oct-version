@@ -14,8 +14,8 @@ from __future__ import annotations
 import pytest
 
 from timing_model.cost import residual_value
-from timing_model.objective import npv, t_exp, t_exp_marginal, t_star
-from timing_model.params import Params, ScenarioParams
+from timing_model.objective import t_exp, t_exp_marginal, t_star
+from timing_model.params import ScenarioParams
 from timing_model.results import outputs
 from timing_model.scenarios import published_base, run_ladder
 

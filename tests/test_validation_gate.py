@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import pytest
 
-from timing_model.params import CommonParams, Params, ScenarioParams
+from timing_model.option import beta, break_even_price, option_multiple, trigger_price
+from timing_model.params import Params, ScenarioParams
 from timing_model.primitives import abatement_intensity, crf, mac, opex_penalty
-from timing_model.option import beta, option_multiple, break_even_price, trigger_price
 
 #: Appendix A §4.3 states a tolerance of 1e-3.  It is read as *relative*: the
 #: published figures are quoted to 2 d.p. (MAC = 80.17, p*' = 109.52), so an

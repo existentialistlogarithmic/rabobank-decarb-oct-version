@@ -21,7 +21,7 @@ from __future__ import annotations
 import pathlib
 from typing import Final
 
-from observed import Series, cache_read, cache_write, fetch_or_cache, get_json
+from data.observed import Series, cache_read, cache_write, fetch_or_cache, get_json
 
 CACHE = pathlib.Path(__file__).with_name("ecb_cache.json")
 BASE = "https://data-api.ecb.europa.eu/service/data"
@@ -91,7 +91,7 @@ def refresh(offline: bool = False) -> dict[str, Series]:
 
 def main() -> int:
     """Print the observed rates and the real risk-free rate they imply."""
-    import eurostat
+    from data import eurostat
 
     rates = refresh()
     print("Observed interest rates\n" + "=" * 72)

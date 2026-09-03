@@ -20,8 +20,8 @@ The four findings this module derives:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
-from typing import Callable, Sequence
+from collections.abc import Sequence
+from dataclasses import dataclass, replace
 
 from timing_model.cost import reline_year, residual_value
 from timing_model.objective import npv_curve
@@ -229,7 +229,7 @@ def spearman(xs: Sequence[float], ys: Sequence[float]) -> float:
     rx, ry = _rank(xs), _rank(ys)
     n = len(rx)
     mx, my = sum(rx) / n, sum(ry) / n
-    num = sum((a - mx) * (b - my) for a, b in zip(rx, ry))
+    num = sum((a - mx) * (b - my) for a, b in zip(rx, ry, strict=False))
     dx = sum((a - mx) ** 2 for a in rx) ** 0.5
     dy = sum((b - my) ** 2 for b in ry) ** 0.5
     return num / (dx * dy) if dx and dy else 0.0
@@ -259,7 +259,7 @@ def output_correlations(n_grid: int = 3) -> tuple[list[str], list[list[float]], 
                         float(o.crossing_year) if o.crossing_year else 2051.0,
                     ))
     names = ["T*", "NPV0", "trigger", "crossing year"]
-    cols = list(zip(*rows))
+    cols = list(zip(*rows, strict=False))
     m = [[spearman(cols[i], cols[j]) for j in range(4)] for i in range(4)]
     return names, m, len(rows)
 
@@ -270,9 +270,9 @@ def all_findings() -> list[Finding]:
     out: list[Finding] = []
 
     levers = lever_classes()
-    val = [l.name for l in levers if l.klass == "value only"]
-    thr = [l.name for l in levers if l.klass == "threshold only"]
-    both = [l.name for l in levers if l.klass == "both"]
+    val = [lv.name for lv in levers if lv.klass == "value only"]
+    thr = [lv.name for lv in levers if lv.klass == "threshold only"]
+    both = [lv.name for lv in levers if lv.klass == "both"]
     out.append(Finding(
         "orthogonal",
         "The levers are orthogonal, and the split is exact",
@@ -287,8 +287,8 @@ def all_findings() -> list[Finding]:
         "improve the value; a grant moves the value and cannot bring the trigger "
         "closer. They are complements, and no amount of grant money fixes a "
         "volatility problem.",
-        tuple((l.name, f"NPV {l.d_npv_pct:+.3f}%  trigger {l.d_trigger_pct:+.3f}%  "
-                       f"[{l.klass}]") for l in levers),
+        tuple((lv.name, f"NPV {lv.d_npv_pct:+.3f}%  trigger {lv.d_trigger_pct:+.3f}%  "
+                       f"[{lv.klass}]") for lv in levers),
         novel=True,
     ))
 

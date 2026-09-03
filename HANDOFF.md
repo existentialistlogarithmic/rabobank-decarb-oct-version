@@ -4,7 +4,7 @@ The running state of the build. Everything below is verified as of the last
 commit on this branch.
 
 **Run everything:** `python run_all.py` (13 sections). Python 3.11+, **zero
-dependencies**; `pytest` optional. Currently **206 tests + 38 self-checks** green.
+dependencies**; `pytest` optional. Currently **219 tests + 38 self-checks** green.
 
 ---
 
@@ -21,25 +21,30 @@ Built from a v12 specification. The MATLAB reference (`timing_model.m`) was
 
 ## 2. Files
 
-| File | What it is |
+| Path | What it is |
 |---|---|
 | `timing_model/` | The model. 11 modules in strict group order (params → primitives → benefit → cost → objective → option → validate → results → scenarios → report). Import direction enforced by an AST test. |
-| `analysis.py` | Derives the five structural findings + their evidence |
-| `observed.py` | Shared series type and the offline caching rule both providers use |
-| `eurostat.py` | Six Eurostat series (prices, PPI, utilisation), cached in `eurostat_cache.json` |
-| `ecb.py` | ECB yield curve and policy rate, cached in `ecb_cache.json` |
-| `grounding.py` | Model inputs vs observed data, one verdict per row |
-| `sourcing.py` | The hydrogen sourcing frontier: `p_H2` and `eps_cln` as one input |
-| `explorer.py` | → `explorer.html`, the frontier, interactive (891 embedded model runs) |
-| `sources.py` | → `SOURCES.md`, the provenance register — audited against the code on every run |
-| `plots.py` | → `charts.html`, 9 SVG charts, no matplotlib |
-| `surface.py` | → `surface.html`, rotatable 3D fleet surface (Canvas) |
-| `findings_report.py` | → `findings.html`, the derivations in full |
-| `article.py` | → `article.html`, **the finished article** |
+| `data/observed.py` | Shared series type and the offline caching contract |
+| `data/eurostat.py` | Energy prices, producer prices, capacity utilisation → `data/eurostat_cache.json` |
+| `data/ecb.py` | Yield curve and policy rate → `data/ecb_cache.json` |
+| `analysis/findings.py` | Derives the five structural findings + their evidence |
+| `analysis/grounding.py` | Model inputs vs observed data, one verdict per row |
+| `analysis/sourcing.py` | The hydrogen sourcing frontier: `p_H2` and `eps_cln` as one input |
+| `reporting/sources.py` | → `SOURCES.md`, the provenance register — audited against the code on every run |
+| `reporting/plots.py` | → `charts.html`, 9 SVG charts, no matplotlib |
+| `reporting/surface.py` | → `surface.html`, rotatable 3D fleet surface (Canvas) |
+| `reporting/findings_report.py` | → `findings.html`, the derivations in full |
+| `reporting/article.py` | → `article.html`, **the finished article** |
+| `reporting/explorer.py` | → `explorer.html`, the frontier, interactive (891 embedded model runs) |
 | `selfcheck.py` | 38 stdlib assertions (works without pytest) |
 | `CALIBRATION.md` | What is sourced vs fitted — **read before quoting anything** |
 | `SOURCES.md` | Generated. What each input claims and what would falsify it |
 | `ARTICLE.md` | Article outline / writing plan |
+
+**Layer rule:** `timing_model` (0) ← `data` (1) ← `analysis` (2) ← `reporting` (3).
+Imports run downwards only and `tests/test_layering.py` asserts it. `data/` may
+not import the model at all — an observation must not depend on what the model
+does with it.
 
 ## 3. Locked numbers (verified — do not re-derive)
 
@@ -191,6 +196,9 @@ one parameter, the green share θ):
 - **`explorer.html` embeds precomputed model output; it does not model.** Never
   reimplement `timing_model` in JavaScript — a test recomputes every embedded
   point and exists to keep that true.
+- **A page that only runs inside `run_all.py` is tested nowhere.** A rename
+  once passed ruff and the whole unit suite and broke three pages.
+  `tests/test_reporting.py` now builds every one of them.
 - **Observed statistics are not automatically model inputs.** A risk-free rate
   is not a hurdle rate; all-industry utilisation is not furnace load. The
   grounding layer reports disagreements and changes nothing — deliberately.

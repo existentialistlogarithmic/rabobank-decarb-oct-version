@@ -9,11 +9,9 @@ from __future__ import annotations
 
 import pytest
 
-import ecb
-import eurostat
-import grounding
-import observed
-import sources
+from analysis import grounding
+from data import ecb, eurostat, observed
+from reporting import sources
 from timing_model.params import Params, ScenarioParams
 
 BASE_P_H2 = ScenarioParams().p_H2
@@ -57,9 +55,7 @@ def test_offline_never_touches_the_network(monkeypatch: pytest.MonkeyPatch) -> N
     assert grounding.groundings(offline=True)
 
 
-def test_a_network_failure_falls_back_instead_of_raising(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_a_network_failure_falls_back_instead_of_raising() -> None:
     """A dead endpoint must degrade to the cache, not take the run down."""
     def fail() -> tuple[str, float]:
         raise TimeoutError("pretend the service is down")
@@ -85,7 +81,7 @@ def test_green_hydrogen_costs_more_than_the_base_case_everywhere(
     assert floor > BASE_P_H2, f"{geo}: green floor {floor:.2f}"
 
 
-def test_the_base_case_is_reachable_only_as_grey_hydrogen(series: dict) -> None:
+def test_the_base_case_is_reachable_only_as_grey_hydrogen() -> None:
     """The finding the gas series buys: EUR 2.60/kg is a fossil price.
 
     Below every green floor, and inside the range of grey floors - gas at
@@ -155,9 +151,24 @@ def test_fisher_deflation_is_exact_not_linear() -> None:
     assert ecb.real_risk_free(5.0, 2.0) < 0.03
 
 
-def test_the_observed_rate_does_not_break_the_drift_guard(rates: dict) -> None:
-    """r - mu >= 0.005 is a hard guard; a grounded rate must not silently trip it."""
-    assert Params().common.r - Params().common.mu >= 0.005
+def test_adopting_the_observed_rate_would_trip_the_models_own_guard(
+    series: dict, rates: dict
+) -> None:
+    """Why grounding reports rather than overwrites, in one assertion.
+
+    The observed real risk-free rate is below the model's drift, so swapping it
+    in for `r` makes `r - mu` negative and the feasibility guard raises. A
+    risk-free rate is not a hurdle rate, and the model already knows it.
+    """
+    from timing_model.params import ModelError
+    from timing_model.validate import run_guards
+
+    real = ecb.real_risk_free(rates["yield_10y"].value, series["hicp"].value)
+    p, sc = Params(), ScenarioParams()
+    assert real < p.common.mu, "the guard argument below depends on this ordering"
+    with pytest.raises(ModelError):
+        run_guards(p.with_common(r=real), sc)
+    assert p.common.r - p.common.mu >= 0.005, "the shipped rate clears the guard"
 
 
 def test_every_grounding_names_a_registered_parameter() -> None:

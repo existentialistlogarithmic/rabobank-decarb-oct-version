@@ -13,9 +13,8 @@ import pytest
 
 from timing_model.params import ModelError
 from timing_model.report import HEADLINE_FIELDS, render_table, results_table, row
-from timing_model.results import CONDITION_KEYS, Outputs
+from timing_model.results import CONDITION_KEYS, Outputs, outputs
 from timing_model.scenarios import published_base, run_ladder
-from timing_model.results import outputs
 
 
 def _bare() -> Outputs:
@@ -73,7 +72,7 @@ def test_rendered_table_prints_binding_guards() -> None:
 
 
 def test_headline_fields_are_the_ones_that_need_guarding() -> None:
-    assert HEADLINE_FIELDS == {"t_star", "trigger"}
+    assert {"t_star", "trigger"} == HEADLINE_FIELDS
     table = results_table([(r.label, o) for r, o in run_ladder()])
     for k in CONDITION_KEYS:
         assert all(f"cond_{k}" in r for r in table)

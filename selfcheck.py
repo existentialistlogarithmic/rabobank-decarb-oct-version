@@ -1,6 +1,6 @@
 """Standard-library verification of the model's load-bearing claims.
 
-The pytest suite in ``tests/`` is the real thing - 91 tests. This file exists
+The pytest suite in ``tests/`` is the real thing - 219 tests. This file exists
 for environments where third-party packages cannot be installed: it re-checks
 the claims that must not silently break, using nothing but the standard
 library, and reports pass/fail per claim.
@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import ast
 import pathlib
+from collections.abc import Callable
 from dataclasses import replace
-from typing import Callable
 
 from timing_model.benefit import free_allocation_factor
 from timing_model.cost import residual_value, switching_cost
@@ -92,7 +92,7 @@ def _texp() -> None:
 def _ladder_trigger() -> None:
     want = [109.5, 109.5, 116.9, 116.9, 366.9, 366.9, 366.9]
     got = [o.trigger for _, o in run_ladder()]
-    for g, w in zip(got, want):
+    for g, w in zip(got, want, strict=False):
         assert abs(g - w) < 0.05, f"{g} vs {w}"
 
 
@@ -183,7 +183,7 @@ def _guard_gate() -> None:
 
 @check("crossing year returns a reason, never the string 'never'")
 def _never() -> None:
-    year, reason = crossing_year(400.0, {y: 50.0 for y in range(2026, 2051)}, 2050)
+    year, reason = crossing_year(400.0, dict.fromkeys(range(2026, 2051), 50.0), 2050)
     assert year is None and reason == "beyond horizon" and "never" not in reason
 
 
@@ -249,31 +249,31 @@ def _stdlib_only() -> None:
 
 @check("finding: lever classes are exactly disjoint (value / threshold / both)")
 def _orthogonal() -> None:
-    from analysis import lever_classes
+    from analysis.findings import lever_classes
 
     ls = lever_classes()
-    klasses = {l.klass for l in ls}
+    klasses = {lever.klass for lever in ls}
     assert "value only" in klasses and "threshold only" in klasses, klasses
     # the defining property: a value-only lever moves the trigger by EXACTLY zero
-    for l in ls:
-        if l.klass == "value only":
-            assert abs(l.d_trigger_pct) < 1e-9, f"{l.name} trigger {l.d_trigger_pct}"
-        if l.klass == "threshold only":
-            assert abs(l.d_npv_pct) < 1e-9, f"{l.name} NPV {l.d_npv_pct}"
+    for lever in ls:
+        if lever.klass == "value only":
+            assert abs(lever.d_trigger_pct) < 1e-9, f"{lever.name} trigger {lever.d_trigger_pct}"
+        if lever.klass == "threshold only":
+            assert abs(lever.d_npv_pct) < 1e-9, f"{lever.name} NPV {lever.d_npv_pct}"
 
 
 @check("finding: volatility is a pure threshold lever, support a pure value lever")
 def _instruments() -> None:
-    from analysis import lever_classes
+    from analysis.findings import lever_classes
 
-    by = {l.name: l for l in lever_classes()}
+    by = {lv.name: lv for lv in lever_classes()}
     assert by["volatility -> CfD"].klass == "threshold only"
     assert by["support s_max x2"].klass == "value only"
 
 
 @check("finding: utilisation inverts at a hydrogen price inside the sourced range")
 def _inversion() -> None:
-    from analysis import utilisation_inversion
+    from analysis.findings import utilisation_inversion
 
     flip = utilisation_inversion()
     assert flip is not None, "no sign flip found"
@@ -282,18 +282,18 @@ def _inversion() -> None:
 
 @check("finding: a reline capture region exists and T* equals T_rel inside it")
 def _capture() -> None:
-    from analysis import reline_capture
+    from analysis.findings import reline_capture
 
     rc = reline_capture()
     assert rc.capture_from is not None
-    for age, t_rel, t_star, _ in rc.rows:
+    for age, t_rel, best_year, _ in rc.rows:
         if age >= rc.capture_from:
-            assert t_star == t_rel, f"age {age}: T* {t_star} != reline {t_rel}"
+            assert best_year == t_rel, f"age {age}: T* {best_year} != reline {t_rel}"
 
 
 @check("finding: trigger stability under r is cancellation of two larger moves")
 def _cancellation() -> None:
-    from analysis import rate_cancellation
+    from analysis.findings import rate_cancellation
 
     rs = rate_cancellation()
     assert rs.d_break_even_pct > 0 and rs.d_multiple_pct < 0, "not opposing"
@@ -306,7 +306,7 @@ def _h2_floor() -> None:
 
     Runs from the committed cache, so it needs no network.
     """
-    import eurostat
+    from data import eurostat
 
     s = eurostat.refresh(offline=True)
     floors = {k[-2:]: eurostat.hydrogen_power_floor(v.value)
@@ -321,7 +321,7 @@ def _grey_hydrogen() -> None:
 
     Runs from the committed caches, so it needs no network.
     """
-    import grounding
+    from analysis import grounding
     from timing_model.params import ScenarioParams
 
     floors = grounding.hydrogen_floors(offline=True)
@@ -336,8 +336,7 @@ def _grey_hydrogen() -> None:
 @check("observed data: grey hydrogen contradicts the clean-route intensity")
 def _intensity_contradiction() -> None:
     """The strongest thing the observed data says: two inputs cannot both hold."""
-    import grounding
-    from timing_model.params import Params
+    from analysis import grounding
 
     implied = grounding.grey_hydrogen_intensity()
     assert implied > 4 * Params().common.eps_cln, implied
@@ -347,9 +346,7 @@ def _intensity_contradiction() -> None:
 
 @check("observed data: the hurdle rate is above the observed real risk-free rate")
 def _risk_premium() -> None:
-    import ecb
-    import eurostat
-    from timing_model.params import Params
+    from data import ecb, eurostat
 
     rates = ecb.refresh(offline=True)
     hicp = eurostat.refresh(offline=True)["hicp"].value
@@ -360,13 +357,13 @@ def _risk_premium() -> None:
 @check("observed data: every grounded input is also a cited input")
 def _grounding_vocabulary() -> None:
     """The grounding table and the provenance register share one set of names."""
-    import grounding
-    import sources
+    from analysis import grounding
+    from reporting import sources
 
     registered = {c.param for c in sources.REGISTER}
-    for row in grounding.groundings(offline=True):
-        assert row.param in registered, row.param
-        assert row.verdict in grounding.VERDICTS, row.verdict
+    for grounded in grounding.groundings(offline=True):
+        assert grounded.param in registered, grounded.param
+        assert grounded.verdict in grounding.VERDICTS, grounded.verdict
 
 
 @check("frontier: value falls as hydrogen gets greener, in every member state")
@@ -376,8 +373,8 @@ def _frontier_monotone() -> None:
     The consequence of tying p_H2 and eps_cln into one parameter. Pinned
     because the headline inverts if it ever stops holding.
     """
-    import eurostat
-    import sourcing
+    from analysis import sourcing
+    from data import eurostat
 
     s = eurostat.refresh(offline=True)
     for geo in eurostat.STEEL_GEOS:
@@ -388,8 +385,8 @@ def _frontier_monotone() -> None:
 @check("frontier: the published price/intensity pair is not on it")
 def _frontier_gap() -> None:
     """A fifth to a third of the published NPV rests on an unreachable pair."""
-    import eurostat
-    import sourcing
+    from analysis import sourcing
+    from data import eurostat
 
     s = eurostat.refresh(offline=True)
     shares = []
@@ -398,14 +395,13 @@ def _frontier_gap() -> None:
         assert theta is not None and 0.0 < theta < 1.0, (geo, theta)
         assert consistent < model, (geo, consistent, model)
         shares.append((model - consistent) / model)
-    assert 0.15 < min(shares) and max(shares) < 0.45, (min(shares), max(shares))
+    assert min(shares) > 0.15 and max(shares) < 0.45, (min(shares), max(shares))
 
 
 @check("frontier: sourcing moves the commitment year, not just the value")
 def _frontier_timing() -> None:
-    import eurostat
-    import sourcing
-    from timing_model.params import Params
+    from analysis import sourcing
+    from data import eurostat
 
     s = eurostat.refresh(offline=True)
     horizon = Params().common.horizon_end
@@ -418,8 +414,8 @@ def _frontier_timing() -> None:
 @check("frontier: green never wins at the central carbon path")
 def _frontier_crossover() -> None:
     """Every member state needs a multiple of the model's own path."""
-    import eurostat
-    import sourcing
+    from analysis import sourcing
+    from data import eurostat
 
     s = eurostat.refresh(offline=True)
     mults = {g: sourcing.crossover_multiple(g, s) for g in ("SE", "IT")}
@@ -434,7 +430,7 @@ def _provenance() -> None:
     The failure this prevents: a default moves, the bibliography does not, and
     the citation now vouches for a number nobody is using.
     """
-    import sources
+    from reporting import sources
 
     problems = sources.audit()
     assert not problems, "; ".join(problems)
@@ -443,7 +439,7 @@ def _provenance() -> None:
 @check("provenance: licensed and unread sources are flagged, never quoted as sourced")
 def _unverified() -> None:
     """The Platts assessment and the COM(2026) floor are open items, not facts."""
-    import sources
+    from reporting import sources
 
     flagged = {c.param for c in sources.unverified()}
     assert "benefit.COM2026_FLOOR" in flagged, flagged
@@ -457,7 +453,7 @@ def _unverified() -> None:
 
 @check("observed data: the model deflator matches euro-area HICP within 1pp")
 def _deflator() -> None:
-    import eurostat
+    from data import eurostat
 
     hicp = eurostat.refresh(offline=True)["hicp"].value
     assert abs(hicp - 2.0) < 1.0, hicp

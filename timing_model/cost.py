@@ -42,7 +42,7 @@ def support(T: int, p: Params, sc: ScenarioParams) -> float:
     """
     if sc.support_basis == "stream":
         return 0.0
-    if T < p.policy.support_start:
+    if p.policy.support_start > T:
         return 0.0
     q = max(p.policy.q_min, 1.0 - p.policy.lam * (T - p.policy.support_start))
     return p.policy.s_max * q
@@ -67,7 +67,7 @@ def residual_value(T: int, p: Params) -> float:
     with full book value rather than going negative (Appendix A §3.6).
     """
     t_rel = reline_year(p)
-    if T <= t_rel:
+    if t_rel >= T:
         remaining = p.sector.L_s - (p.sector.age0 + (T - p.common.t0))
     else:
         remaining = p.sector.L_s - ((T - t_rel) % p.sector.L_s)
