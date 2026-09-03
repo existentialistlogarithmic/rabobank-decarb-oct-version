@@ -158,13 +158,21 @@ def section_observed() -> None:
 
 
 def section_findings() -> None:
-    """The derived structural findings, with their evidence."""
+    """The derived structural findings, then the sourcing frontier.
+
+    ``analysis`` derives findings from the model alone. ``sourcing`` adds the
+    ones that only appear once the hydrogen price and the clean-route emission
+    intensity are treated as the single parameter they physically are.
+    """
     banner(9, "STRUCTURAL FINDINGS")
     import analysis
+    import sourcing
 
     for i, fnd in enumerate(analysis.all_findings(), 1):
         print(f"\n  {i}. {fnd.title}")
         print(f"     {fnd.statement}")
+    print()
+    sourcing.main()
 
 
 def section_documents() -> int:
@@ -176,6 +184,7 @@ def section_documents() -> int:
     """
     banner(10, "CHARTS, FINDINGS REPORT AND SOURCES")
     import article
+    import explorer
     import findings_report
     import plots
     import sources
@@ -185,6 +194,7 @@ def section_documents() -> int:
     findings_report.main()
     surface.main()
     article.main()
+    explorer.main()
     return sources.main()
 
 
@@ -201,7 +211,7 @@ def section_tests() -> int:
     try:
         import pytest
     except ImportError:
-        print("pytest is not installed, so the 134-test suite is skipped.")
+        print("pytest is not installed, so the 206-test suite is skipped.")
         print("Section 11 above covers the same load-bearing claims without it.")
         return 0
     code = pytest.main(["-q", "tests"])
@@ -241,6 +251,7 @@ def main() -> int:
         print("Gate passed, negative control behaved, self-check clean.")
         print("Base case: T* = 2029, NPV0 = 1588.29 EUR/t, trigger crossed 2030.")
         print(f"Charts written to {plots_out()}; provenance to SOURCES.md.")
+        print("The sourcing frontier is explorable in explorer.html.")
         print("\nReminder: ladder rows 4-7 do not reproduce the published table.")
         print("CALIBRATION.md documents each one and why.")
     return 1 if failures else 0

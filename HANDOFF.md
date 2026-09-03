@@ -4,7 +4,7 @@ The running state of the build. Everything below is verified as of the last
 commit on this branch.
 
 **Run everything:** `python run_all.py` (13 sections). Python 3.11+, **zero
-dependencies**; `pytest` optional. Currently **134 tests + 34 self-checks** green.
+dependencies**; `pytest` optional. Currently **206 tests + 38 self-checks** green.
 
 ---
 
@@ -29,12 +29,14 @@ Built from a v12 specification. The MATLAB reference (`timing_model.m`) was
 | `eurostat.py` | Six Eurostat series (prices, PPI, utilisation), cached in `eurostat_cache.json` |
 | `ecb.py` | ECB yield curve and policy rate, cached in `ecb_cache.json` |
 | `grounding.py` | Model inputs vs observed data, one verdict per row |
+| `sourcing.py` | The hydrogen sourcing frontier: `p_H2` and `eps_cln` as one input |
+| `explorer.py` | → `explorer.html`, the frontier, interactive (891 embedded model runs) |
 | `sources.py` | → `SOURCES.md`, the provenance register — audited against the code on every run |
 | `plots.py` | → `charts.html`, 9 SVG charts, no matplotlib |
 | `surface.py` | → `surface.html`, rotatable 3D fleet surface (Canvas) |
 | `findings_report.py` | → `findings.html`, the derivations in full |
 | `article.py` | → `article.html`, **the finished article** |
-| `selfcheck.py` | 34 stdlib assertions (works without pytest) |
+| `selfcheck.py` | 38 stdlib assertions (works without pytest) |
 | `CALIBRATION.md` | What is sourced vs fitted — **read before quoting anything** |
 | `SOURCES.md` | Generated. What each input claims and what would falsify it |
 | `ARTICLE.md` | Article outline / writing plan |
@@ -111,6 +113,22 @@ Findings 6–9 come from the observed-data layer and are reported by
    3.36% nominal, 1.23% real after HICP. Finding 4 says the trigger's apparent
    robustness to `r` is cancellation, so this decomposition is load-bearing.
 
+**From the sourcing frontier** (`sourcing.py`; `p_H2` and `eps_cln` tied into
+one parameter, the green share θ):
+
+10. **Fossil hydrogen wins on NPV everywhere, monotonically in θ.** At the
+    model's own carbon path, going greener only ever costs value. Green needs
+    **2.0× (SE, €152/tCO₂) to 6.5× (IT, €496/tCO₂)** the central 2026 price to
+    overtake grey. The ordering follows the **absolute €/kg spread** between the
+    routes, **not** the power-to-gas ratio — the ratio gives a different, wrong
+    ordering, and a test asserts both halves of that.
+11. **Sourcing moves `T*` by up to 17 years** — 2028 all-grey, 2032 (SE/FR) to
+    2045 (AT/IT) all-green. It is a timing lever the model treats as a cost axis.
+12. **The published pair costs 22.6–33.5% of NPV.** €2.60/kg with `eps_cln = 0.1`
+    is a grey price with green emissions — off the frontier entirely. Hold the
+    price, make the intensity consistent, and NPV falls by that much. This is
+    finding 6 quantified.
+
 ## 5. OPEN ITEMS — what to work on next
 
 ### Blocked without external data
@@ -141,12 +159,17 @@ Findings 6–9 come from the observed-data layer and are reported by
 8. **Non-steel sectors** have had no calibration or units review. Publish
    ordering only.
 9. **`charts.html` is 9 figures long** — wants sectioning or splitting.
-10. **Resolve the `p_H2` / `eps_cln` contradiction** (finding 6). A modelling
-    decision, not a data problem: either raise `p_H2` to a green floor, which
-    weakens the case, or raise `eps_cln` toward grey, which removes most of the
-    abatement the model is valuing. Doing neither means publishing two inputs
-    that the observed data says cannot both be true. `grounding.py` flags it and
-    a self-check fails if the flag ever disappears without the inputs changing.
+10. **Resolve the `p_H2` / `eps_cln` contradiction** (findings 6, 12). A
+    modelling decision, not a data problem: either raise `p_H2` to a green
+    floor, which weakens the case, or raise `eps_cln` toward grey, which removes
+    most of the abatement the model is valuing. Doing neither means publishing
+    two inputs that the observed data says cannot both be true, at a cost of
+    22.6–33.5% of NPV. `grounding.py` flags it and a self-check fails if the
+    flag ever disappears without the inputs changing.
+11. **Feed the frontier back into the ladder.** `sourcing.py` runs beside the
+    model, not inside it: `scenarios.py` still treats `p_H2` as an independent
+    axis. Making θ the axis would change the published ladder, so it is a
+    decision, not a refactor.
 
 ## 6. Known traps
 
@@ -162,6 +185,12 @@ Findings 6–9 come from the observed-data layer and are reported by
 - Editing docs with `str.replace()` **silently no-ops on a miss** — this already
   lost three README sections once. Assert the anchor exists. `SOURCES.md` is
   generated for exactly this reason; don't hand-edit it.
+- **The crossover ordering follows the price SPREAD, not the ratio.** Both
+  sides of the condition are differences. The ratio is the intuitive quantity
+  and it ranks the countries differently.
+- **`explorer.html` embeds precomputed model output; it does not model.** Never
+  reimplement `timing_model` in JavaScript — a test recomputes every embedded
+  point and exists to keep that true.
 - **Observed statistics are not automatically model inputs.** A risk-free rate
   is not a hurdle rate; all-industry utilisation is not furnace load. The
   grounding layer reports disagreements and changes nothing — deliberately.

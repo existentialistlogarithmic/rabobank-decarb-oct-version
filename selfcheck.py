@@ -369,6 +369,64 @@ def _grounding_vocabulary() -> None:
         assert row.verdict in grounding.VERDICTS, row.verdict
 
 
+@check("frontier: value falls as hydrogen gets greener, in every member state")
+def _frontier_monotone() -> None:
+    """FINDING: at the model's own carbon path, fossil hydrogen wins on NPV.
+
+    The consequence of tying p_H2 and eps_cln into one parameter. Pinned
+    because the headline inverts if it ever stops holding.
+    """
+    import eurostat
+    import sourcing
+
+    s = eurostat.refresh(offline=True)
+    for geo in eurostat.STEEL_GEOS:
+        npvs = [pt.npv0 for pt in sourcing.frontier(geo, series=s)]
+        assert npvs == sorted(npvs, reverse=True), f"{geo}: {npvs}"
+
+
+@check("frontier: the published price/intensity pair is not on it")
+def _frontier_gap() -> None:
+    """A fifth to a third of the published NPV rests on an unreachable pair."""
+    import eurostat
+    import sourcing
+
+    s = eurostat.refresh(offline=True)
+    shares = []
+    for geo in eurostat.STEEL_GEOS:
+        model, consistent, theta = sourcing.feasibility_gap(geo, s)
+        assert theta is not None and 0.0 < theta < 1.0, (geo, theta)
+        assert consistent < model, (geo, consistent, model)
+        shares.append((model - consistent) / model)
+    assert 0.15 < min(shares) and max(shares) < 0.45, (min(shares), max(shares))
+
+
+@check("frontier: sourcing moves the commitment year, not just the value")
+def _frontier_timing() -> None:
+    import eurostat
+    import sourcing
+    from timing_model.params import Params
+
+    s = eurostat.refresh(offline=True)
+    horizon = Params().common.horizon_end
+    for geo in eurostat.STEEL_GEOS:
+        lo, hi = sourcing.point(geo, 0.0, s), sourcing.point(geo, 1.0, s)
+        late = horizon + 2 if hi.t_star is None else hi.t_star
+        assert lo.t_star is not None and late > lo.t_star, (geo, lo.t_star, hi.t_star)
+
+
+@check("frontier: green never wins at the central carbon path")
+def _frontier_crossover() -> None:
+    """Every member state needs a multiple of the model's own path."""
+    import eurostat
+    import sourcing
+
+    s = eurostat.refresh(offline=True)
+    mults = {g: sourcing.crossover_multiple(g, s) for g in ("SE", "IT")}
+    assert all(m is not None and m > 1.0 for m in mults.values()), mults
+    assert mults["SE"] < mults["IT"], mults
+
+
 @check("provenance: every input cited, every citation equal to the running model")
 def _provenance() -> None:
     """SOURCES.md is generated from a register that is checked against the code.

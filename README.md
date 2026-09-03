@@ -162,6 +162,49 @@ Two inputs **cannot** be sourced from open data and need a market-data
 terminal: the EUA price series (which sets the price path, drift `mu` and
 volatility `sigma`) and commercial hydrogen assessments.
 
+## The sourcing frontier — and what it costs the headline
+
+The model asks for a hydrogen price and a clean-route emission intensity as two
+independent inputs. Physically they are **one** input: hydrogen is bought
+somewhere between reformed gas and electrolysed power, and where you buy it sets
+the price *and* the emissions. `sourcing.py` ties them to a single parameter —
+the green share `θ` — and re-runs the model along it. Three results follow, none
+of which the model can see while the two inputs are held independent.
+
+**1. Value falls monotonically as hydrogen gets greener.** At the model's own
+carbon path, fossil hydrogen wins on NPV in every member state. Going green buys
+abatement worth `Δb · p` and costs `m_H2 · (green − grey)` — and at €76–112/tCO₂
+the cost side wins.
+
+**2. Green hydrogen needs 2.0–6.5× the carbon price to overtake grey.**
+
+| | SE | FR | ES | PL | BE | NL | DE | AT | IT |
+|---|---|---|---|---|---|---|---|---|---|
+| **2026 EUA needed** | €152 | €193 | €308 | €322 | €359 | €383 | €471 | €484 | €496 |
+| **× central path** | 2.0 | 2.5 | 4.1 | 4.2 | 4.7 | 5.0 | 6.2 | 6.4 | 6.5 |
+
+The ordering follows the **absolute €/kg spread** between the two routes, not
+the power-to-gas ratio — the ratio ordering is different, and wrong. Both sides
+of the crossover are differences, so no ratio enters it. A test asserts the
+spread explains the ordering *and* that the ratio does not, because "obvious" is
+how the wrong mechanism gets published.
+
+**3. Sourcing moves the commitment year by up to 17 years.** `T*` runs from 2028
+on all-grey to 2032 (SE, FR) or 2045 (AT, IT) on all-green. Hydrogen sourcing is
+a *timing* lever; the model treats it as a cost axis.
+
+**What it costs the headline.** The published pair — €2.60/kg with
+`eps_cln = 0.1` — is not a point anyone can occupy: it is a grey price with green
+emissions. Hold the price and make the intensity consistent with it, and NPV
+falls by **22.6% (SE) to 33.5% (IT)**. That share of the published number was
+never available at any sourcing decision.
+
+`explorer.html` makes this explorable: pick a member state, drag the green share
+and the carbon path, and watch the value, the commitment year and the trigger
+move together. Every number on the page is computed in Python by the same
+`timing_model` code and embedded — the page selects and draws, it does not model
+— and a test recomputes each embedded point and fails if the two ever disagree.
+
 ## The article
 
 `article.py` writes **`article.html`** — the finished piece, roughly 2,200
@@ -277,6 +320,8 @@ eurostat.py            # observed inputs from Eurostat, cached for offline use
 observed.py            # shared series type + the offline caching rule
 ecb.py                 # observed interest rates from the ECB Data Portal
 grounding.py           # model inputs vs observed data, one verdict per row
+sourcing.py            # the hydrogen sourcing frontier: p_H2 and eps_cln as ONE input
+explorer.py            # -> explorer.html, the frontier, interactive
 sources.py             # -> SOURCES.md, provenance register, audited against the code
 analysis.py            # derives the structural findings
 findings_report.py     # -> findings.html, the findings written out in full
@@ -284,7 +329,7 @@ plots.py               # -> charts.html, nine charts, no matplotlib
 surface.py             # -> surface.html, the fleet surface in rotatable 3D
 article.py             # -> article.html, THE FINISHED PIECE
 ARTICLE.md             # working table of contents for the write-up
-selfcheck.py           # 34 stdlib assertions, for when pytest is unavailable
+selfcheck.py           # 38 stdlib assertions, for when pytest is unavailable
 run_all.py             # runs everything above in one go
 ```
 
