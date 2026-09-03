@@ -1,4 +1,44 @@
 {
+  "caputil_ea": {
+    "period": "2025-Q4",
+    "value": 78.2
+  },
+  "gas_AT": {
+    "period": "2025-S2",
+    "value": 0.0385
+  },
+  "gas_BE": {
+    "period": "2025-S2",
+    "value": 0.037
+  },
+  "gas_DE": {
+    "period": "2025-S2",
+    "value": 0.0353
+  },
+  "gas_ES": {
+    "period": "2025-S2",
+    "value": 0.0362
+  },
+  "gas_FR": {
+    "period": "2025-S2",
+    "value": 0.0391
+  },
+  "gas_IT": {
+    "period": "2025-S2",
+    "value": 0.0408
+  },
+  "gas_NL": {
+    "period": "2025-S2",
+    "value": 0.0319
+  },
+  "gas_PL": {
+    "period": "2025-S2",
+    "value": 0.0408
+  },
+  "gas_SE": {
+    "period": "2025-S2",
+    "value": 0.0389
+  },
   "hicp_ea": {
     "period": "2025",
     "value": 2.1
@@ -38,5 +78,21 @@
   "power_SE": {
     "period": "2025-S2",
     "value": 0.0716
+  },
+  "ppi_c24": {
+    "period": "2025",
+    "value": 111.0
+  },
+  "ppi_c24_2022": {
+    "period": "2022",
+    "value": 124.7
+  },
+  "ppi_mig_cag": {
+    "period": "2025",
+    "value": 116.0
+  },
+  "ppi_mig_cag_2022": {
+    "period": "2022",
+    "value": 107.0
   }
 }

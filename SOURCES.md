@@ -10,14 +10,14 @@ records what each one *asserts about the world*, and what would falsify it.
 
 | Status | What would falsify a claim carrying it | Count |
 |---|---|---|
-| `gate` | re-derived by the validation gate on every run | 8 |
-| `sourced` | a primary, openly reachable publication says this | 21 |
-| `observed` | an official statistic, cached with its period | 1 |
-| `assumed` | a modelling choice with a rationale and no external authority | 16 |
+| `gate` | re-derived by the validation gate on every run | 9 |
+| `sourced` | a primary, openly reachable publication says this | 24 |
+| `observed` | an official statistic, cached with its period | 5 |
+| `assumed` | a modelling choice with a rationale and no external authority | 17 |
 | `fitted` | solved backwards from a published result; no independent content | 1 |
 | `unverified` | traceable to a source we could not open - a live to-do | 3 |
 
-**Audit:** clean — 50 inputs, every parameter field covered, every quoted value equal to the value the model runs on.
+**Audit:** clean — 59 inputs, every parameter field covered, every quoted value equal to the value the model runs on.
 
 ## `gate` — re-derived by the validation gate on every run
 
@@ -31,6 +31,7 @@ records what each one *asserts about the world*, and what would falsify it.
 | `sector.phi` | 0.5 | share of S_s | `appendix_a` | Share of the write-off charged to the decision; pinned by p'_M = 30.50. |
 | `sector.c_avoided` | 83.0 | EUR/t product/yr (2022) | `appendix_a` | Coke and PCI avoided, eq (2); pinned by a(2.60) = -60. |
 | `policy.kappa` | 1.0 | dimensionless | `appendix_a` | Published base. F5's hot-metal fix sets 0.94, which reproduces both corrected triggers to 4 s.f.; no other placement of kappa does. |
+| `eurostat.CURRENCY_BASE_YEAR` | 2022 | year | `appendix_a` | The currency year every monetary parameter is tagged with. Producer prices are read at this year and the latest one so a EUR 2022 figure can be restated rather than assumed current. |
 
 ## `sourced` — a primary, openly reachable publication says this
 
@@ -52,7 +53,10 @@ records what each one *asserts about the world*, and what would falsify it.
 | `scenario.policy_vintage` | law2023 | law2023|com2026 | `cbam_reg` | Which free-allocation phase-out applies. |
 | `scenario.u` | 0.85 | share | `ieefa_reline`, `appendix_a` | Load factor, F2. EU blast furnaces run 0.75–0.85. Multiplies B(t) only, never I'(T) - enforced by an AST test over cost.py. |
 | `benefit.F_LAW2023` | 2026:0.975 2027:0.950 2028:0.900 2029:0.775 2030:0.515 2031:0.390 2032:0.265 2033:0.140 | share of free allocation | `cbam_reg` | CBAM phase-out as legislated in 2023; years absent take 0.0. |
-| `eurostat.KWH_PER_KG_H2` | 55.0 | kWh/kg H2 | `eurostat_power` | LHV 33.3 kWh/kg at ~60% system efficiency. Turns an observed power price into a floor under the hydrogen price. |
+| `eurostat.KWH_PER_KG_H2` | 55.0 | kWh/kg H2 | `eurostat_power` | LHV 33.3 kWh/kg at ~60% system efficiency. Turns an observed power price into a GREEN floor under the hydrogen price. |
+| `eurostat.KG_CO2_PER_KG_H2_SMR` | 9.0 | kgCO2/kg H2 | `iea_h2` | Process emissions of unabated reforming. The IEA puts unabated hydrogen at 10-12 kgCO2e/kg once upstream methane is counted, so 9 is deliberately the conservative end: it makes the grey floor lower and the eps_cln contradiction harder to dismiss, not easier. |
+| `eurostat.POWER_BAND` | MWH20000-69999 | Eurostat band code | `eurostat_power` | Band IE, 20-70 GWh/yr: the closest published electricity band to a steel plant's draw. Taxes excluded, because large industrial users are substantially exempted in most member states. |
+| `eurostat.GAS_BAND` | GJ1000000-3999999 | Eurostat band code | `eurostat_gas` | Band I5, 1 000 000-3 999 999 GJ/yr: the closest published gas band to an integrated works. |
 | `scenarios.SOURCED_RANGES.r` | 0.06 .. 0.1 | 1/yr real | `diw2082`, `appendix_a` | Finding 4 runs on this band: across it the break-even moves +304% and the option multiple -68%, and the trigger looks stable only because the two cancel. |
 | `scenarios.SOURCED_RANGES.s_max` | 200.0 .. 660.0 | EUR/t capacity (2022) | `zoe_idb`, `ec_ccfd` | Published base at the €200 Booster envelope; the top end is the envelope plus a CCfD stream, per F4. |
 | `scenarios.SOURCED_RANGES.learning_rate` | 0.1 .. 0.2 | share per doubling | `diw2082`, `ieefa_h2dri` | Wright learning rates for electrolyser-led capex. b_learn = 0.234 sits at the top of this band (~15%). |
@@ -63,6 +67,10 @@ records what each one *asserts about the world*, and what would falsify it.
 | Input | Value | Unit | Sources | Note |
 |---|---|---|---|---|
 | `scenario.deflator` | 0.02 | 1/yr | `eurostat_hicp` | Used only on the real basis. Euro-area HICP came back at 2.1%/yr, within 1pp - the model's 2.0% stands. |
+| `ecb.YIELD_10Y` | YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y | series key | `ecb_rates` | 10-year AAA euro-area government spot rate: the risk-free rate at the model's horizon scale. Deflated by HICP it gives the real risk-free rate the 8% hurdle is a premium over. |
+| `ecb.POLICY_RATE` | FM/B.U2.EUR.4F.KR.MRR_FR.LEV | series key | `ecb_rates` | Main refinancing operations, fixed rate: the policy anchor under the term structure. |
+| `eurostat.CAPUTIL_SOURCE` | Eurostat ei_bsin_q_r2 (business survey) | dataset | `eurostat_bs` | Euro-area capacity utilisation, the reference point for the load factor u. Observed 78.2% (2025-Q4) against a model default of 0.85 and a published base row of 1.00. |
+| `eurostat.PPI_SOURCE` | Eurostat sts_inppd_a | dataset | `eurostat_ppi` | Capital goods (MIG_CAG) 107.0 -> 116.0 and basic metals (C24) 124.7 -> 111.0 between 2022 and 2025: plant got dearer while steel got cheaper, in a model whose central error class is confusing per tonne of capacity with per tonne of product. |
 
 ## `assumed` — a modelling choice with a rationale and no external authority
 
@@ -82,6 +90,7 @@ records what each one *asserts about the world*, and what would falsify it.
 | `params.SIGMA_REGIMES` | cfd:0.100 crisis:0.300 long_run:0.200 realised:0.450 | 1/yr^0.5 | `appendix_a` | §3.4. A ladder rather than a calibrated sigma(t): each rung is defensible line by line. At 0.450 the trigger is crossed in 2043 - beyond any recognisable investment horizon, which is not 'never'. |
 | `benefit._P_2026` | 76.0 | EUR/tCO2 nominal | `appendix_a` | Start of the central path. An EUA series would replace this, mu and sigma together - open item 1. |
 | `benefit._P_2030` | 112.0 | EUR/tCO2 nominal | `appendix_a` | End of the linear ramp; +mu per year thereafter. |
+| `eurostat.KWH_GAS_PER_KG_H2` | 41.1 | kWh gas/kg H2 | `iea_h2` | LHV 33.3 kWh/kg at 81% reforming efficiency, the top of the 79-81% band reported for large-scale SMR - the favourable end, because this builds a floor. The IEA reference covers the route and its emissions, not this efficiency figure: treat the number as a modelling choice. |
 | `scenarios.SOURCED_RANGES.I0` | 600.0 .. 1400.0 | EUR/t capacity (2022) | `diw2082`, `appendix_a` | Lower bound is DIW's €600/t₂₀₂₂. The upper bound is widened past DIW's €1000 for first-of-a-kind European projects, and is a judgement. |
 | `scenarios.SOURCED_RANGES.a` | -320.0 .. -25.0 | EUR/t product/yr | `appendix_a` | Published band. Note it is NOT the image of the p_H2 band under the endogenous a(·): a(2.50) = -54.5 and a(8.29) = -372.95, so the top of the hydrogen range falls below the bottom of this one. The two §3.3 rows are inconsistent with each other; the model uses a(p_H2). |
 
@@ -123,15 +132,29 @@ model runs offline and the numbers below are the numbers it used.
 | Series | Period | Value | Dataset |
 |---|---|---|---|
 | Euro-area HICP inflation | 2025 | 2.1000 % / yr | Eurostat prc_hicp_aind |
+| Euro-area capacity utilisation, industry | 2025-Q4 | 78.2000 % | Eurostat ei_bsin_q_r2 (business survey) |
+| Euro-area producer prices, basic metals | 2025 | 111.0000 index 2021=100 | Eurostat sts_inppd_a C24 |
+| Euro-area producer prices, basic metals | 2022 | 124.7000 index 2021=100 | Eurostat sts_inppd_a C24 |
+| Euro-area producer prices, capital goods | 2025 | 116.0000 index 2021=100 | Eurostat sts_inppd_a MIG_CAG |
+| Euro-area producer prices, capital goods | 2022 | 107.0000 index 2021=100 | Eurostat sts_inppd_a MIG_CAG |
 | ES industrial electricity | 2025-S2 | 0.0991 EUR/kWh | Eurostat nrg_pc_205 band IE, excl. taxes |
+| ES industrial gas | 2025-S2 | 0.0362 EUR/kWh | Eurostat nrg_pc_203 band I5, excl. taxes |
 | DE industrial electricity | 2025-S2 | 0.1363 EUR/kWh | Eurostat nrg_pc_205 band IE, excl. taxes |
+| DE industrial gas | 2025-S2 | 0.0353 EUR/kWh | Eurostat nrg_pc_203 band I5, excl. taxes |
 | NL industrial electricity | 2025-S2 | 0.1134 EUR/kWh | Eurostat nrg_pc_205 band IE, excl. taxes |
+| NL industrial gas | 2025-S2 | 0.0319 EUR/kWh | Eurostat nrg_pc_203 band I5, excl. taxes |
 | FR industrial electricity | 2025-S2 | 0.0782 EUR/kWh | Eurostat nrg_pc_205 band IE, excl. taxes |
+| FR industrial gas | 2025-S2 | 0.0391 EUR/kWh | Eurostat nrg_pc_203 band I5, excl. taxes |
 | SE industrial electricity | 2025-S2 | 0.0716 EUR/kWh | Eurostat nrg_pc_205 band IE, excl. taxes |
+| SE industrial gas | 2025-S2 | 0.0389 EUR/kWh | Eurostat nrg_pc_203 band I5, excl. taxes |
 | AT industrial electricity | 2025-S2 | 0.1419 EUR/kWh | Eurostat nrg_pc_205 band IE, excl. taxes |
+| AT industrial gas | 2025-S2 | 0.0385 EUR/kWh | Eurostat nrg_pc_203 band I5, excl. taxes |
 | BE industrial electricity | 2025-S2 | 0.1115 EUR/kWh | Eurostat nrg_pc_205 band IE, excl. taxes |
+| BE industrial gas | 2025-S2 | 0.0370 EUR/kWh | Eurostat nrg_pc_203 band I5, excl. taxes |
 | IT industrial electricity | 2025-S2 | 0.1463 EUR/kWh | Eurostat nrg_pc_205 band IE, excl. taxes |
+| IT industrial gas | 2025-S2 | 0.0408 EUR/kWh | Eurostat nrg_pc_203 band I5, excl. taxes |
 | PL industrial electricity | 2025-S2 | 0.1058 EUR/kWh | Eurostat nrg_pc_205 band IE, excl. taxes |
+| PL industrial gas | 2025-S2 | 0.0408 EUR/kWh | Eurostat nrg_pc_203 band I5, excl. taxes |
 
 ## Bibliography
 
@@ -151,6 +174,11 @@ model runs offline and the numbers below are the numbers it used.
 - **`platts_h2`** — *Platts hydrogen price assessment, Spain, 8 May 2026 — €8.29/kg*, S&P Global Commodity Insights — **not openly reachable**. Licensed market data. Taken from the v12 specification and never confirmed against a subscription. See open item 6.
 - **`eurostat_hicp`** — [prc_hicp_aind — HICP annual average rate of change](https://ec.europa.eu/eurostat/databrowser/view/prc_hicp_aind/default/table), Eurostat. Euro-area inflation; grounds the deflator used on the real basis.
 - **`eurostat_power`** — [nrg_pc_205 — electricity prices for non-household consumers](https://ec.europa.eu/eurostat/databrowser/view/nrg_pc_205/default/table), Eurostat. Band IE (20–70 GWh/yr), excluding taxes: the closest published band to a steel plant's draw. Puts the floor under the hydrogen price.
+- **`eurostat_gas`** — [nrg_pc_203 — gas prices for non-household consumers](https://ec.europa.eu/eurostat/databrowser/view/nrg_pc_203/default/table), Eurostat. Band I5 (1 000 000–3 999 999 GJ/yr), excluding taxes: the closest published band to an integrated works. Sets the grey hydrogen floor, which is the lower of the two and therefore the binding one.
+- **`eurostat_ppi`** — [sts_inppd_a — producer prices in industry, annual](https://ec.europa.eu/eurostat/databrowser/view/sts_inppd_a/default/table), Eurostat. Euro-area output prices, 2021 = 100. MIG_CAG (capital goods) restates a EUR 2022 capex figure in today's money; C24 (basic metals) does the same for anything per tonne of product. They have moved in opposite directions since 2022.
+- **`eurostat_bs`** — [ei_bsin_q_r2 — business surveys in industry, quarterly](https://ec.europa.eu/eurostat/databrowser/view/ei_bsin_q_r2/default/table), Eurostat. Current level of capacity utilisation, euro area, seasonally adjusted. All-industry rather than steel, so it is a reference point for the load factor, not a measurement of furnace load.
+- **`ecb_rates`** — [ECB Data Portal — yield curve and official interest rates](https://data.ecb.europa.eu/), European Central Bank. Series YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y (10-year AAA euro-area government spot rate) and FM/B.U2.EUR.4F.KR.MRR_FR.LEV (main refinancing rate). Decomposes the 8% hurdle rate into an observed risk-free rate and the premium above it.
+- **`iea_h2`** — [Global Hydrogen Review 2024 — GHG emissions of hydrogen and its derivatives](https://www.iea.org/reports/global-hydrogen-review-2024/ghg-emissions-of-hydrogen-and-its-derivatives), International Energy Agency. Unabated hydrogen from natural gas at 10–12 kgCO₂e/kg once upstream methane is counted. Refuses automated clients (403); opens in a browser.
 - **`appendix_a`** — *v12 specification, Appendix A*, internal — **not openly reachable**. The build's numerical reference. Sections cited inline. The MATLAB implementation it describes (timing_model.m) was never available.
 
 ---

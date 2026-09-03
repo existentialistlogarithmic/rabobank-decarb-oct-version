@@ -240,6 +240,54 @@ SOURCES: Final[Mapping[str, Source]] = {s.key: s for s in (
         "steel plant's draw. Puts the floor under the hydrogen price.",
     ),
     Source(
+        "eurostat_gas",
+        "nrg_pc_203 — gas prices for non-household consumers",
+        "Eurostat",
+        "https://ec.europa.eu/eurostat/databrowser/view/nrg_pc_203/default/table",
+        "Band I5 (1 000 000–3 999 999 GJ/yr), excluding taxes: the closest "
+        "published band to an integrated works. Sets the grey hydrogen floor, "
+        "which is the lower of the two and therefore the binding one.",
+    ),
+    Source(
+        "eurostat_ppi",
+        "sts_inppd_a — producer prices in industry, annual",
+        "Eurostat",
+        "https://ec.europa.eu/eurostat/databrowser/view/sts_inppd_a/default/table",
+        "Euro-area output prices, 2021 = 100. MIG_CAG (capital goods) restates "
+        "a EUR 2022 capex figure in today's money; C24 (basic metals) does the "
+        "same for anything per tonne of product. They have moved in opposite "
+        "directions since 2022.",
+    ),
+    Source(
+        "eurostat_bs",
+        "ei_bsin_q_r2 — business surveys in industry, quarterly",
+        "Eurostat",
+        "https://ec.europa.eu/eurostat/databrowser/view/ei_bsin_q_r2/default/table",
+        "Current level of capacity utilisation, euro area, seasonally adjusted. "
+        "All-industry rather than steel, so it is a reference point for the "
+        "load factor, not a measurement of furnace load.",
+    ),
+    Source(
+        "ecb_rates",
+        "ECB Data Portal — yield curve and official interest rates",
+        "European Central Bank",
+        "https://data.ecb.europa.eu/",
+        "Series YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y (10-year AAA euro-area "
+        "government spot rate) and FM/B.U2.EUR.4F.KR.MRR_FR.LEV (main "
+        "refinancing rate). Decomposes the 8% hurdle rate into an observed "
+        "risk-free rate and the premium above it.",
+    ),
+    Source(
+        "iea_h2",
+        "Global Hydrogen Review 2024 — GHG emissions of hydrogen and its derivatives",
+        "International Energy Agency",
+        "https://www.iea.org/reports/global-hydrogen-review-2024/"
+        "ghg-emissions-of-hydrogen-and-its-derivatives",
+        "Unabated hydrogen from natural gas at 10–12 kgCO₂e/kg once upstream "
+        "methane is counted. Refuses automated clients (403); opens in a "
+        "browser.",
+    ),
+    Source(
         "appendix_a",
         "v12 specification, Appendix A",
         "internal",
@@ -386,7 +434,50 @@ REGISTER: Final[tuple[Claim, ...]] = (
           "End of the linear ramp; +mu per year thereafter."),
     Claim("eurostat.KWH_PER_KG_H2", 55.0, "kWh/kg H2", "sourced", ("eurostat_power",),
           "LHV 33.3 kWh/kg at ~60% system efficiency. Turns an observed power "
-          "price into a floor under the hydrogen price."),
+          "price into a GREEN floor under the hydrogen price."),
+    Claim("eurostat.KWH_GAS_PER_KG_H2", 41.1, "kWh gas/kg H2", "assumed", ("iea_h2",),
+          "LHV 33.3 kWh/kg at 81% reforming efficiency, the top of the 79-81% "
+          "band reported for large-scale SMR - the favourable end, because this "
+          "builds a floor. The IEA reference covers the route and its emissions, "
+          "not this efficiency figure: treat the number as a modelling choice."),
+    Claim("eurostat.KG_CO2_PER_KG_H2_SMR", 9.0, "kgCO2/kg H2", "sourced", ("iea_h2",),
+          "Process emissions of unabated reforming. The IEA puts unabated "
+          "hydrogen at 10-12 kgCO2e/kg once upstream methane is counted, so 9 "
+          "is deliberately the conservative end: it makes the grey floor lower "
+          "and the eps_cln contradiction harder to dismiss, not easier."),
+    Claim("eurostat.POWER_BAND", "MWH20000-69999", "Eurostat band code", "sourced",
+          ("eurostat_power",),
+          "Band IE, 20-70 GWh/yr: the closest published electricity band to a "
+          "steel plant's draw. Taxes excluded, because large industrial users "
+          "are substantially exempted in most member states."),
+    Claim("eurostat.GAS_BAND", "GJ1000000-3999999", "Eurostat band code", "sourced",
+          ("eurostat_gas",),
+          "Band I5, 1 000 000-3 999 999 GJ/yr: the closest published gas band "
+          "to an integrated works."),
+    Claim("eurostat.CURRENCY_BASE_YEAR", "2022", "year", "gate", ("appendix_a",),
+          "The currency year every monetary parameter is tagged with. Producer "
+          "prices are read at this year and the latest one so a EUR 2022 figure "
+          "can be restated rather than assumed current."),
+    Claim("ecb.YIELD_10Y", "YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y", "series key",
+          "observed", ("ecb_rates",),
+          "10-year AAA euro-area government spot rate: the risk-free rate at "
+          "the model's horizon scale. Deflated by HICP it gives the real "
+          "risk-free rate the 8% hurdle is a premium over."),
+    Claim("ecb.POLICY_RATE", "FM/B.U2.EUR.4F.KR.MRR_FR.LEV", "series key",
+          "observed", ("ecb_rates",),
+          "Main refinancing operations, fixed rate: the policy anchor under the "
+          "term structure."),
+    Claim("eurostat.CAPUTIL_SOURCE", "Eurostat ei_bsin_q_r2 (business survey)",
+          "dataset", "observed", ("eurostat_bs",),
+          "Euro-area capacity utilisation, the reference point for the load "
+          "factor u. Observed 78.2% (2025-Q4) against a model default of 0.85 "
+          "and a published base row of 1.00."),
+    Claim("eurostat.PPI_SOURCE", "Eurostat sts_inppd_a", "dataset", "observed",
+          ("eurostat_ppi",),
+          "Capital goods (MIG_CAG) 107.0 -> 116.0 and basic metals (C24) "
+          "124.7 -> 111.0 between 2022 and 2025: plant got dearer while steel "
+          "got cheaper, in a model whose central error class is confusing per "
+          "tonne of capacity with per tonne of product."),
 
     # ---- §3.3 sourced ranges: the headline sensitivity, not a +/-20% sweep --
     Claim("scenarios.SOURCED_RANGES.I0", "600.0 .. 1400.0", "EUR/t capacity (2022)",
@@ -451,10 +542,8 @@ def _root(group: str) -> object:
     """Object a dotted parameter name is resolved against."""
     if group in _CLASSES:
         return _CLASSES[group]()
-    if group == "eurostat":
-        import eurostat
-
-        return eurostat
+    if group in ("eurostat", "ecb", "observed", "grounding"):
+        return __import__(group)
     if group == "scenarios":
         from timing_model import scenarios
 

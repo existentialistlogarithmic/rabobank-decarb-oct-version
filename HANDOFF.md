@@ -4,7 +4,7 @@ The running state of the build. Everything below is verified as of the last
 commit on this branch.
 
 **Run everything:** `python run_all.py` (13 sections). Python 3.11+, **zero
-dependencies**; `pytest` optional. Currently **107 tests + 30 self-checks** green.
+dependencies**; `pytest` optional. Currently **134 tests + 34 self-checks** green.
 
 ---
 
@@ -25,13 +25,16 @@ Built from a v12 specification. The MATLAB reference (`timing_model.m`) was
 |---|---|
 | `timing_model/` | The model. 11 modules in strict group order (params → primitives → benefit → cost → objective → option → validate → results → scenarios → report). Import direction enforced by an AST test. |
 | `analysis.py` | Derives the five structural findings + their evidence |
-| `eurostat.py` | Observed inputs, cached offline in `eurostat_cache.json` |
+| `observed.py` | Shared series type and the offline caching rule both providers use |
+| `eurostat.py` | Six Eurostat series (prices, PPI, utilisation), cached in `eurostat_cache.json` |
+| `ecb.py` | ECB yield curve and policy rate, cached in `ecb_cache.json` |
+| `grounding.py` | Model inputs vs observed data, one verdict per row |
 | `sources.py` | → `SOURCES.md`, the provenance register — audited against the code on every run |
 | `plots.py` | → `charts.html`, 9 SVG charts, no matplotlib |
 | `surface.py` | → `surface.html`, rotatable 3D fleet surface (Canvas) |
 | `findings_report.py` | → `findings.html`, the derivations in full |
 | `article.py` | → `article.html`, **the finished article** |
-| `selfcheck.py` | 30 stdlib assertions (works without pytest) |
+| `selfcheck.py` | 34 stdlib assertions (works without pytest) |
 | `CALIBRATION.md` | What is sourced vs fitted — **read before quoting anything** |
 | `SOURCES.md` | Generated. What each input claims and what would falsify it |
 | `ARTICLE.md` | Article outline / writing plan |
@@ -52,15 +55,29 @@ crossed 2030 · T_rel 2032
 +load factor 0.85 2030/1294/109.5 → +hot metal κ=0.94 2030/1166/116.9 → +real
 2031/754/116.9 → +H₂ €8.29 beyond/−49/366.9
 
-**Eurostat (retrieved 2026-09-01):** euro-area HICP 2.1%/yr. Industrial
-electricity €/kWh (band IE, excl. taxes, 2025-S2): SE 0.0716 · FR 0.0782 · ES
-0.0991 · PL 0.1058 · BE 0.1115 · NL 0.1134 · DE 0.1363 · AT 0.1419 · IT 0.1463
+**Observed data (26 series, cached; retrieved 2026-09-03).** Euro-area HICP
+2.1%/yr · capacity utilisation 78.2% (2025-Q4) · capital-goods PPI 107.0→116.0
+and basic-metals PPI 124.7→111.0 (2022→2025) · ECB 10Y AAA 3.36% nominal,
+1.23% real.
 
-**Hydrogen floors** (power only, 55 kWh/kg): SE 3.94 · FR 4.30 · ES 5.45 · DE
+Industrial electricity €/kWh (band IE, excl. taxes, 2025-S2): SE 0.0716 · FR
+0.0782 · ES 0.0991 · PL 0.1058 · BE 0.1115 · NL 0.1134 · DE 0.1363 · AT 0.1419 ·
+IT 0.1463. Industrial gas €/kWh (band I5): NL 0.0319 · DE 0.0353 · ES 0.0362 ·
+BE 0.0370 · AT 0.0385 · SE 0.0389 · FR 0.0391 · IT 0.0408 · PL 0.0408
+
+**Green H₂ floors** (power only, 55 kWh/kg): SE 3.94 · FR 4.30 · ES 5.45 · DE
 7.50 · IT 8.05. Break-even €5.27/kg → **case exists only in Sweden and France**;
 Spain misses by €0.18. Where it exists, T* = 2032 = the reline.
 
-## 4. The five findings
+**Grey H₂ floors** (gas at 41.1 kWh/kg + 9 kgCO₂ at €76/t): €2.00–2.36/kg. So
+€2.60/kg is not a green price anywhere — it is roughly the unabated fossil
+price. See finding 6.
+
+## 4. The findings
+
+Findings 1–5 are structural, derived by `analysis.py` from the model itself.
+Findings 6–9 come from the observed-data layer and are reported by
+`grounding.py` with a verdict each.
 
 1. **Levers are orthogonal, exactly.** 5 params move NPV and the trigger by
    0.000%; 2 move the trigger and NPV by 0.000%; 4 move both. Structural — the
@@ -74,6 +91,25 @@ Spain misses by €0.18. Where it exists, T* = 2032 = the reline.
    −68%, product +29%.
 5. **The correlation matrix misleads.** NPV vs trigger reads −0.87 across 81
    scenarios, contradicting finding 1. The ensemble manufactured it.
+
+**From the observed data** (`grounding.py`, verdict in brackets):
+
+6. **€2.60/kg is a fossil hydrogen price** [contradiction]. Below every green
+   floor (€3.94–8.05) and inside the grey band (€2.00–2.36 = gas + ETS). Grey
+   hydrogen emits 9 kgCO₂/kg, i.e. **0.49 tCO₂/t steel at 55 kg H₂/t — 5× the
+   `eps_cln = 0.1` the model credits the clean route with.** The price and the
+   intensity cannot both hold. This is the single most actionable thing the
+   data says; see open item 10.
+7. **`u = 0.85` is optimistic** [optimistic]. Euro-area capacity utilisation is
+   **78.2%** (2025-Q4). The published base row runs `u = 1.00` — a furnace that
+   never stops. All-industry, not steel: a reference point, not a measurement.
+8. **The currency year cuts both ways** [context]. Since 2022 capital goods are
+   **+8.4%** while steel output prices are **−11.0%**. Every €/t-capacity term
+   is quoted in a trough currency year and every €/t-product term in a peak one
+   — in a model whose central error class is confusing the two units.
+9. **The 8% hurdle rate is a 6.8pp risk premium** [context]. ECB 10Y AAA is
+   3.36% nominal, 1.23% real after HICP. Finding 4 says the trigger's apparent
+   robustness to `r` is cancellation, so this decomposition is load-bearing.
 
 ## 5. OPEN ITEMS — what to work on next
 
@@ -105,6 +141,12 @@ Spain misses by €0.18. Where it exists, T* = 2032 = the reline.
 8. **Non-steel sectors** have had no calibration or units review. Publish
    ordering only.
 9. **`charts.html` is 9 figures long** — wants sectioning or splitting.
+10. **Resolve the `p_H2` / `eps_cln` contradiction** (finding 6). A modelling
+    decision, not a data problem: either raise `p_H2` to a green floor, which
+    weakens the case, or raise `eps_cln` toward grey, which removes most of the
+    abatement the model is valuing. Doing neither means publishing two inputs
+    that the observed data says cannot both be true. `grounding.py` flags it and
+    a self-check fails if the flag ever disappears without the inputs changing.
 
 ## 6. Known traps
 
@@ -120,6 +162,9 @@ Spain misses by €0.18. Where it exists, T* = 2032 = the reline.
 - Editing docs with `str.replace()` **silently no-ops on a miss** — this already
   lost three README sections once. Assert the anchor exists. `SOURCES.md` is
   generated for exactly this reason; don't hand-edit it.
+- **Observed statistics are not automatically model inputs.** A risk-free rate
+  is not a hurdle rate; all-industry utilisation is not furnace load. The
+  grounding layer reports disagreements and changes nothing — deliberately.
 - **The §3.3 `a` band and the §3.3 `p_H2` band are inconsistent with each
   other.** The published `a` range is (−320, −25), but `a(2.50) = −54.5` and
   `a(8.29) = −372.95`, so the top of the hydrogen band falls below the bottom of

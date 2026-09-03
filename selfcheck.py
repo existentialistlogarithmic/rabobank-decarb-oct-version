@@ -315,6 +315,60 @@ def _h2_floor() -> None:
     assert min(floors.values()) > 2.60, f"cheapest floor {min(floors.values()):.2f}"
 
 
+@check("observed data: EUR 2.60/kg is reachable only as unabated fossil hydrogen")
+def _grey_hydrogen() -> None:
+    """Gas prices put the base case below every green floor and inside the grey band.
+
+    Runs from the committed caches, so it needs no network.
+    """
+    import grounding
+    from timing_model.params import ScenarioParams
+
+    floors = grounding.hydrogen_floors(offline=True)
+    assert len(floors) >= 5, floors
+    green = [g for g, _ in floors.values()]
+    grey = [y for _, y in floors.values()]
+    base = ScenarioParams().p_H2
+    assert min(green) > base, f"cheapest green floor {min(green):.2f}"
+    assert min(grey) < base < min(green), (min(grey), base, min(green))
+
+
+@check("observed data: grey hydrogen contradicts the clean-route intensity")
+def _intensity_contradiction() -> None:
+    """The strongest thing the observed data says: two inputs cannot both hold."""
+    import grounding
+    from timing_model.params import Params
+
+    implied = grounding.grey_hydrogen_intensity()
+    assert implied > 4 * Params().common.eps_cln, implied
+    verdicts = {r.param: r.verdict for r in grounding.groundings(offline=True)}
+    assert verdicts.get("common.eps_cln") == "contradiction", verdicts
+
+
+@check("observed data: the hurdle rate is above the observed real risk-free rate")
+def _risk_premium() -> None:
+    import ecb
+    import eurostat
+    from timing_model.params import Params
+
+    rates = ecb.refresh(offline=True)
+    hicp = eurostat.refresh(offline=True)["hicp"].value
+    real = ecb.real_risk_free(rates["yield_10y"].value, hicp)
+    assert 0.0 < real < Params().common.r, real
+
+
+@check("observed data: every grounded input is also a cited input")
+def _grounding_vocabulary() -> None:
+    """The grounding table and the provenance register share one set of names."""
+    import grounding
+    import sources
+
+    registered = {c.param for c in sources.REGISTER}
+    for row in grounding.groundings(offline=True):
+        assert row.param in registered, row.param
+        assert row.verdict in grounding.VERDICTS, row.verdict
+
+
 @check("provenance: every input cited, every citation equal to the running model")
 def _provenance() -> None:
     """SOURCES.md is generated from a register that is checked against the code.

@@ -104,20 +104,32 @@ chart is sound, and the reline mechanism is real, but the exact year differs
 plant by plant. Relining schedules are published per plant, so this is one
 input that can be checked rather than forecast.
 
-## Observed inputs, and the hydrogen floor
+## Observed inputs, and the two hydrogen floors
 
-`eurostat.py` pulls two real series from Eurostat's open API and caches them, so
-the model still runs with no network.
+`eurostat.py` and `ecb.py` pull twenty-six real series from the Eurostat and
+ECB open APIs and cache them, so the model still runs with no network. A test
+patches the fetch function to raise, proving the offline path never reaches for
+one.
 
 **What real data can and cannot do here.** NPV, the trigger and `T*` are model
 *outputs* — no statistical agency publishes them. Official statistics can
-replace *inputs*, and two matter:
+replace *inputs*, and six matter:
 
 - **Euro-area HICP** grounds the deflator. Latest: **2.1%/yr**, against the
   model's assumed 2.0% — consistent, so the largest unit correction stands.
 - **Industrial electricity prices** (band IE, 20–70 GWh/yr, excluding taxes)
-  put a hard floor under the hydrogen price, because electrolysis is mostly a
-  way of buying electricity.
+  put a floor under *green* hydrogen, because electrolysis is mostly a way of
+  buying electricity.
+- **Industrial gas prices** (band I5, excluding taxes) put a lower floor under
+  *grey* hydrogen — and the lower floor is the binding one.
+- **Producer prices** for capital goods (MIG_CAG) and basic metals (C24)
+  restate a €2022 figure in today's money. They have moved in opposite
+  directions since 2022: plant **+8.4%**, steel **−11.0%**.
+- **Capacity utilisation** (euro-area business survey) is the reference point
+  for the load factor: **78.2%** observed against a model default of 0.85.
+- **ECB 10Y AAA yield** decomposes the 8% hurdle rate: **3.36%** nominal, a
+  **1.23%** real risk-free rate after HICP, so the model embeds a **6.8pp**
+  risk premium.
 
 At roughly 55 kWh per kg of hydrogen, the electricity bill *alone* — before
 electrolyser capex, compression, storage or transport — comes to:
@@ -132,6 +144,19 @@ every European steel-producing country** — 1.5× under even in Sweden, the
 cheapest. This is not a forecast disagreement; it is an arithmetic floor from
 official statistics, and it independently corroborates the €8.29/kg market
 assessment as being in the right region.
+
+**The gas series says something sharper.** Grey hydrogen — gas at best-in-class
+reforming plus the ETS cost of the CO₂ it emits — floors at **€2.00–2.36/kg**
+across the same nine states. So €2.60/kg is not a green price anywhere; it is
+approximately the price of *unabated fossil* hydrogen. And that route emits 9 kg
+CO₂ per kg of hydrogen, which at 55 kg H₂ per tonne of steel is **0.49 tCO₂/t —
+five times the 0.1 tCO₂/t the model credits the clean route with.**
+
+The price and the emission intensity cannot both be right. Either `p_H2` rises
+to a green floor and the case weakens, or `eps_cln` rises to grey and the
+abatement the whole model is valuing largely disappears. `grounding.py` reports
+this as a `contradiction`, the only one in the table, and a self-check fails if
+it ever silently resolves itself.
 
 Two inputs **cannot** be sourced from open data and need a market-data
 terminal: the EUA price series (which sets the price path, drift `mu` and
@@ -249,6 +274,9 @@ timing_model/
   diff_harness.py  # 50 reference cases + the MATLAB diff
   report.py        # tables + CSV
 eurostat.py            # observed inputs from Eurostat, cached for offline use
+observed.py            # shared series type + the offline caching rule
+ecb.py                 # observed interest rates from the ECB Data Portal
+grounding.py           # model inputs vs observed data, one verdict per row
 sources.py             # -> SOURCES.md, provenance register, audited against the code
 analysis.py            # derives the structural findings
 findings_report.py     # -> findings.html, the findings written out in full
@@ -256,7 +284,7 @@ plots.py               # -> charts.html, nine charts, no matplotlib
 surface.py             # -> surface.html, the fleet surface in rotatable 3D
 article.py             # -> article.html, THE FINISHED PIECE
 ARTICLE.md             # working table of contents for the write-up
-selfcheck.py           # 30 stdlib assertions, for when pytest is unavailable
+selfcheck.py           # 34 stdlib assertions, for when pytest is unavailable
 run_all.py             # runs everything above in one go
 ```
 

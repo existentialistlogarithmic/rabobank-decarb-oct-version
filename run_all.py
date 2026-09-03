@@ -139,11 +139,22 @@ def section_csv() -> None:
 
 
 def section_observed() -> None:
-    """Observed inputs from Eurostat, and the floor they put under hydrogen."""
-    banner(8, "OBSERVED DATA (Eurostat)")
+    """Observed inputs, and what they say about the model's own assumptions.
+
+    Three parts: the Eurostat series and the two hydrogen floors they imply,
+    the ECB rates behind the discount rate, and the grounding table that puts
+    every checkable input next to the statistic that bears on it.
+    """
+    banner(8, "OBSERVED DATA (Eurostat, ECB)")
+    import ecb
     import eurostat
+    import grounding
 
     eurostat.main()
+    print()
+    ecb.main()
+    print()
+    grounding.main(offline=True)
 
 
 def section_findings() -> None:
@@ -190,8 +201,8 @@ def section_tests() -> int:
     try:
         import pytest
     except ImportError:
-        print("pytest is not installed, so the 91-test suite is skipped.")
-        print("Section 8 above covers the same load-bearing claims without it.")
+        print("pytest is not installed, so the 134-test suite is skipped.")
+        print("Section 11 above covers the same load-bearing claims without it.")
         return 0
     code = pytest.main(["-q", "tests"])
     return 0 if code == 0 else 1
