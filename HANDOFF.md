@@ -3,8 +3,15 @@
 The running state of the build. Everything below is verified as of the last
 commit on this branch.
 
-**Run everything:** `python run_all.py` (13 sections). Python 3.11+, **zero
-dependencies**; `pytest` optional. Currently **219 tests + 38 self-checks** green.
+**Repo:** `existentialistlogarithmic/rabobank-decarbonization-final-version`
+**Branch:** `main` (single branch; history was flattened to one root commit)
+
+**Run everything:** `python run_all.py` (13 sections, ~40 s). Python 3.11+,
+**zero dependencies**; `pytest` and `ruff` optional. Currently **219 tests +
+38 self-checks** green, ruff clean, `run_all` exits 0.
+
+**Read in this order:** this file → `CALIBRATION.md` (sourced vs fitted) →
+`SOURCES.md` (generated; what each input claims and what would falsify it).
 
 ---
 
@@ -82,9 +89,9 @@ price. See finding 6.
 
 ## 4. The findings
 
-Findings 1–5 are structural, derived by `analysis.py` from the model itself.
-Findings 6–9 come from the observed-data layer and are reported by
-`grounding.py` with a verdict each.
+Findings 1–5 are structural, derived by `analysis/findings.py` from the model
+itself. Findings 6–9 come from the observed-data layer and are reported by
+`analysis/grounding.py` with a verdict each.
 
 1. **Levers are orthogonal, exactly.** 5 params move NPV and the trigger by
    0.000%; 2 move the trigger and NPV by 0.000%; 4 move both. Structural — the
@@ -99,7 +106,7 @@ Findings 6–9 come from the observed-data layer and are reported by
 5. **The correlation matrix misleads.** NPV vs trigger reads −0.87 across 81
    scenarios, contradicting finding 1. The ensemble manufactured it.
 
-**From the observed data** (`grounding.py`, verdict in brackets):
+**From the observed data** (`analysis/grounding.py`, verdict in brackets):
 
 6. **€2.60/kg is a fossil hydrogen price** [contradiction]. Below every green
    floor (€3.94–8.05) and inside the grey band (€2.00–2.36 = gas + ETS). Grey
@@ -118,8 +125,8 @@ Findings 6–9 come from the observed-data layer and are reported by
    3.36% nominal, 1.23% real after HICP. Finding 4 says the trigger's apparent
    robustness to `r` is cancellation, so this decomposition is load-bearing.
 
-**From the sourcing frontier** (`sourcing.py`; `p_H2` and `eps_cln` tied into
-one parameter, the green share θ):
+**From the sourcing frontier** (`analysis/sourcing.py`; `p_H2` and `eps_cln`
+tied into one parameter, the green share θ):
 
 10. **Fossil hydrogen wins on NPV everywhere, monotonically in θ.** At the
     model's own carbon path, going greener only ever costs value. Green needs
@@ -156,6 +163,7 @@ one parameter, the green share θ):
 ### Doable now
 6. **Verify the €8.29/kg Platts figure.** Licensed data taken from the spec.
    Registered as `scenarios.SOURCED_RANGES.p_H2`, status `unverified`, and a test
+   in `tests/test_sources.py`
    fails if anything ever quotes it as sourced. Confirm against a subscription.
 7. **`f_com2026(t)` unchecked against the legal annex.** Computes +8.97/−161 vs
    published +7.82/−122. Structure right (10 terms, ~18× ratio, sign flip);
@@ -169,10 +177,10 @@ one parameter, the green share θ):
     floor, which weakens the case, or raise `eps_cln` toward grey, which removes
     most of the abatement the model is valuing. Doing neither means publishing
     two inputs that the observed data says cannot both be true, at a cost of
-    22.6–33.5% of NPV. `grounding.py` flags it and a self-check fails if the
+    22.6–33.5% of NPV. `analysis/grounding.py` flags it and a self-check fails if the
     flag ever disappears without the inputs changing.
-11. **Feed the frontier back into the ladder.** `sourcing.py` runs beside the
-    model, not inside it: `scenarios.py` still treats `p_H2` as an independent
+11. **Feed the frontier back into the ladder.** `analysis/sourcing.py` runs beside the
+    model, not inside it: `timing_model/scenarios.py` still treats `p_H2` as an independent
     axis. Making θ the axis would change the published ladder, so it is a
     decision, not a refactor.
 
