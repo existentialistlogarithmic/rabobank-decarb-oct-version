@@ -480,7 +480,7 @@ Higher utilisation is beneficial.
 
 The model identifies a critical point:
 
-**€7.17/kg hydrogen**
+**€6.15/kg hydrogen**
 
 At this point:
 
@@ -493,7 +493,7 @@ Above this price:
 - €10/kg → −24.5
 - €14/kg → −59.2
 
-Above €7.17/kg:
+Above €6.15/kg:
 
 > Running the plant more reduces NPV.
 
@@ -520,7 +520,7 @@ When hydrogen costs become sufficiently high:
 
 The report estimates a critical point at:
 
-**€7.17/kg hydrogen**
+**€6.15/kg hydrogen**
 
 with an implied operating penalty of approximately:
 
@@ -530,7 +530,7 @@ The report compares this with a May 2026 Platts assessment of:
 
 **€8.29/kg**
 
-This is above the €7.17/kg flip point.
+This is above the €6.15/kg flip point.
 
 Under the corrected real-price specification, the model therefore suggests that operating less may be economically preferable.
 
@@ -735,7 +735,7 @@ Different economic and policy interventions therefore operate through different 
 
 At:
 
-**€7.17/kg**
+**€6.15/kg**
 
 the marginal effect of utilisation becomes zero.
 
@@ -837,7 +837,7 @@ Because T\* is the optimal decision from the option model, whereas the crossing 
 
 It is the marginal sensitivity of NPV to utilisation. It tells us whether increasing the load factor raises or lowers NPV.
 
-### Why is dNPV/du negative above €7.17/kg?
+### Why is dNPV/du negative above €6.15/kg?
 
 Because sufficiently high hydrogen prices make the hydrogen operating penalty larger than the avoided carbon-cost benefit. Increasing utilisation therefore increases exposure to a negative operating flow.
 

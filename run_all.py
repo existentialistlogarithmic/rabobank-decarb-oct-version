@@ -156,20 +156,28 @@ def section_observed() -> None:
 
 
 def section_findings() -> None:
-    """The derived structural findings, then the sourcing frontier.
+    """The derived findings, the sourcing frontier, and the reconciliation.
 
-    ``analysis`` derives findings from the model alone. ``sourcing`` adds the
+    ``findings`` derives results from the model alone. ``sourcing`` adds the
     ones that only appear once the hydrogen price and the clean-route emission
     intensity are treated as the single parameter they physically are.
+    ``regimes`` answers the standing comments: the cost of doing nothing, free
+    allowances shown rather than folded into a coefficient, the scenario map,
+    and the four what-ifs. ``reconcile`` checks the model against every
+    quantity the v11 specification published - inputs as well as outputs.
     """
     banner(9, "STRUCTURAL FINDINGS")
-    from analysis import findings, sourcing
+    from analysis import findings, reconcile, regimes, sourcing
 
     for i, fnd in enumerate(findings.all_findings(), 1):
         print(f"\n  {i}. {fnd.title}")
         print(f"     {fnd.statement}")
     print()
     sourcing.main()
+    print()
+    regimes.main()
+    print()
+    reconcile.main()
 
 
 def section_documents() -> int:
@@ -204,7 +212,10 @@ def section_tests() -> int:
     try:
         import pytest
     except ImportError:
-        print("pytest is not installed, so the 219-test suite is skipped.")
+        from reporting.deck import source_counts
+
+        n_tests, _ = source_counts()
+        print(f"pytest is not installed, so the {n_tests}-function suite is skipped.")
         print("Section 11 above covers the same load-bearing claims without it.")
         return 0
     code = pytest.main(["-q", "tests"])
@@ -242,7 +253,9 @@ def main() -> int:
         print(f"{failures} section(s) reported a problem. See above.")
     else:
         print("Gate passed, negative control behaved, self-check clean.")
-        print("Base case: T* = 2029, NPV0 = 1588.29 EUR/t, trigger crossed 2030.")
+        o = outputs(*published_base())
+        print(f"Base case: T* = {o.t_star}, NPV0 = {o.npv0:.2f} EUR/t, "
+              f"trigger crossed {o.crossing_year}.")
         print(f"Charts written to {plots_out()}; provenance to SOURCES.md.")
         print("The sourcing frontier is explorable in explorer.html;")
         print("the 40-minute talk is deck.html.")

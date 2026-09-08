@@ -52,11 +52,15 @@ def fig1() -> tuple[str, dict]:
     for y in ys:
         if y % 2 == 0:
             parts.append(f'<text class="tk am" x="{X(y):.1f}" y="{H-B+19}">{y}</text>')
-    # the plateau band and the cliff, called out
+    # The plateau band and the cliff, called out. The reline year is read from
+    # the model: hardcoding it survived a parameter change once already.
+    from timing_model.cost import reline_year
+
+    t_rel = reline_year(CORRECTED)
     parts.insert(0, f'<rect class="band" x="{X(2028):.1f}" y="{T}" '
-                    f'width="{X(2032)-X(2028):.1f}" height="{H-B-T}"/>')
-    parts.append(f'<line class="cliff" x1="{X(2032.5):.1f}" y1="{T}" '
-                 f'x2="{X(2032.5):.1f}" y2="{H-B}"/>')
+                    f'width="{X(t_rel)-X(2028):.1f}" height="{H-B-T}"/>')
+    parts.append(f'<line class="cliff" x1="{X(t_rel + 0.5):.1f}" y1="{T}" '
+                 f'x2="{X(t_rel + 0.5):.1f}" y2="{H-B}"/>')
     for i, (c, cls, lab) in enumerate(((base, "s0", "as published"),
                                        (corr, "s1", "corrected"))):
         d = " ".join(f"{'M' if k==0 else 'L'}{X(y):.1f},{Y(c[y]):.1f}"
@@ -67,9 +71,9 @@ def fig1() -> tuple[str, dict]:
                      f'cy="{Y(c[pk]):.1f}" r="5"/>')
         parts.append(f'<text class="dl {cls}" x="{W-R+8}" '
                      f'y="{Y(c[ys[-1]])+4:.1f}">{lab}</text>')
-    parts.append(f'<text class="an am" x="{(X(2028)+X(2032))/2:.1f}" y="{T+14}">'
+    parts.append(f'<text class="an am" x="{(X(2028)+X(t_rel))/2:.1f}" y="{T+14}">'
                  "the plateau</text>")
-    parts.append(f'<text class="an ar cl" x="{X(2032.5)-8:.1f}" y="{H-B-8}">'
+    parts.append(f'<text class="an ar cl" x="{X(t_rel + 0.5)-8:.1f}" y="{H-B-8}">'
                  "reline</text>")
     svg = (f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="Net present value '
            f'by commitment year, as published and fully corrected">'
@@ -291,6 +295,9 @@ def build() -> str:
              "BE": "Belgium", "NL": "the Netherlands", "DE": "Germany",
              "AT": "Austria", "IT": "Italy"}
     livenames = " and ".join(names[g] for g, *_ in live)
+    from timing_model.cost import reline_year
+
+    T_REL = reline_year(CORRECTED)
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -375,8 +382,8 @@ about their grids, not about their steelmakers.</p>
 
 <h2><span class="no">04</span>Even where the case exists, a maintenance date sets it</h2>
 <p>Look at the commitment years in that table. Where a case survives at all, it
-is <strong>2032</strong> &mdash; and 2032 is not an economic optimum. It is the
-year our reference plant must reline.</p>
+is <strong>{T_REL}</strong> &mdash; and {T_REL} is not an economic optimum. It is
+the year our reference plant must reline.</p>
 <p>A blast furnace is not a permanent object. Its refractory lining burns out
 over fifteen to twenty years, after which the furnace is stripped and rebuilt.
 Salzgitter spent &euro;100m on one in 2024; thyssenkrupp spent over &euro;200m
@@ -388,7 +395,7 @@ either spend the money on the old asset or you switch.</p>
 model as first published; teal applies the corrections. The shaded band is the
 plateau &mdash; every year in it sits within four percent of the best, so the
 model has no real opinion inside it. The dashed line is the reline, and one
-year past it costs &euro;{base[2032]-base[2033]:,.0f} per tonne in a single
+year past it costs &euro;{base[T_REL]-base[T_REL+1]:,.0f} per tonne in a single
 step.</figcaption></figure>
 <p>Notice the asymmetry. The top of the curve is nearly flat: committing in
 2029 is worth &euro;{base[2029]:,.0f} and committing in 2030 is worth

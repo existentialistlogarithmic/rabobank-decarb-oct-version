@@ -23,6 +23,7 @@ __all__ = [
     "F_LAW2023",
     "COM2026_FLOOR",
     "COM2026_FLOOR_YEARS",
+    "CENTRAL_PATH",
 ]
 
 #: CBAM phase-out of free allocation as legislated in 2023.  Years absent from
@@ -38,23 +39,32 @@ F_LAW2023: Final[Mapping[int, float]] = {
     2033: 0.140,
 }
 
-#: COM(2026) 616 reintroduces a floor of 15%.  Appendix A open item 2: this is
-#: RECONSTRUCTED from the confirmed reintroduction mechanism and has not been
-#: checked against the legal annex.  Ten floored years reproduces F8's "10 terms".
+#: COM(2026) 616, v11 eq (12).  The proposal has its OWN 2026-2033 factors -
+#: it is not a floor applied to the legislated path - then a flat 15% tranche
+#: for 2034-2037 and nothing from 2038.  Read off the specification's annex;
+#: reproduces the published +7.82 vintage delta exactly.
+F_COM2026: Final[Mapping[int, float]] = {
+    2026: 0.975, 2027: 0.950, 2028: 0.915, 2029: 0.810,
+    2030: 0.590, 2031: 0.480, 2032: 0.375, 2033: 0.270,
+}
 COM2026_FLOOR: Final[float] = 0.15
-COM2026_FLOOR_YEARS: Final[tuple[int, int]] = (2033, 2042)
+COM2026_FLOOR_YEARS: Final[tuple[int, int]] = (2034, 2037)
 
-#: Central nominal EUA path: linear 76 -> 112 over 2026-2030, then +mu per year.
-_P_2026: Final[float] = 76.0
-_P_2030: Final[float] = 112.0
+#: Central nominal EUA path, v11 §1: the published anchors for 2026-2030, then
+#: +mu per year. These are quoted values (Reuters, ClearBlue), NOT a linear
+#: interpolation - reading them off a straight line understates 2027-2029 by
+#: EUR 1, 2 and 1 respectively.
+CENTRAL_PATH: Final[Mapping[int, float]] = {
+    2026: 76.0, 2027: 86.0, 2028: 96.0, 2029: 104.0, 2030: 112.0,
+}
 _RAMP_END: Final[int] = 2030
 
 
 def carbon_price_path(p: Params, sc: ScenarioParams) -> dict[int, float]:
     """EUA price by year. EUR/tCO2. Central path of the July note.
 
-    Nominal basis: EUR 76 in 2026 rising linearly to EUR 112 in 2030, then
-    growing at the GBM drift ``mu`` to the horizon.
+    Nominal basis: the published anchors 76, 86, 96, 104, 112 for 2026-2030,
+    then growing at the GBM drift ``mu`` to the horizon.
 
     Real basis (Appendix A F3): the same path deflated at
     :attr:`ScenarioParams.deflator`.  Note that F3 also warns the real basis
@@ -65,13 +75,13 @@ def carbon_price_path(p: Params, sc: ScenarioParams) -> dict[int, float]:
     (its trigger is unchanged by the real-vs-nominal row).  See
     :mod:`timing_model.validate` for the guard that records this.
     """
-    ramp = (_P_2030 - _P_2026) / (_RAMP_END - p.common.t0)
     out: dict[int, float] = {}
+    anchor = CENTRAL_PATH[_RAMP_END]
     for t in range(p.common.t0, p.common.horizon_end + 1):
         if t <= _RAMP_END:
-            nominal = _P_2026 + ramp * (t - p.common.t0)
+            nominal = CENTRAL_PATH[t]
         else:
-            nominal = _P_2030 * (1.0 + p.common.mu) ** (t - _RAMP_END)
+            nominal = anchor * (1.0 + p.common.mu) ** (t - _RAMP_END)
         nominal *= sc.price_scale
         if sc.price_basis == "real":
             nominal /= (1.0 + sc.deflator) ** (t - p.common.t0)
@@ -82,17 +92,19 @@ def carbon_price_path(p: Params, sc: ScenarioParams) -> dict[int, float]:
 def free_allocation_factor(t: int, sc: ScenarioParams) -> float:
     """f_v(t) in [0, 1], monotone non-increasing. Group II eq (3).
 
-    ``law2023`` is the CBAM phase-out as legislated; ``com2026`` applies a 15%
-    floor over :data:`COM2026_FLOOR_YEARS`.  The floor is applied as a maximum
-    against the legislated path so the series stays monotone non-increasing -
-    a naive floor would step *up* from 0.14 in 2033 and trip the guard.
+    ``law2023`` is the CBAM phase-out as legislated; ``com2026`` is the
+    proposal's own schedule (eq 12), which is more generous year by year and
+    then holds a flat 15% conditional tranche over
+    :data:`COM2026_FLOOR_YEARS` before ending.  Both are monotone
+    non-increasing, which the guard checks.
     """
-    base = F_LAW2023.get(t, 0.0)
     if sc.policy_vintage == "law2023":
-        return base
+        return F_LAW2023.get(t, 0.0)
     if sc.policy_vintage == "com2026":
         lo, hi = COM2026_FLOOR_YEARS
-        return max(base, COM2026_FLOOR) if lo <= t <= hi else base
+        if lo <= t <= hi:
+            return COM2026_FLOOR
+        return F_COM2026.get(t, 0.0)
     raise ModelError(f"unknown policy_vintage {sc.policy_vintage!r}")
 
 

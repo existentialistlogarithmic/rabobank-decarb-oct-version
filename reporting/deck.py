@@ -5,8 +5,8 @@ slide carries the equation that produced it and a table saying what each symbol
 means. Nothing is a screenshot and nothing is typed in by hand, so the deck
 cannot quote a number the code no longer produces.
 
-Structure: 26 slides in 7 sections, timed to 40 minutes with 5 minutes of
-questions. Arrow keys or space to advance, ``g`` for the grid, ``n`` for
+Structure: 20 slides in 8 sections, timed to 39 minutes, which leaves the
+40-minute slot a minute of slack and the questions their own time. Arrow keys or space to advance, ``g`` for the grid, ``n`` for
 speaker notes, ``t`` to start the timer. Printing gives one slide per page.
 
 Equations are MathML, which every current browser renders natively - no
@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from analysis import findings as fnd
-from analysis import grounding, sourcing
+from analysis import grounding, regimes, sourcing
 from data import ecb, eurostat
 from timing_model import cost, objective, option, primitives
 from timing_model.benefit import carbon_price_path, free_allocation_factor
@@ -139,11 +139,23 @@ def marker(ax: Axes, x: float, y: float, text: str, cls: str = "s2",
             f'text-anchor="middle">{text}</text>')
 
 
-def _counts() -> tuple[int, int]:
+def _n_unverified() -> int:
+    """How many inputs are still open items, read off the register.
+
+    It was three when the deck was written and is one now; a slide that says
+    "three" after the register says one is exactly the drift the provenance
+    audit exists to prevent, so the deck asks rather than remembers.
+    """
+    from reporting import sources
+
+    return len(sources.unverified())
+
+
+def source_counts() -> tuple[int, int]:
     """(test functions, self-checks) counted from source, never typed in.
 
-    A deck that quotes "219 tests" is wrong the week someone adds one. These
-    are read off the files at build time; the test suite expands further
+    A deck that quotes a fixed test count is wrong the week someone adds one.
+    These are read off the files at build time; the test suite expands further
     through parametrisation, which the caption says.
     """
     import re
@@ -251,7 +263,7 @@ point of the talk. The first two ignore uncertainty. The last two price it.</p>
                 "A firm that prices it waits for <code>p*&prime;</code>.",
                 "Reporting one without the other is the single most common "
                 "error in this literature.",
-            ])), 2.0,
+            ])), 1.5,
         "Do not let anyone leave thinking T* and the crossing year are "
         "competing estimates of the same thing. They answer different questions."))
 
@@ -355,7 +367,7 @@ point of the talk. The first two ignore uncertainty. The last two price it.</p>
                    "The price path and the trigger it has to reach.")
             + figure(svg("".join(abody), "free allocation phase-out", W, 200),
                      "Free allocation falls away underneath it — that phase-out "
-                     "is what turns the carbon price into revenue.")), 2.5,
+                     "is what turns the carbon price into revenue.")), 2.0,
         "Two forces: the price rises, and the free allocation that shielded you "
         "from it disappears. B(t) is the product of both."))
 
@@ -402,7 +414,7 @@ point of the talk. The first two ignore uncertainty. The last two price it.</p>
                    "<span class='k s2'></span>gross capex I<sub>0</sub>L(T) &nbsp; "
                    "<span class='k s3'></span>residual S<sub>s</sub>(T). "
                    "Both fall. Waiting is genuinely cheaper — that is the "
-                   "tension the whole model resolves.")), 2.5,
+                   "tension the whole model resolves.")), 2.0,
         "Note the step in the total: that is the support window opening in 2028."))
 
     curve = objective.npv_curve(p, sc)
@@ -485,7 +497,7 @@ point of the talk. The first two ignore uncertainty. The last two price it.</p>
                    "path reaches it in "
                    f"{[r[5] for r in sig_rows if r[0] == 'realised'][0]} — "
                    "beyond any recognisable investment horizon, "
-                   "<b>which is not the same as never</b>.")), 2.5,
+                   "<b>which is not the same as never</b>.")), 2.0,
         "The sigma -> 0 limit does NOT give a multiple of 1 unless drift is also "
         "zero; it gives r/(r-mu) = 2.667. Waiting is rewarded by drift alone."))
 
@@ -625,7 +637,7 @@ point of the talk. The first two ignore uncertainty. The last two price it.</p>
             ]),
             figure(svg("".join(rbody), "NPV against furnace age"),
                    "Asset age decides the answer more than any policy lever on "
-                   "the previous slide does.")), 2.5,
+                   "the previous slide does.")), 2.0,
         "Finding 2 caveat: it is the sign of a sensitivity on an NPV-negative "
         "case. Say so before someone else does."))
 
@@ -675,7 +687,7 @@ point of the talk. The first two ignore uncertainty. The last two price it.</p>
                        W, 340),
                    "<span class='k s3'></span>green floor &nbsp; "
                    "<span class='k s2'></span>grey floor. <b>The model's &euro;2.60 "
-                   "is below every green floor and inside the grey band.</b>")), 3.0,
+                   "is below every green floor and inside the grey band.</b>")), 2.5,
         "This is the pivot of the talk. Everything after this follows from the "
         "two bars straddling the red line."))
 
@@ -758,7 +770,7 @@ point of the talk. The first two ignore uncertainty. The last two price it.</p>
             figure(svg("".join(fbody), "NPV against green hydrogen share", W, 380),
                    f"<b>{geo}</b> in blue, the other eight in grey. The red rule is "
                    "the published NPV — <em>the frontier never reaches it</em>, "
-                   "because the published pair is not a point on it.")), 2.5,
+                   "because the published pair is not a point on it.")), 2.0,
         "Charging the carbon once is the subtle bit: it goes through eps_cln, "
         "where it escalates with the price path, not into a frozen constant."))
 
@@ -838,12 +850,155 @@ point of the talk. The first two ignore uncertainty. The last two price it.</p>
      "inputs that the observed data says cannot both hold.",
      "Sourcing is a <b>timing</b> lever. The model treats it as a cost axis.",
   ]))}
-""", 2.0,
+""", 1.5,
         "Land the number: a quarter to a third of the headline was never "
         "available. Then stop talking and let it sit."))
 
+    # ------------------------------- 6b. the cost of doing nothing, and the map
+    rec = regimes.recovery(p, sc)
+    alloc = regimes.allocation_table(p, sc)
+    yrs = [r[0] for r in alloc]
+    given = [r[3] for r in alloc]
+    paid = [r[4] for r in alloc]
+    axg = Axes(yrs[0], yrs[-1], 0.0, max(given + paid) * 1.12)
+    gbody = [axg.grid(lambda v: f"{v:.0f}", lambda v: f"{v:,.0f}",
+                      "year", "EUR / t capacity / yr"),
+             polyline(axg, list(zip(yrs, given, strict=True)), "s3"),
+             polyline(axg, list(zip(yrs, paid, strict=True)), "s2")]
+    cross = min((t for t, g, pd in zip(yrs, given, paid, strict=True) if pd > g),
+                default=None)
+    if cross:
+        gbody.append(f'<line class="trig" x1="{axg.X(cross):.1f}" '
+                     f'x2="{axg.X(cross):.1f}" y1="{axg.y0}" y2="{axg.y1}"/>'
+                     f'<text class="mkl crit" x="{axg.X(cross) + 6:.1f}" '
+                     f'y="{axg.y1 + 12}">{cross}: the bill overtakes the gift</text>')
+    slides.append(Slide(
+        "Exposure", "The cost of doing nothing, and who is paying it",
+        two_col(
+            stat_row([(f"&euro;{rec['do nothing, carbon bill']:,.0f}",
+                       "carbon bill to 2050 if the plant never switches, PV"),
+                      (f"&euro;{rec['free allocation received']:,.0f}",
+                       "handed over free across the same years"),
+                      (f"{rec['share recovered at T*']:.0%}",
+                       "of that bill the switch recovers at T*")])
+            + eq("<mrow><msub><mi>PV</mi><mtext>do nothing</mtext></msub><mo>=</mo>"
+                 "<munder><mo>&#8721;</mo><mi>t</mi></munder><mi>d</mi><mo>(</mo>"
+                 "<mi>t</mi><mo>)</mo><mi>u</mi><mo>(</mo><mn>1</mn><mo>&#8722;</mo>"
+                 "<mi>&#945;</mi><mo>(</mo><mi>t</mi><mo>)</mo><mo>)</mo><msub>"
+                 "<mi>&#949;</mi><mtext>inc</mtext></msub><msub><mi>p</mi><mi>t</mi>"
+                 "</msub></mrow>",
+                 "the emissions you keep, at the price you pay for them")
+            + symbols([
+                ("d(t)", "discount factor to 2026, at r = 8% real", "&mdash;"),
+                ("u", "load factor: capacity to product, the only bridge "
+                 "between the two units on this slide", "0.85"),
+                ("&alpha;(t)", "free allocation factor &mdash; the share of "
+                 "emissions handed over rather than bought", "1 &rarr; 0 by 2034"),
+                ("&epsilon;<sub>inc</sub>", "incumbent emission intensity, the "
+                 "blast furnace route", "1.9 tCO&#8322;/t"),
+                ("p<sub>t</sub>", "EUA price on the central path", "76 &rarr; 283"),
+            ])
+            + keypoints([
+                "The model reports the <em>increment</em>, so &ldquo;no "
+                "investment&rdquo; is the zero line. This is what that zero line "
+                "was hiding.",
+                "Free allocation is not a rounding error &mdash; it is worth "
+                f"&euro;{rec['free allocation received']:,.0f} of the "
+                f"&euro;{rec['do nothing, carbon bill'] + rec['free allocation received']:,.0f} "
+                "gross exposure, and it runs out on a published schedule.",
+            ]),
+            figure(svg("".join(gbody), "allowances given against carbon paid"),
+                   "<span class='k s3'></span>allowances handed over free &nbsp; "
+                   "<span class='k s2'></span>carbon actually paid for. They cross "
+                   f"in <b>{cross}</b>: before it the ETS is a transfer, after it "
+                   "a cost.")), 2.5,
+        "This answers the standing comment: plot the no-investment case and show "
+        "the free allowances rather than folding them into a coefficient."))
+
+    xs_r = (2.0, 3.5, 5.0, 6.5, 8.29)
+    ys_r = (0.4, 0.6, 1.0, 1.5, 2.0, 3.0)
+    grid = regimes.regime_grid("p_H2", "price_scale", xs_r, ys_r)
+    cw, ch = 96, 40
+    x0, y0 = 150, 34
+    mbody = []
+    fill = {"none": "var(--crit)", "wait": "var(--s2)", "delayed": "var(--s2)",
+            "window": "var(--s1)", "now": "var(--s3)"}
+    for j, (yv, row) in enumerate(zip(reversed(ys_r), reversed(grid), strict=True)):
+        mbody.append(f'<text class="tick" x="{x0 - 10}" y="{y0 + j * ch + 25}" '
+                     f'text-anchor="end">&#215;{yv:g}</text>')
+        for i, cell in enumerate(row):
+            mbody.append(
+                f'<rect x="{x0 + i * cw + 2}" y="{y0 + j * ch + 2}" '
+                f'width="{cw - 4}" height="{ch - 4}" rx="5" '
+                f'fill="{fill[cell.code]}" opacity="0.9"/>'
+                f'<text class="mkl" x="{x0 + i * cw + cw / 2}" '
+                f'y="{y0 + j * ch + 25}" text-anchor="middle" fill="#fff">'
+                f'{cell.code}</text>')
+    for i, xv in enumerate(xs_r):
+        mbody.append(f'<text class="tick" x="{x0 + i * cw + cw / 2}" '
+                     f'y="{y0 + len(ys_r) * ch + 20}" text-anchor="middle">'
+                     f'{xv:g}</text>')
+    mbody.append(f'<text class="axt" x="{x0 + len(xs_r) * cw / 2}" '
+                 f'y="{y0 + len(ys_r) * ch + 42}" text-anchor="middle">'
+                 f'hydrogen price (EUR/kg)</text>')
+    mbody.append(f'<text class="axt" x="20" y="{y0 + len(ys_r) * ch / 2}" '
+                 f'transform="rotate(-90 20 {y0 + len(ys_r) * ch / 2})" '
+                 f'text-anchor="middle">carbon path, multiple of central</text>')
+    wifs = regimes.what_ifs()
+    slides.append(Slide(
+        "Exposure", "Which situation is a plant actually in?",
+        two_col(
+            figure(svg("".join(mbody), "regime map: hydrogen price against carbon "
+                       "exposure", 640, y0 + len(ys_r) * ch + 56),
+                   "Corrected configuration. <b>none</b> = no investment &middot; "
+                   "<b>window</b> = commit between now and the reline &middot; "
+                   "<b>now</b> = 2026. The frontier runs diagonally: cheap "
+                   "hydrogen and a strong carbon price are substitutes.")
+            + "<table class='grid'><thead><tr><th>what if</th><th>regime</th>"
+              "<th>T*</th><th>&Delta;NPV</th></tr></thead><tbody>"
+            + "".join(f"<tr><td>{esc(lab)}</td><td>{esc(r.code)}</td>"
+                      f"<td class='val'>{r.t_star or '&mdash;'}</td>"
+                      f"<td class='val'>{d:+,.0f}</td></tr>"
+                      for lab, r, d in wifs[1:])
+            + "</tbody></table>",
+            eq("<mrow><mi>R</mi><mo>=</mo><mrow><mo stretchy='true'>{</mo>"
+               "<mtable columnalign='left left' columnspacing='1.2em'>"
+               "<mtr><mtd><mtext>none</mtext></mtd><mtd><mtext>no&#160;</mtext>"
+               "<msup><mi>T</mi><mo>*</mo></msup><mtext>&#160;exists</mtext>"
+               "</mtd></mtr>"
+               "<mtr><mtd><mtext>wait</mtext></mtd><mtd><msup><mi>T</mi>"
+               "<mo>*</mo></msup><mo>&#8805;</mo><msub><mi>T</mi><mtext>end</mtext>"
+               "</msub><mo>&#8722;</mo><mn>1</mn></mtd></mtr>"
+               "<mtr><mtd><mtext>now</mtext></mtd><mtd><msup><mi>T</mi><mo>*</mo>"
+               "</msup><mo>=</mo><msub><mi>t</mi><mn>0</mn></msub></mtd></mtr>"
+               "<mtr><mtd><mtext>delayed</mtext></mtd><mtd><msup><mi>T</mi>"
+               "<mo>*</mo></msup><mo>&gt;</mo><msub><mi>T</mi><mtext>rel</mtext>"
+               "</msub></mtd></mtr>"
+               "<mtr><mtd><mtext>window</mtext></mtd><mtd><mtext>otherwise</mtext>"
+               "</mtd></mtr></mtable></mrow></mrow>",
+               "the regime is read off the same T* the base case reports &mdash; "
+               "no second model, just a different question asked of it")
+            + symbols([
+                ("T*", "year that maximises NPV, from Group IV", "year"),
+                ("t<sub>0</sub>", "first year a commitment can be made", "2026"),
+                ("T<sub>rel</sub>", "the reline: capital spent on the blast "
+                 "furnace whether or not the switch happens", "year"),
+                ("T<sub>end</sub>", "horizon; T* at the edge means the curve "
+                 "never turned", "2050"),
+            ])
+            + keypoints([
+                "Five regimes, not a number: <b>no investment</b>, <b>wait for a "
+                "better technology</b>, <b>delayed past the reline</b>, "
+                "<b>commit at the window</b>, <b>commit now</b>.",
+                "Opex, capex, carbon exposure, subsidy and allocation each map "
+                "onto one of them &mdash; that is the map the note asked for.",
+            ])), 2.5,
+        "The signs matter: a year of delay costs real money, but a longer free "
+        "allocation HELPS the switcher, because with resale on the allowances "
+        "are an asset. That is finding 1 arriving from a different direction."))
+
     # ------------------------------------------------------------- 7. close
-    n_tests, n_checks = _counts()
+    n_tests, n_checks = source_counts()
     ground = grounding.groundings(offline=True)
     verdicts = {}
     for row in ground:
@@ -869,8 +1024,9 @@ point of the talk. The first two ignore uncertainty. The last two price it.</p>
                 "is no reference. The harness is built and tested; drop a CSV "
                 "beside it and it completes.",
                 "Ladder rows 4&ndash;7 do not reproduce. Documented case by case.",
-                "Three inputs rest on documents nobody here has opened — and a "
-                "test fails if any is ever called sourced.",
+                f"{_n_unverified()} input{'' if _n_unverified() == 1 else 's'} "
+                f"rest{'s' if _n_unverified() == 1 else ''} on a document nobody "
+                "here has opened — and a test fails if it is ever called sourced.",
             ]),
             "<table class='grid'><thead><tr><th>verdict</th><th>inputs</th>"
             "</tr></thead><tbody>"

@@ -109,11 +109,19 @@ def test_the_platts_assessment_is_never_quoted_as_sourced() -> None:
         assert c.status == "unverified", f"{c.param} claims {c.status}"
 
 
-def test_the_com2026_floor_is_never_quoted_as_sourced() -> None:
-    """Open item 7. The mechanism is confirmed; the annex has not been read."""
-    for name in ("benefit.COM2026_FLOOR", "benefit.COM2026_FLOOR_YEARS"):
+def test_the_com2026_schedule_is_read_off_the_annex() -> None:
+    """Open item 7, closed. The schedule now comes from the specification.
+
+    It used to be reconstructed as a 15% floor over law2023 and was flagged
+    `unverified` for exactly that reason. v11 eq (12) gives the proposal its
+    own 2026-2033 factors plus a 2034-2037 tranche, and that reproduces the
+    published +7.82 vintage delta - so the claim is no longer a to-do.
+    """
+    for name in ("benefit.COM2026_FLOOR", "benefit.COM2026_FLOOR_YEARS",
+                 "benefit.F_COM2026"):
         c = next(c for c in sources.REGISTER if c.param == name)
-        assert c.status == "unverified", f"{name} claims {c.status}"
+        assert c.status != "unverified", f"{name} is still a to-do"
+        assert "spec_v11" in c.refs, f"{name} does not cite the specification"
 
 
 def test_rendered_page_states_the_audit_result_and_cites_everything() -> None:

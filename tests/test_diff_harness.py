@@ -99,15 +99,18 @@ def test_a_perturbation_inside_tolerance_is_not_flagged() -> None:
     assert diff(py, matlab) == []
 
 
-def test_every_reference_case_yields_a_commitment_year_in_legacy_mode() -> None:
-    """Legacy mode keeps every case bankable - which is the point of the rewrite.
+def test_only_the_market_hydrogen_case_lacks_a_commitment_year() -> None:
+    """Legacy mode keeps every case bankable except the one that cannot be.
 
-    At u=1, nominal prices and kappa=1 even the EUR 8.29/kg hydrogen case still
-    shows a commitment year.  The case only disappears once the corrections are
-    applied, which is why the ladder and not this grid is the honest headline.
+    At u=1, nominal prices and kappa=1 the grid is deliberately generous. One
+    case still fails: hydrogen at EUR 8.29/kg peaks at a negative NPV, so there
+    is no year worth committing in. That used to survive only because support
+    ran flat to 2050; with the specification's taper (v11 eq 10) it does not,
+    which is the honest answer rather than a regression.
     """
     rows = run_cases()
-    assert all(int(r["t_star"]) > 0 for r in rows)
+    without = sorted(str(r["case"]) for r in rows if int(r["t_star"]) <= 0)
+    assert without == ["h2_8.29"], without
 
 
 def test_beyond_horizon_is_encoded_as_minus_one_not_dropped() -> None:

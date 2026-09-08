@@ -21,12 +21,12 @@ from timing_model.scenarios import published_base, run_ladder
 
 
 def test_base_case_headline() -> None:
-    """T* = 2029, T_exp = 2029, NPV0 = 1588.3 EUR/t capacity, trigger crossed 2030."""
+    """T* = 2029, T_exp = 2029, NPV0 = 1605.9 EUR/t capacity, trigger crossed 2030."""
     p, sc = published_base()
     o = outputs(p, sc)
     assert o.t_star == 2029
     assert o.t_exp == 2029
-    assert o.npv0 == pytest.approx(1588.3, abs=0.05)
+    assert o.npv0 == pytest.approx(1605.9, abs=0.05)
     assert o.crossing_year == 2030
     assert o.crossing_reason == "crossed"
 
@@ -85,9 +85,9 @@ def test_a_is_endogenous_and_reduces_to_the_matlab_constant() -> None:
 #: The published ladder, Appendix A §4.4.  ``None`` marks a cell the calibration
 #: cannot pin without ``timing_model.m`` - see the module docstring.
 PUBLISHED_LADDER = [
-    ("Base as published", 2029, 1588, 109.5),
-    ("+ load factor u=0.85", 2030, 1294, 109.5),
-    ("+ hot metal kappa=0.94", 2030, 1166, 116.9),
+    ("Base as published", 2029, 1606, 109.5),
+    ("+ load factor u=0.85", 2029, 1302, 109.5),
+    ("+ hot metal kappa=0.94", 2030, 1174, 116.9),
     ("+ real vs nominal", None, None, 116.9),
     ("+ hydrogen at 8.29", "beyond", None, 366.9),
     ("+ resale off (w=0)", "beyond", None, 366.9),
@@ -113,11 +113,21 @@ def test_stress_ladder_reproduces_the_published_table(idx: int) -> None:
         assert o.npv0 == pytest.approx(want_npv, abs=0.6), f"{label} NPV"
 
 
-def test_ladder_is_cumulative_not_a_cross_product() -> None:
-    """Four of the five corrections push the same way; the ladder must compound."""
+def test_the_ladder_compounds_down_to_the_hydrogen_rung() -> None:
+    """The corrections compound - up to the last rung, which now reverses.
+
+    Rows 1-6 each take value off the previous one. Row 7, routing support as a
+    CCfD stream instead of a lump, adds it back: once the Booster is correctly
+    tapered and gone by 2035 (v11 eq 10), a per-tCO2 premium paid over ten
+    years from the commitment year is worth more than the shrinking lump. That
+    reversal is a result, not a leak, and it only became visible when the
+    support schedule stopped running flat to 2050.
+    """
     rows = run_ladder()
     npvs = [o.npv0 for _, o in rows]
-    assert npvs == sorted(npvs, reverse=True), "each rung must not improve the case"
+    assert npvs[:-1] == sorted(npvs[:-1], reverse=True), npvs
+    assert npvs[-1] > npvs[-2], "the stream rung should now improve the case"
+    assert rows[-1][0].label.endswith("stream"), rows[-1][0].label
 
 
 def test_corrections_are_monotone_in_the_trigger() -> None:

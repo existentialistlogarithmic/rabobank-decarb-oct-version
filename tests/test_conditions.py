@@ -20,7 +20,7 @@ from timing_model.scenarios import published_base, run_ladder
 def _bare() -> Outputs:
     """An Outputs with no conditions - the thing the report layer must refuse."""
     return Outputs(
-        t_star=2029, t_exp=2029, npv0=1588.3, trigger=109.52, crossing_year=2030
+        t_star=2029, t_exp=2029, npv0=1605.9, trigger=109.52, crossing_year=2030
     )
 
 
@@ -66,9 +66,24 @@ def test_rendered_table_prints_the_conditions_alongside() -> None:
 
 
 def test_rendered_table_prints_binding_guards() -> None:
+    """Guards reach the page. The ladder itself no longer binds the capex clamp.
+
+    It used to, because support ran flat to 2050 while capex fell with
+    learning, so eventually support exceeded gross capex. Under the
+    specification's schedule (v11 eq 10) support is gone by 2035 and the clamp
+    never binds on the published ladder - so the clamp is exercised here on a
+    scenario built to bind it, rather than on a row that only bound by accident.
+    """
+    from timing_model.params import Params, ScenarioParams
+    from timing_model.results import outputs
+
     text = render_table([(r.label, o) for r, o in run_ladder()])
     assert "Binding guards" in text
-    assert "clamp binds" in text
+
+    rich = Params().with_policy(s_max=5000.0)
+    o = outputs(rich, ScenarioParams(u=1.0))
+    assert any("clamp binds" in g for g in o.binding_guards), o.binding_guards
+    assert "clamp binds" in render_table([("clamped", o)])
 
 
 def test_headline_fields_are_the_ones_that_need_guarding() -> None:

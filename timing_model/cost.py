@@ -12,6 +12,7 @@ Nothing here may import from :mod:`timing_model.objective`.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Final
 
 from timing_model.params import Params, ScenarioParams
 
@@ -30,11 +31,42 @@ def learning(T: int, p: Params) -> float:
     return (1.0 + p.sector.gamma) ** (-p.sector.b_learn * (T - p.common.t0))
 
 
+#: v11 eq (9): full weight through 2031, linear taper, gone from 2035.
+SUPPORT_FULL_UNTIL: Final[int] = 2031
+SUPPORT_END: Final[int] = 2035
+
+#: v11 eq (9), the first branch: before the Booster window opens there is still
+#: the Innovation Fund and national aid, worth ``0.35 * s_max``. The code used
+#: to return zero here, which put the whole EUR 200 into a single step at 2028
+#: instead of the EUR 130 the specification works out by hand ("the jump of
+#: EUR 130/t between 2027 and 2028 is the origin of the 'waiting to 2028 is
+#: worth +EUR 146' step"). Overstating that step overstates the case for
+#: waiting, which is the one thing this model exists to measure.
+SUPPORT_PRE_WINDOW: Final[float] = 0.35
+
+
 def support(T: int, p: Params, sc: ScenarioParams) -> float:
     """s(T). EUR/t capacity. Group III eq (6).
 
-    Zero before the Booster window opens, then ``s_max * q(T)`` with rationing
-    ``q(t) = max{q_min, 1 - lam*(t - support_start)}``.
+    v11 eq (9), all four branches:
+
+    ==================  ==========================================
+    ``T < 2028``        ``0.35 * s_max`` (Innovation Fund, national aid)
+    ``2028 <= T <= 2031``  ``s_max * q(T)`` (the Booster window, full weight)
+    ``2031 < T < 2035``    ``s_max * q(T) * (2035 - T)/4`` (linear taper)
+    ``T >= 2035``          ``0``
+    ==================  ==========================================
+
+    with rationing ``q(t) = max{q_min, 1 - lam*(t - support_start)}``.  The
+    published base case is the unrationed branch (``lam = 0``); ``lam = 0.30``
+    with ``q_min = 0.10`` is the specification's "pool depletes 30 per cent a
+    year" case, giving q = 0.70, 0.40, 0.10 in 2029-2031.
+
+    Two branches were missing at different times.  The taper and the end date
+    came first: support used to run flat to 2050, which made a late commitment
+    look better funded than any published rule allows.  The pre-window floor
+    came second: it used to be zero, which put a EUR 200 step at 2028 where the
+    specification has EUR 130.
 
     Returns 0.0 under ``support_basis='stream'``: the premium is a flow and is
     routed into ``B(t)`` instead (Appendix A F4 - do not net a flow from a
@@ -42,9 +74,13 @@ def support(T: int, p: Params, sc: ScenarioParams) -> float:
     """
     if sc.support_basis == "stream":
         return 0.0
-    if p.policy.support_start > T:
+    if T >= SUPPORT_END:
         return 0.0
+    if p.policy.support_start > T:
+        return p.policy.s_max * SUPPORT_PRE_WINDOW
     q = max(p.policy.q_min, 1.0 - p.policy.lam * (T - p.policy.support_start))
+    if T > SUPPORT_FULL_UNTIL:
+        q *= (SUPPORT_END - T) / (SUPPORT_END - SUPPORT_FULL_UNTIL)
     return p.policy.s_max * q
 
 

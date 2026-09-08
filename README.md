@@ -89,6 +89,8 @@ analysis/            studies that run on the model without changing it
   findings.py          the five structural findings and their evidence
   grounding.py         each input vs the statistic that bears on it, with a verdict
   sourcing.py          the hydrogen sourcing frontier
+  regimes.py           the scenario map: which decision each situation implies
+  reconcile.py         the model against every published v11 quantity
 
 reporting/           generated deliverables — nothing imports these
   sources.py           -> SOURCES.md, the provenance register (audited)
@@ -111,10 +113,12 @@ assumption, so a test forbids it outright.
 
 ```
 python run_all.py               # gate, ladders, reconciliation, pages, checks
-python selfcheck.py             # 38 assertions, standard library only
-python -m pytest tests          # 219 tests
+python selfcheck.py             # 39 assertions, standard library only
+python -m pytest tests          # 154 test functions, 249 cases after parametrisation
 python -m analysis.sourcing     # the frontier, as a table
 python -m analysis.grounding    # inputs against observed data
+python -m analysis.regimes      # the scenario map and the what-ifs
+python -m analysis.reconcile    # the model against the v11 specification
 python -m reporting.explorer    # rebuild explorer.html
 python -m reporting.deck        # rebuild deck.html
 ```
@@ -142,22 +146,22 @@ exists:
 
 | Status | Count | Meaning |
 |---|---|---|
-| `gate` | 9 | re-derived by the validation gate on every run |
-| `sourced` | 24 | a primary, openly reachable publication says this |
+| `gate` | 18 | re-derived by the validation gate, or read off the specification |
+| `sourced` | 21 | a primary, openly reachable publication says this |
 | `observed` | 5 | an official statistic, cached with its period |
-| `assumed` | 17 | a modelling choice with a rationale and no external authority |
+| `assumed` | 15 | a modelling choice with a rationale and no external authority |
 | `fitted` | 1 | solved backwards from a published result |
-| `unverified` | 3 | rests on a document nobody here has opened |
+| `unverified` | 1 | rests on a document nobody here has opened |
 
 The one fitted constant is `gamma = 0.4442`, the H2-DRI capacity growth rate,
-solved from `NPV(2029) = 1588.3` with everything else held at its sourced or
+solved from `NPV(2029) = 1605.9` with everything else held at its sourced or
 published value. It lands inside the 43–52%/yr band implied by published EU
 capacity plans, which is corroboration, not derivation.
 
-The three `unverified` entries are the live to-do list: the €8.29/kg Platts
-assessment (licensed, taken from the specification), and the COM(2026)
-free-allocation floor and its year range (mechanism confirmed, annex not read
-line by line). Tests fail if any of them is ever presented as sourced.
+One `unverified` entry remains: the €8.29/kg Platts assessment, which is
+licensed market data taken from the specification. A test fails if it is ever
+presented as sourced. The COM(2026) allocation schedule used to be the other
+two — it is now read off the specification's own annex.
 
 ### Observed data
 
@@ -190,26 +194,27 @@ Base case, exactly as published:
 | | |
 |---|---|
 | `T*` | 2029 |
-| NPV at `T*` | €1,588.29 / t capacity, discounted to 2026 |
+| NPV at `T*` | €1,605.94 / t capacity, discounted to 2026 |
 | trigger `p*'` | €109.52 / tCO₂ |
 | crossing year | 2030 |
 
-The peak is nearly flat — 2028 gives €1,573 and 2030 gives €1,581 — so 2029 is
-a window, not a date. One year past it the picture changes sharply: 2033 drops
-to €1,062, because the €200/t support window has closed and the reline decision
-has already been taken.
+The peak is nearly flat — 2028 gives €1,604 and 2030 gives €1,589 — so 2029 is
+a window, not a date. The cliff comes later and is sharp: €1,058 in 2038 and
+€712 in 2039, because the reline falls due and the €200/t support window has
+long closed.
 
 **Correction ladder**, cumulative, each row adding one fix:
 
 | Row | `T*` | NPV | trigger |
 |---|---|---|---|
-| published base | 2029 | 1,588 | 109.5 |
-| + load factor 0.85 | 2030 | 1,294 | 109.5 |
-| + hot-metal conversion κ = 0.94 | 2030 | 1,166 | 116.9 |
-| + real rather than nominal | 2031 | 754 | 116.9 |
-| + hydrogen at €8.29/kg | beyond horizon | −49 | 366.9 |
+| published base | 2029 | 1,606 | 109.5 |
+| + load factor 0.85 | 2029 | 1,303 | 109.5 |
+| + hot-metal conversion κ = 0.94 | 2030 | 1,174 | 116.9 |
+| + real rather than nominal | 2031 | 755 | 116.9 |
+| + hydrogen at €8.29/kg | beyond horizon | −129 | 366.9 |
 
-Rows 1–3 reproduce the published table exactly. Rows 4–7 do not; see
+Every commitment year, trigger and crossing year in the specification
+reproduces. The NPV *levels* run about one per cent high; see
 [Known limitations](#known-limitations).
 
 ## Findings
@@ -224,19 +229,20 @@ pinned by a test so it cannot invert silently.
    move both. The trigger formula does not contain the load factor, resale,
    support or the price path. A CfD and a grant are therefore complements, not
    substitutes — they act on different halves of the decision.
-2. **Utilisation inverts at €7.17/kg hydrogen.** Above it, running the plant
+2. **Utilisation inverts at €6.15/kg hydrogen.** Above it, running the plant
    *less* raises NPV, because `u` multiplies a flow that has gone negative. A
    covenant written around a minimum utilisation would point the wrong way.
    (Caveat: this is the sign of a sensitivity on an NPV-negative case.)
-3. **Past 16 years into a campaign, `T*` stops being a choice.** It equals the
-   reline date exactly. Value peaks at age 18; the cliff at age 19 is the €200
-   of support forfeited by committing before the window opens in 2028.
+3. **Past 17 years into a campaign, `T*` stops being a choice.** For ages 0–16
+   the year is set by economics; from 17 on it equals the reline date exactly
+   and the calendar decides.
 4. **The trigger's robustness to the discount rate is cancellation.** Taking
    `r` from 6% to 10% moves the break-even +304% and the option multiple −68%.
    Report the two factors, not the product.
-5. **The correlation matrix would mislead you.** Across 81 scenarios NPV and
-   the trigger correlate −0.87, contradicting finding 1. The ensemble
-   manufactured the correlation; the structure says the true value is zero.
+5. **The correlation matrix would mislead you.** Across 81 scenarios the
+   strongest opposition is `T*` against NPV at −0.96. Read as a statement about
+   levers it contradicts finding 1; the ensemble manufactured it, and the
+   structure says the true value is zero.
 
 **From observed data** — `analysis/grounding.py`:
 
@@ -254,7 +260,7 @@ pinned by a test so it cannot invert silently.
    trough year and per-product terms in a peak one, in a model whose central
    error class is confusing the two.
 9. **The 8% hurdle rate is a 6.8pp risk premium.** The ECB 10Y AAA yield is
-   3.36% nominal, 1.23% real after HICP. Given finding 4, that decomposition is
+   3.39% nominal, 1.26% real after HICP. Given finding 4, that decomposition is
    load-bearing.
 
 **From the sourcing frontier** — `analysis/sourcing.py`, below.
@@ -310,8 +316,8 @@ disagree.
 
 ## The talk
 
-`deck.html` is a 40-minute presentation generated from the same model run —
-slides in seven sections, timed, with speaker notes (`n`), a slide grid (`g`)
+`deck.html` is a presentation generated from the same model run — 20 slides in
+eight sections timed to 39 minutes, with speaker notes (`n`), a slide grid (`g`)
 and a rehearsal timer (`t`). It prints one slide per page.
 
 Every figure in it is drawn from a live model run at build time, and **every
@@ -327,8 +333,8 @@ headline numbers on the title slide match a fresh `outputs()` call.
 |---|---|
 | validation gate | nine published quantities to 1e-3 relative, before anything prints |
 | feasibility guards | `r − mu`, `u ∈ (0,1]`, monotone allocation, non-negative residual, capex clamp — all raise, never return a flag |
-| 219 pytest tests | units, layering, findings, provenance, observed data, generated pages |
-| 38 self-checks | the same load-bearing claims with no third-party packages |
+| 154 test functions | units, layering, findings, provenance, observed data, the specification, generated pages — 249 cases after parametrisation |
+| 39 self-checks | the same load-bearing claims with no third-party packages |
 | diff harness | 50-case grid, self-diff, and a negative control that must flag exactly two |
 | `ruff` | clean on `F, E, W, I, UP, B, C4, SIM, RET`; config and exceptions in `pyproject.toml` |
 
@@ -346,13 +352,29 @@ the negative control are built and tested; drop a reference CSV beside them and
 
 ## Known limitations
 
-| Item | Published | Computed | Cause |
-|---|---|---|---|
-| ladder row 4 `T*` | 2030 | 2031 | level right to €1; the peak is €8 late on a curve that is flat across 2030–2032 |
-| ladder rows 5–7 NPV | −188 | −49 | at `a = −373` the curve rises monotonically to 2050 and the published value sits on it around 2044. `T*` = "beyond horizon" reproduces, which is the row's actual finding |
-| F8 vintage delta | +7.82 / −122 | +8.97 / −161 | `f_com2026(t)` reconstructed, not read off the legal annex |
+`analysis/reconcile.py` checks the model against every quantity the v11
+specification published — inputs as well as outputs — and `run_all.py` prints
+the result. **54 of 62 reproduce.** All eight that do not are NPV *levels*, and
+all eight are high, by 1.1% to 8.0%:
 
-Two places where the specification's own text does not hold, both pinned by
+| Item | Published | Computed | Gap |
+|---|---|---|---|
+| base case NPV | 1,588 | 1,606 | +1.1% |
+| soft / central / tight price paths | 1,155 / 1,588 / 2,339 | 1,247 / 1,606 / 2,370 | +8.0% / +1.1% / +1.3% |
+| Booster in full / rationed 30%/yr | 1,588 / 1,570 | 1,606 / 1,604 | +1.1% / +2.2% |
+| policy vintages, law2023 / com2026 | 1,581 / 1,588 | 1,606 / 1,614 | +1.6% / +1.6% |
+
+Not one input, commitment year, trigger or crossing year differs. One tolerance
+judges all eight (`NPV_TOL = 5`, the rounding on the published figures); an
+earlier version used 5 for the base case and 25 elsewhere, so the identical
+1,588-vs-1,606 comparison read as a pass in one section and a difference in
+another, and a test now pins the single standard.
+
+Closing the level gap by moving an input would break the §4.3 age ladder, which
+reproduces exactly across twelve values and is the stronger constraint. So it is
+documented rather than tuned away.
+
+Three places where the specification's own text does not hold, all pinned by
 tests:
 
 - **As `σ → 0` the option multiple does not go to 1.** It goes to `r/(r−mu)` =
@@ -361,6 +383,12 @@ tests:
 - **"Never" is wrong for the trigger at market volatility.** At `σ = 0.45` the
   trigger is €202.5 and the path crosses it in 2043. The correct phrasing is
   "beyond any recognisable investment horizon".
+- **The eq (11) hand check conflates doublings with years.** Eq (2) works
+  Wright's law over *doublings* and gets 0.614 at three of them — which is how
+  `I0 = 900` is derived. The worked NPV then reuses 0.62 for a commitment three
+  *years* out, which would need deployed capacity to double annually. The model
+  converts through the deployment growth rate: three years at `gamma = 0.4442`
+  is 1.59 doublings, so `L(2029) = 0.773`.
 
 The published §3.3 ranges for `a` and `p_H2` also contradict each other: the
 `a` band is (−320, −25), but `a(2.50) = −54.5` and `a(8.29) = −372.95`, so the

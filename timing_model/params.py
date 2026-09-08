@@ -108,12 +108,13 @@ class SectorParams:
         metadata=Meta("EUR/t capacity", "2022", "DIW capex, 2022 euros"),
     )
     K_s: float = field(
-        default=1200.0,
+        default=600.0,
         metadata=Meta(
             "EUR/t capacity",
             "2022",
-            "integrated BF-BOF greenfield ~$1,100/t (range EUR 1,000-1,500/t); "
-            "gives S_s(2026)=360, the gate value, at age0/L_s below",
+            "v11 base-case table. Confirmed by the specification's own age "
+            "ladder: 'each year of age removes EUR 30 of residual book value', "
+            "i.e. K_s / L_s = 30",
         ),
     )
     L_s: float = field(
@@ -126,21 +127,22 @@ class SectorParams:
         ),
     )
     age0: float = field(
-        default=14.0,
+        default=8.0,
         metadata=Meta(
             "yr",
             None,
-            "years into campaign at t0; puts T_rel=2032 inside the 2030-2035 "
-            "window in which ~12.7 Mtpa of EU capacity faces a reline decision",
+            "v11 reference plant: 'already eight years into a twenty year "
+            "life'. Puts T_rel = 2038 and reproduces all four rows of the "
+            "specification's age ladder exactly",
         ),
     )
     rho: float = field(
-        default=50.0 / 1200.0,
+        default=0.35,
         metadata=Meta(
             "share of K_s",
             None,
-            "rho*K_s = EUR 50/t capacity reline: Salzgitter BF A, EUR 100m "
-            "over >2 Mtpa (2024)",
+            "v11 base-case table: reline cost 25 to 50 per cent of book. "
+            "rho*K_s = EUR 210/t capacity",
         ),
     )
     phi: float = field(

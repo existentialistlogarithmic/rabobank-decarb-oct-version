@@ -70,7 +70,7 @@ fixes a volatility problem.*
 ## 6. Where the case actually fails, and why utilisation inverts
 
 **Establishes:** hydrogen, not carbon, is the binding constraint. Then the
-counterintuitive part: above €7.17/kg the sensitivity of value to the load
+counterintuitive part: above €6.15/kg the sensitivity of value to the load
 factor changes sign, because the load factor multiplies a flow that has gone
 negative. Today's market price is on the wrong side.
 **Figure:** the inversion chart, zero-crossing marked, Platts at €8.29.

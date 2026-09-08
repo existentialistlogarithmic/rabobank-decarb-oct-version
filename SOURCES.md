@@ -10,14 +10,14 @@ records what each one *asserts about the world*, and what would falsify it.
 
 | Status | What would falsify a claim carrying it | Count |
 |---|---|---|
-| `gate` | re-derived by the validation gate on every run | 9 |
-| `sourced` | a primary, openly reachable publication says this | 24 |
+| `gate` | re-derived by the validation gate on every run | 19 |
+| `sourced` | a primary, openly reachable publication says this | 21 |
 | `observed` | an official statistic, cached with its period | 5 |
-| `assumed` | a modelling choice with a rationale and no external authority | 17 |
+| `assumed` | a modelling choice with a rationale and no external authority | 15 |
 | `fitted` | solved backwards from a published result; no independent content | 1 |
-| `unverified` | traceable to a source we could not open - a live to-do | 3 |
+| `unverified` | traceable to a source we could not open - a live to-do | 1 |
 
-**Audit:** clean — 59 inputs, every parameter field covered, every quoted value equal to the value the model runs on.
+**Audit:** clean — 62 inputs, every parameter field covered, every quoted value equal to the value the model runs on.
 
 ## `gate` — re-derived by the validation gate on every run
 
@@ -28,9 +28,19 @@ records what each one *asserts about the world*, and what would falsify it.
 | `common.horizon_end` | 2050 | year | `appendix_a` | §3.6 fixes the horizon explicitly at 2050. |
 | `common.crf_years` | 25 | yr | `diw2082` | Asset life in the MAC diagnostic; the 25/8% pairing is DIW's. |
 | `sector.I0` | 900.0 | EUR/t capacity (2022) | `diw2082` | Mid-point of the €600–1000/t₂₀₂₂ DRI-EAF range; pinned by p_M = 27.50. |
+| `sector.K_s` | 600.0 | EUR/t capacity (2022) | `spec_v11` | v11 base-case table, and confirmed by the specification's own age ladder: 'each year of age removes EUR 30 of residual book value', i.e. K_s/L_s = 30. The earlier 1200 was reverse-engineered to hit S_s(2026) = 360 with age0 = 14; that pair gives the same value at t0 and the wrong one in every other year. |
+| `sector.age0` | 8.0 | yr | `spec_v11`, `ieefa_reline` | v11: the reference plant is 'already eight years into a twenty year life'. Puts T_rel = 2038 and reproduces all four rows of the specification's age ladder exactly. T_rel is a model output, not a fact about any named plant. |
+| `sector.rho` | 0.35 | share of K_s | `spec_v11`, `salzgitter_reline` | v11 base-case table: reline cost 25–50% of book, taken at 0.35, so rho*K_s = €210/t capacity. |
 | `sector.phi` | 0.5 | share of S_s | `appendix_a` | Share of the write-off charged to the decision; pinned by p'_M = 30.50. |
 | `sector.c_avoided` | 83.0 | EUR/t product/yr (2022) | `appendix_a` | Coke and PCI avoided, eq (2); pinned by a(2.60) = -60. |
 | `policy.kappa` | 1.0 | dimensionless | `appendix_a` | Published base. F5's hot-metal fix sets 0.94, which reproduces both corrected triggers to 4 s.f.; no other placement of kappa does. |
+| `benefit.COM2026_FLOOR` | 0.15 | share | `spec_v11`, `com2026_616` | The conditional tranche, read off v11 eq (12). With the proposal's own 2026–2033 factors it reproduces the published +7.82 vintage delta exactly; the previous floor-on-law2023 reconstruction gave +8.97. |
+| `benefit.COM2026_FLOOR_YEARS` | 2034 .. 2037 | years | `spec_v11`, `com2026_616` | v11 eq (12): the flat 15% tranche runs 2034–2037 and nothing follows from 2038. |
+| `benefit.F_COM2026` | 2026:0.975 2027:0.950 2028:0.915 2029:0.810 2030:0.590 2031:0.480 2032:0.375 2033:0.270 | share of free allocation | `spec_v11`, `com2026_616` | The proposal's own schedule, not a floor applied to the legislated path. More generous than law2023 in every year from 2028. |
+| `benefit.CENTRAL_PATH` | 2026:76.000 2027:86.000 2028:96.000 2029:104.000 2030:112.000 | EUR/tCO2 nominal | `spec_v11` | Quoted anchors, not a straight line. Interpolating 76 to 112 understates 2027–2029 by €1, €2 and €1. |
+| `cost.SUPPORT_FULL_UNTIL` | 2031 | year | `spec_v11` | v11 eq (9): the Booster runs at full weight through 2031. |
+| `cost.SUPPORT_END` | 2035 | year | `spec_v11` | v11 eq (9): linear taper from 2031, nothing from 2035. Support ran flat to 2050 before, which made a late commitment look better funded than any published rule allows. |
+| `cost.SUPPORT_PRE_WINDOW` | 0.35 | share of s_max | `spec_v11` | v11 eq (9), first branch: before the Booster window there is still the Innovation Fund and national aid, worth 0.35·s_max = €70/t. The code returned zero here, which put a €200 step at 2028 where the specification works out €130 by hand — overstating the value of waiting, which is the quantity the model exists to measure. |
 | `eurostat.CURRENCY_BASE_YEAR` | 2022 | year | `appendix_a` | The currency year every monetary parameter is tagged with. Producer prices are read at this year and the latest one so a EUR 2022 figure can be restated rather than assumed current. |
 
 ## `sourced` — a primary, openly reachable publication says this
@@ -39,10 +49,7 @@ records what each one *asserts about the world*, and what would falsify it.
 |---|---|---|---|---|
 | `common.eps_inc` | 1.9 | tCO2/t product | `ets_dir`, `appendix_a` | Blast-furnace route intensity, Appendix A F9. |
 | `common.eps_cln` | 0.1 | tCO2/t product | `ieefa_h2dri`, `appendix_a` | H2-DRI-EAF residual intensity, Appendix A F9. |
-| `sector.K_s` | 1200.0 | EUR/t capacity (2022) | `gem_capex`, `son_capex` | Integrated BF-BOF greenfield ≈ $1,100/t installed. Not free: with L_s and age0 it must give S_s(2026) = 360, the gate value. |
-| `sector.L_s` | 20.0 | yr | `tk_schwelgern` | BF campaign life between relines; 15–20 typical, 21 achieved. |
-| `sector.age0` | 14.0 | yr | `ieefa_reline` | Years into campaign at t0. Puts T_rel = 2032, inside the published 2030–2035 reline-decision window. T_rel is a model output, not a fact about any named plant. |
-| `sector.rho` | 0.0416667 | share of K_s | `salzgitter_reline` | rho*K_s = €50/t capacity: €100m over >2 Mtpa (2024). |
+| `sector.L_s` | 20.0 | yr | `tk_schwelgern`, `gem_capex`, `son_capex` | BF campaign life between relines; 15–20 typical, 21 achieved. The installed-cost sources corroborate the book value K_s is measured against, at roughly half a greenfield BF-BOF. |
 | `sector.m_H2` | 55.0 | kg H2/t product | `ieefa_h2dri`, `appendix_a` | Group I eq (2). Unrelated to eurostat.KWH_PER_KG_H2 = 55, which is kWh per kg - the two 55s share a number and nothing else. |
 | `sector.b_learn` | 0.234 | dimensionless | `diw2082` | Wright exponent, ~15% learning rate. |
 | `policy.benchmark` | 1.9 | tCO2/t product | `ets_dir` | BM(t). The hot-metal correction rides on kappa, not on this. |
@@ -60,7 +67,7 @@ records what each one *asserts about the world*, and what would falsify it.
 | `scenarios.SOURCED_RANGES.r` | 0.06 .. 0.1 | 1/yr real | `diw2082`, `appendix_a` | Finding 4 runs on this band: across it the break-even moves +304% and the option multiple -68%, and the trigger looks stable only because the two cancel. |
 | `scenarios.SOURCED_RANGES.s_max` | 200.0 .. 660.0 | EUR/t capacity (2022) | `zoe_idb`, `ec_ccfd` | Published base at the €200 Booster envelope; the top end is the envelope plus a CCfD stream, per F4. |
 | `scenarios.SOURCED_RANGES.learning_rate` | 0.1 .. 0.2 | share per doubling | `diw2082`, `ieefa_h2dri` | Wright learning rates for electrolyser-led capex. b_learn = 0.234 sits at the top of this band (~15%). |
-| `scenarios.SOURCED_RANGES.u` | 0.75 .. 0.85 | share | `ieefa_reline` | Observed EU blast-furnace utilisation. Finding 2 turns on this band: above €7.17/kg hydrogen, moving down it *raises* NPV. |
+| `scenarios.SOURCED_RANGES.u` | 0.75 .. 0.85 | share | `ieefa_reline` | Observed EU blast-furnace utilisation. Finding 2 turns on this band: above €6.15/kg hydrogen, moving down it *raises* NPV. |
 
 ## `observed` — an official statistic, cached with its period
 
@@ -88,8 +95,6 @@ records what each one *asserts about the world*, and what would falsify it.
 | `scenario.price_scale` | 1.0 | multiplier | `appendix_a` | Selects low/central/high EUA path in the §9.2 diff grid. |
 | `scenario.legacy_mode` | False | flag | `appendix_a` | DIFF FIXTURE ONLY: reproduces the uncorrected model for reconciliation. |
 | `params.SIGMA_REGIMES` | cfd:0.100 crisis:0.300 long_run:0.200 realised:0.450 | 1/yr^0.5 | `appendix_a` | §3.4. A ladder rather than a calibrated sigma(t): each rung is defensible line by line. At 0.450 the trigger is crossed in 2043 - beyond any recognisable investment horizon, which is not 'never'. |
-| `benefit._P_2026` | 76.0 | EUR/tCO2 nominal | `appendix_a` | Start of the central path. An EUA series would replace this, mu and sigma together - open item 1. |
-| `benefit._P_2030` | 112.0 | EUR/tCO2 nominal | `appendix_a` | End of the linear ramp; +mu per year thereafter. |
 | `eurostat.KWH_GAS_PER_KG_H2` | 41.1 | kWh gas/kg H2 | `iea_h2` | LHV 33.3 kWh/kg at 81% reforming efficiency, the top of the 79-81% band reported for large-scale SMR - the favourable end, because this builds a floor. The IEA reference covers the route and its emissions, not this efficiency figure: treat the number as a modelling choice. |
 | `scenarios.SOURCED_RANGES.I0` | 600.0 .. 1400.0 | EUR/t capacity (2022) | `diw2082`, `appendix_a` | Lower bound is DIW's €600/t₂₀₂₂. The upper bound is widened past DIW's €1000 for first-of-a-kind European projects, and is a judgement. |
 | `scenarios.SOURCED_RANGES.a` | -320.0 .. -25.0 | EUR/t product/yr | `appendix_a` | Published band. Note it is NOT the image of the p_H2 band under the endogenous a(·): a(2.50) = -54.5 and a(8.29) = -372.95, so the top of the hydrogen range falls below the bottom of this one. The two §3.3 rows are inconsistent with each other; the model uses a(p_H2). |
@@ -104,8 +109,6 @@ records what each one *asserts about the world*, and what would falsify it.
 
 | Input | Value | Unit | Sources | Note |
 |---|---|---|---|---|
-| `benefit.COM2026_FLOOR` | 0.15 | share | `com2026_616` | The reintroduced floor. Mechanism confirmed, annex unread: the reconstruction computes +8.97/-161 against a published +7.82/-122. Structure matches (10 terms, ~18x ratio, sign flip); levels do not. |
-| `benefit.COM2026_FLOOR_YEARS` | 2033 .. 2042 | years | `com2026_616` | Ten floored years reproduces F8's '10 terms'. Not read off the annex. |
 | `scenarios.SOURCED_RANGES.p_H2` | 2.5 .. 8.29 | EUR/kg (2022) | `platts_h2`, `appendix_a` | The top of this band is the Platts assessment (Spain, 8 May 2026) and is the single most consequential unverified number in the build: it drives ladder rows 5–7, where T* goes beyond the horizon. Confirm against a subscription — open item 6. |
 
 ## Unverified — the live to-do list
@@ -114,8 +117,6 @@ These rest on a document nobody on this build has opened. They are not
 wrong; they are unchecked, and nothing quoting them should be presented
 as sourced.
 
-- **`benefit.COM2026_FLOOR` = 0.15** (com2026_616) — The reintroduced floor. Mechanism confirmed, annex unread: the reconstruction computes +8.97/-161 against a published +7.82/-122. Structure matches (10 terms, ~18x ratio, sign flip); levels do not.
-- **`benefit.COM2026_FLOOR_YEARS` = 2033 .. 2042** (com2026_616) — Ten floored years reproduces F8's '10 terms'. Not read off the annex.
 - **`scenarios.SOURCED_RANGES.p_H2` = 2.5 .. 8.29** (platts_h2, appendix_a) — The top of this band is the Platts assessment (Spain, 8 May 2026) and is the single most consequential unverified number in the build: it drives ladder rows 5–7, where T* goes beyond the horizon. Confirm against a subscription — open item 6.
 
 ## What no open source can supply
@@ -179,6 +180,7 @@ model runs offline and the numbers below are the numbers it used.
 - **`eurostat_bs`** — [ei_bsin_q_r2 — business surveys in industry, quarterly](https://ec.europa.eu/eurostat/databrowser/view/ei_bsin_q_r2/default/table), Eurostat. Current level of capacity utilisation, euro area, seasonally adjusted. All-industry rather than steel, so it is a reference point for the load factor, not a measurement of furnace load.
 - **`ecb_rates`** — [ECB Data Portal — yield curve and official interest rates](https://data.ecb.europa.eu/), European Central Bank. Series YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y (10-year AAA euro-area government spot rate) and FM/B.U2.EUR.4F.KR.MRR_FR.LEV (main refinancing rate). Decomposes the 8% hurdle rate into an observed risk-free rate and the premium above it.
 - **`iea_h2`** — [Global Hydrogen Review 2024 — GHG emissions of hydrogen and its derivatives](https://www.iea.org/reports/global-hydrogen-review-2024/ghg-emissions-of-hydrogen-and-its-derivatives), International Energy Agency. Unabated hydrogen from natural gas at 10–12 kgCO₂e/kg once upstream methane is counted. Refuses automated clients (403); opens in a browser.
+- **`spec_v11`** — *Investment timing model for industrial decarbonisation — equations, sensitivity results and sources (v11)*, RaboResearch Energy Transition, August 2026 — **not openly reachable**. The specification itself, supplied as PDF. Base-case parameter table, governing equations (1)–(12), the validation table, and the five sensitivity phases. Cited for values read directly off it.
 - **`appendix_a`** — *v12 specification, Appendix A*, internal — **not openly reachable**. The build's numerical reference. Sections cited inline. The MATLAB implementation it describes (timing_model.m) was never available.
 
 ---

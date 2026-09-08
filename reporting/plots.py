@@ -4,12 +4,14 @@ Writes a single self-contained ``charts.html``: theme-aware, hover tooltips,
 legends, direct labels and a table view under every chart. Open it in a browser,
 or in PyCharm right-click the file and Open in Browser.
 
-Four charts, each carrying one finding:
+Five charts on the decision, each carrying one finding:
 
 1. NPV(T) - the decision itself, and how each correction moves the peak.
 2. The price path against the trigger - the option premium expressed in time.
-3. The cumulative stress ladder - how far the case falls, correction by correction.
-4. The volatility ladder - why a CfD moves the client between regimes.
+3. The switch against the do-nothing bill - what the increment is measured from,
+   and how much of that bill committing at T* actually recovers.
+4. The cumulative stress ladder - how far the case falls, correction by correction.
+5. The volatility ladder - why a CfD moves the client between regimes.
 
 Palette: the reference categorical slots, validated for colour-vision
 deficiency in both light and dark mode. Light mode puts slots 3 and 4 below
@@ -33,6 +35,7 @@ from analysis.findings import (
     utilisation_inversion,
 )
 from timing_model.benefit import carbon_price_path
+from timing_model.cost import reline_year
 from timing_model.objective import npv_curve
 from timing_model.params import Params, ScenarioParams
 from timing_model.scenarios import STRESS_LADDER, published_base, run_ladder, sigma_ladder
@@ -177,7 +180,8 @@ def chart_npv() -> str:
     return (
         '<figure class="card">'
         "<figcaption><h3>NPV by commitment year</h3>"
-        "<p>Peak = T*. Markers show each argmax; the step at 2032 is the reline, "
+        f"<p>Peak = T*. Markers show each argmax; the step at {reline_year(Params())} "
+        "is the reline, "
         "where avoided reinvestment flips to paid.</p></figcaption>"
         + legend([lab for lab, _ in curves], range(4))
         + f'<svg viewBox="0 0 {W} {H}" role="img" class="plot" '
@@ -245,6 +249,85 @@ def chart_trigger() -> str:
         + table(["Year", "EUA price", "Trigger"],
                 ([t, f"{path[t]:,.1f}", f"{base.trigger:,.1f}"] for t in years),
                 "Table view - price path")
+        + "</figure>"
+    )
+
+
+# --------------------------------------------------------------- chart 2b
+def chart_recovery() -> str:
+    """The investment curve against the do-nothing case, and what it recovers.
+
+    Answers the standing comment directly: *plot also the no-investment
+    scenario, the curve of the investment scenario, the trigger point, and how
+    much PV value you recover.* The model reports the increment, so the
+    no-investment case is the zero line and its size is invisible. Drawn here
+    as the bill it actually is, with the switch's NPV read against it.
+    """
+    from analysis.regimes import recovery
+
+    p, sc = published_base()
+    _, base = run_ladder()[0]
+    rec = recovery(p, sc)
+    bill = rec["do nothing, carbon bill"]
+    curve = npv_curve(p, sc)
+    years = [t for t in sorted(curve) if 2026 <= t <= 2040]
+    lo = min(0.0, min(curve[t] for t in years))
+    hi = max(bill, max(curve[t] for t in years)) * 1.08
+
+    def X(t: int) -> float:
+        return scale(t, years[0], years[-1], PAD_L, W - PAD_R)
+
+    def Y(v: float) -> float:
+        return scale(v, lo, hi, H - PAD_B, PAD_T)
+
+    yt = [(Y(v), f"{v:,.0f}") for v in nice_ticks(lo, hi)]
+    xt = [(X(t), str(t)) for t in years if t % 2 == 0]
+    d = " ".join(f"{'M' if k == 0 else 'L'}{X(t):.1f},{Y(curve[t]):.1f}"
+                 for k, t in enumerate(years))
+    parts = [
+        axes(xt, yt, Y(max(lo, min(hi, 0.0)))),
+        f'<line class="thr" x1="{PAD_L}" y1="{Y(bill):.1f}" '
+        f'x2="{W - PAD_R}" y2="{Y(bill):.1f}"/>',
+        f'<text class="dl s1" x="{W - PAD_R + 8}" y="{Y(bill) + 4:.1f}">'
+        f'do nothing {bill:,.0f}</text>',
+        f'<path class="ln s0" d="{d}"/>',
+        f'<text class="dl s0" x="{W - PAD_R + 8}" '
+        f'y="{Y(curve[years[-1]]) + 4:.1f}">switch</text>',
+    ]
+    if base.t_star:
+        tx, ty = X(base.t_star), Y(curve[base.t_star])
+        parts.append(f'<circle class="mk s0" cx="{tx:.1f}" cy="{ty:.1f}" r="6"/>')
+        parts.append(f'<text class="note am" x="{tx:.1f}" y="{ty - 14:.1f}">'
+                     f'T* {base.t_star}: {rec["share recovered at T*"]:.0%} recovered'
+                     "</text>")
+    if base.crossing_year and base.crossing_year in curve:
+        cx, cy = X(base.crossing_year), Y(curve[base.crossing_year])
+        parts.append(f'<circle class="mk s2" cx="{cx:.1f}" cy="{cy:.1f}" r="5"/>')
+        parts.append(f'<text class="note am" x="{cx:.1f}" y="{cy + 26:.1f}">'
+                     f"trigger reached {base.crossing_year}</text>")
+
+    pts = [{"x": round(X(t), 1), "t": t,
+            "v": [round(curve[t], 1), round(bill, 1)]} for t in years]
+    return (
+        '<figure class="card">'
+        "<figcaption><h3>What the switch recovers from the do-nothing bill</h3>"
+        f"<p>Never switching costs <b>&euro;{bill:,.0f}/t</b> of capacity in "
+        f"discounted carbon to 2050. Committing at T* recovers "
+        f"<b>{rec['share recovered at T*']:.0%}</b> of it; waiting for the "
+        f"trigger recovers &euro;{rec['recovered at the crossing']:,.0f}. The "
+        "model reports the increment, so this bill is the zero line every other "
+        "chart is drawn against.</p></figcaption>"
+        + legend(["NPV of switching in year T", "carbon bill if you never switch"],
+                 [0, 1])
+        + f'<svg viewBox="0 0 {W} {H}" role="img" class="plot" '
+          f'data-pts="{esc(json.dumps(pts))}" '
+          f'data-names="switch,do nothing">'
+          f'<text class="axt" transform="rotate(-90 16 {H / 2})" x="16" y="{H / 2}">'
+          "EUR / t capacity, PV to 2026</text>" + "".join(parts) +
+        '<g class="hov" hidden><line class="cross"/></g></svg>'
+        + table(["Year", "NPV of switching", "Do-nothing bill"],
+                ([t, f"{curve[t]:,.0f}", f"{bill:,.0f}"] for t in years),
+                "Table view - recovery against the do-nothing bill")
         + "</figure>"
     )
 
@@ -473,7 +556,8 @@ def build() -> str:
     _, base = run_ladder()[0]
     cond = " · ".join(f"{k.replace('_', ' ')}: <b>{esc(v)}</b>"
                       for k, v in base.conditions.items())
-    charts = (chart_npv() + chart_trigger() + chart_ladder() + chart_sigma())
+    charts = (chart_npv() + chart_trigger() + chart_recovery()
+              + chart_ladder() + chart_sigma())
     struct = ("<h2>Structure: what moves what</h2>"
               + chart_levers() + chart_inversion() + chart_capture()
               + chart_cancellation() + chart_correlations())

@@ -51,7 +51,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Final
 
-from timing_model import benefit, params
+from timing_model import params
 
 OUT: Final[str] = "SOURCES.md"
 
@@ -289,6 +289,16 @@ SOURCES: Final[Mapping[str, Source]] = {s.key: s for s in (
         "browser.",
     ),
     Source(
+        "spec_v11",
+        "Investment timing model for industrial decarbonisation — equations, "
+        "sensitivity results and sources (v11)",
+        "RaboResearch Energy Transition, August 2026",
+        None,
+        "The specification itself, supplied as PDF. Base-case parameter table, "
+        "governing equations (1)–(12), the validation table, and the five "
+        "sensitivity phases. Cited for values read directly off it.",
+    ),
+    Source(
         "appendix_a",
         "v12 specification, Appendix A",
         "internal",
@@ -333,18 +343,26 @@ REGISTER: Final[tuple[Claim, ...]] = (
     # ---- Group I/III: capex, incumbent asset, operating penalty -------------
     Claim("sector.I0", 900.0, "EUR/t capacity (2022)", "gate", ("diw2082",),
           "Mid-point of the €600–1000/t₂₀₂₂ DRI-EAF range; pinned by p_M = 27.50."),
-    Claim("sector.K_s", 1200.0, "EUR/t capacity (2022)", "sourced",
-          ("gem_capex", "son_capex"),
-          "Integrated BF-BOF greenfield ≈ $1,100/t installed. Not free: with L_s "
-          "and age0 it must give S_s(2026) = 360, the gate value."),
-    Claim("sector.L_s", 20.0, "yr", "sourced", ("tk_schwelgern",),
-          "BF campaign life between relines; 15–20 typical, 21 achieved."),
-    Claim("sector.age0", 14.0, "yr", "sourced", ("ieefa_reline",),
-          "Years into campaign at t0. Puts T_rel = 2032, inside the published "
-          "2030–2035 reline-decision window. T_rel is a model output, not a fact "
-          "about any named plant."),
-    Claim("sector.rho", 0.0416667, "share of K_s", "sourced", ("salzgitter_reline",),
-          "rho*K_s = €50/t capacity: €100m over >2 Mtpa (2024)."),
+    Claim("sector.K_s", 600.0, "EUR/t capacity (2022)", "gate", ("spec_v11",),
+          "v11 base-case table, and confirmed by the specification's own age "
+          "ladder: 'each year of age removes EUR 30 of residual book value', "
+          "i.e. K_s/L_s = 30. The earlier 1200 was reverse-engineered to hit "
+          "S_s(2026) = 360 with age0 = 14; that pair gives the same value at t0 "
+          "and the wrong one in every other year."),
+    Claim("sector.L_s", 20.0, "yr", "sourced",
+          ("tk_schwelgern", "gem_capex", "son_capex"),
+          "BF campaign life between relines; 15–20 typical, 21 achieved. The "
+          "installed-cost sources corroborate the book value K_s is measured "
+          "against, at roughly half a greenfield BF-BOF."),
+    Claim("sector.age0", 8.0, "yr", "gate", ("spec_v11", "ieefa_reline"),
+          "v11: the reference plant is 'already eight years into a twenty year "
+          "life'. Puts T_rel = 2038 and reproduces all four rows of the "
+          "specification's age ladder exactly. T_rel is a model output, not a "
+          "fact about any named plant."),
+    Claim("sector.rho", 0.35, "share of K_s", "gate",
+          ("spec_v11", "salzgitter_reline"),
+          "v11 base-case table: reline cost 25–50% of book, taken at 0.35, so "
+          "rho*K_s = €210/t capacity."),
     Claim("sector.phi", 0.5, "share of S_s", "gate", ("appendix_a",),
           "Share of the write-off charged to the decision; pinned by p'_M = 30.50."),
     Claim("sector.m_H2", 55.0, "kg H2/t product", "sourced", ("ieefa_h2dri", "appendix_a"),
@@ -421,18 +439,39 @@ REGISTER: Final[tuple[Claim, ...]] = (
           "2032:0.265 2033:0.140",
           "share of free allocation", "sourced", ("cbam_reg",),
           "CBAM phase-out as legislated in 2023; years absent take 0.0."),
-    Claim("benefit.COM2026_FLOOR", 0.15, "share", "unverified", ("com2026_616",),
-          "The reintroduced floor. Mechanism confirmed, annex unread: the "
-          "reconstruction computes +8.97/-161 against a published +7.82/-122. "
-          "Structure matches (10 terms, ~18x ratio, sign flip); levels do not."),
-    Claim("benefit.COM2026_FLOOR_YEARS", "2033 .. 2042", "years", "unverified",
-          ("com2026_616",),
-          "Ten floored years reproduces F8's '10 terms'. Not read off the annex."),
-    Claim("benefit._P_2026", 76.0, "EUR/tCO2 nominal", "assumed", ("appendix_a",),
-          "Start of the central path. An EUA series would replace this, mu and "
-          "sigma together - open item 1."),
-    Claim("benefit._P_2030", 112.0, "EUR/tCO2 nominal", "assumed", ("appendix_a",),
-          "End of the linear ramp; +mu per year thereafter."),
+    Claim("benefit.COM2026_FLOOR", 0.15, "share", "gate",
+          ("spec_v11", "com2026_616"),
+          "The conditional tranche, read off v11 eq (12). With the proposal's "
+          "own 2026–2033 factors it reproduces the published +7.82 vintage "
+          "delta exactly; the previous floor-on-law2023 reconstruction gave "
+          "+8.97."),
+    Claim("benefit.COM2026_FLOOR_YEARS", "2034 .. 2037", "years", "gate",
+          ("spec_v11", "com2026_616"),
+          "v11 eq (12): the flat 15% tranche runs 2034–2037 and nothing "
+          "follows from 2038."),
+    Claim("benefit.F_COM2026",
+          "2026:0.975 2027:0.950 2028:0.915 2029:0.810 2030:0.590 2031:0.480 "
+          "2032:0.375 2033:0.270",
+          "share of free allocation", "gate", ("spec_v11", "com2026_616"),
+          "The proposal's own schedule, not a floor applied to the legislated "
+          "path. More generous than law2023 in every year from 2028."),
+    Claim("benefit.CENTRAL_PATH",
+          "2026:76.000 2027:86.000 2028:96.000 2029:104.000 2030:112.000",
+          "EUR/tCO2 nominal", "gate", ("spec_v11",),
+          "Quoted anchors, not a straight line. Interpolating 76 to 112 "
+          "understates 2027–2029 by €1, €2 and €1."),
+    Claim("cost.SUPPORT_FULL_UNTIL", 2031, "year", "gate", ("spec_v11",),
+          "v11 eq (9): the Booster runs at full weight through 2031."),
+    Claim("cost.SUPPORT_END", 2035, "year", "gate", ("spec_v11",),
+          "v11 eq (9): linear taper from 2031, nothing from 2035. Support ran "
+          "flat to 2050 before, which made a late commitment look better "
+          "funded than any published rule allows."),
+    Claim("cost.SUPPORT_PRE_WINDOW", 0.35, "share of s_max", "gate", ("spec_v11",),
+          "v11 eq (9), first branch: before the Booster window there is still "
+          "the Innovation Fund and national aid, worth 0.35·s_max = €70/t. The "
+          "code returned zero here, which put a €200 step at 2028 where the "
+          "specification works out €130 by hand — overstating the value of "
+          "waiting, which is the quantity the model exists to measure."),
     Claim("eurostat.KWH_PER_KG_H2", 55.0, "kWh/kg H2", "sourced", ("eurostat_power",),
           "LHV 33.3 kWh/kg at ~60% system efficiency. Turns an observed power "
           "price into a GREEN floor under the hydrogen price."),
@@ -507,7 +546,7 @@ REGISTER: Final[tuple[Claim, ...]] = (
     Claim("scenarios.SOURCED_RANGES.u", "0.75 .. 0.85", "share", "sourced",
           ("ieefa_reline",),
           "Observed EU blast-furnace utilisation. Finding 2 turns on this band: "
-          "above €7.17/kg hydrogen, moving down it *raises* NPV."),
+          "above €6.15/kg hydrogen, moving down it *raises* NPV."),
     Claim("scenarios.SOURCED_RANGES.p_H2", "2.5 .. 8.29", "EUR/kg (2022)", "unverified",
           ("platts_h2", "appendix_a"),
           "The top of this band is the Platts assessment (Spain, 8 May 2026) and "
@@ -553,6 +592,11 @@ def _root(group: str) -> object:
     """Object a dotted parameter name is resolved against."""
     if group in _CLASSES:
         return _CLASSES[group]()
+    if group in ("benefit", "cost", "params", "primitives", "option"):
+        from timing_model import benefit, cost, option, params, primitives
+
+        return {"benefit": benefit, "cost": cost, "params": params,
+                "primitives": primitives, "option": option}[group]
     if group in _PROVIDER_MODULES:
         import importlib
 

@@ -1,6 +1,6 @@
 """Standard-library verification of the model's load-bearing claims.
 
-The pytest suite in ``tests/`` is the real thing - 219 tests. This file exists
+The pytest suite in ``tests/`` is the real thing. This file exists
 for environments where third-party packages cannot be installed: it re-checks
 the claims that must not silently break, using nothing but the standard
 library, and reports pass/fail per claim.
@@ -71,13 +71,13 @@ def _ss() -> None:
     assert abs(residual_value(p.common.t0, p) - 360.0) < 1e-9
 
 
-@check("base case: T* 2029, T_exp 2029, NPV0 1588.3, crossed 2030")
+@check("base case: T* 2029, T_exp 2029, NPV0 1605.9, crossed 2030")
 def _base() -> None:
     p, sc = published_base()
     o = outputs(p, sc)
     assert o.t_star == 2029, o.t_star
     assert o.t_exp == 2029, o.t_exp
-    assert abs(o.npv0 - 1588.3) < 0.05, o.npv0
+    assert abs(o.npv0 - 1605.9) < 0.05, o.npv0
     assert o.crossing_year == 2030, o.crossing_year
     assert close(o.trigger, 109.52), o.trigger
 
@@ -99,7 +99,7 @@ def _ladder_trigger() -> None:
 @check("stress ladder: rows 1-3 reproduce T* and NPV")
 def _ladder_rows() -> None:
     rows = run_ladder()
-    for i, (t, npv) in enumerate([(2029, 1588), (2030, 1294), (2030, 1166)]):
+    for i, (t, npv) in enumerate([(2029, 1606), (2029, 1302), (2030, 1174)]):
         _, o = rows[i]
         assert o.t_star == t, f"row {i+1} T* {o.t_star} vs {t}"
         assert abs(o.npv0 - npv) < 0.6, f"row {i+1} NPV {o.npv0} vs {npv}"
@@ -111,10 +111,16 @@ def _ladder_beyond() -> None:
         assert o.t_star is None and o.crossing_reason == "beyond horizon"
 
 
-@check("ladder is cumulative: no rung improves the case")
+@check("ladder compounds down to the last rung, where the stream reverses it")
 def _cumulative() -> None:
+    """Rows 1-6 compound; row 7 adds value back.
+
+    Once support is tapered and gone by 2035 (v11 eq 10), a ten-year CCfD
+    stream beats the shrinking lump. A result, not a leak.
+    """
     npvs = [o.npv0 for _, o in run_ladder()]
-    assert npvs == sorted(npvs, reverse=True), npvs
+    assert npvs[:-1] == sorted(npvs[:-1], reverse=True), npvs
+    assert npvs[-1] > npvs[-2], npvs
 
 
 @check("sigma=0.45 crosses in the mid-2040s, not 'never'")
@@ -171,6 +177,30 @@ def _guard_clamp() -> None:
     assert any("clamp binds" in n for n in run_guards(rich, sc))
 
 
+@check("support envelope: all four branches of v11 eq (9), and the 2028 step")
+def _support_envelope() -> None:
+    """The branch that was missing: 0.35*s_max before the Booster window.
+
+    Its absence put a EUR 200 step at 2028 where the specification works out
+    EUR 130, so the model paid the plant EUR 70/t to wait a year - inside the
+    one calculation it exists to perform. It survived because s(t) is a
+    schedule, and only the two support scenarios' outputs were ever compared,
+    both of which commit inside the window.
+    """
+    from timing_model.cost import support
+
+    p, sc = published_base()
+    want = {2026: 70.0, 2027: 70.0, 2028: 200.0, 2031: 200.0,
+            2032: 150.0, 2034: 50.0, 2035: 0.0}
+    for t, s in want.items():
+        assert abs(support(t, p, sc) - s) < 1e-9, f"s({t}) = {support(t, p, sc)}, want {s}"
+    step = support(2028, p, sc) - support(2027, p, sc)
+    assert abs(step - 130.0) < 1e-9, step
+    pr = p.with_policy(lam=0.30, q_min=0.10)
+    for t, q in ((2029, 0.70), (2030, 0.40), (2031, 0.10)):
+        assert abs(support(t, pr, sc) / p.policy.s_max - q) < 1e-9, t
+
+
 @check("guard: gate failure raises rather than returning a flag")
 def _guard_gate() -> None:
     p, sc = published_base()
@@ -189,7 +219,7 @@ def _never() -> None:
 
 @check("report refuses to print a headline number without its conditions")
 def _conditions() -> None:
-    bare = Outputs(2029, 2029, 1588.3, 109.52, 2030)
+    bare = Outputs(2029, 2029, 1605.9, 109.52, 2030)
     for fn in (lambda: row("bare", bare), lambda: render_table([("bare", bare)])):
         try:
             fn()
@@ -438,11 +468,19 @@ def _provenance() -> None:
 
 @check("provenance: licensed and unread sources are flagged, never quoted as sourced")
 def _unverified() -> None:
-    """The Platts assessment and the COM(2026) floor are open items, not facts."""
+    """The Platts assessment is an open item, not a fact.
+
+    The COM(2026) floor used to be flagged here too. v11 eq (12) gives the
+    proposal its own factor schedule, so that claim now cites the
+    specification and is no longer a to-do; the licensed price assessment
+    still is, and nothing may quote it as sourced.
+    """
     from reporting import sources
 
     flagged = {c.param for c in sources.unverified()}
-    assert "benefit.COM2026_FLOOR" in flagged, flagged
+    assert flagged, "the open items did not disappear; the register lost them"
+    for c in sources.unverified():
+        assert any(sources.SOURCES[r].url is None for r in c.refs), c.param
     for c in sources.REGISTER:
         if "platts_h2" in c.refs:
             assert c.status == "unverified", f"{c.param} claims {c.status}"

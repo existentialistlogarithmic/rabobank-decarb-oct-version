@@ -7,8 +7,8 @@ commit on this branch.
 **Branch:** `main` (single branch; history was flattened to one root commit)
 
 **Run everything:** `python run_all.py` (13 sections, ~40 s). Python 3.11+,
-**zero dependencies**; `pytest` and `ruff` optional. Currently **219 tests +
-38 self-checks** green, ruff clean, `run_all` exits 0.
+**zero dependencies**; `pytest` and `ruff` optional. Currently **249 tests +
+39 self-checks** green, ruff clean, `run_all` exits 0.
 
 **Read in this order:** this file → `CALIBRATION.md` (sourced vs fitted) →
 `SOURCES.md` (generated; what each input claims and what would falsify it).
@@ -37,14 +37,15 @@ Built from a v12 specification. The MATLAB reference (`timing_model.m`) was
 | `analysis/findings.py` | Derives the five structural findings + their evidence |
 | `analysis/grounding.py` | Model inputs vs observed data, one verdict per row |
 | `analysis/sourcing.py` | The hydrogen sourcing frontier: `p_H2` and `eps_cln` as one input |
+| `analysis/reconcile.py` | The model against every quantity the v11 specification published |
 | `reporting/sources.py` | → `SOURCES.md`, the provenance register — audited against the code on every run |
 | `reporting/plots.py` | → `charts.html`, 9 SVG charts, no matplotlib |
 | `reporting/surface.py` | → `surface.html`, rotatable 3D fleet surface (Canvas) |
 | `reporting/findings_report.py` | → `findings.html`, the derivations in full |
 | `reporting/article.py` | → `article.html`, **the finished article** |
 | `reporting/explorer.py` | → `explorer.html`, the frontier, interactive (891 embedded model runs) |
-| `reporting/deck.py` | → `deck.html`, the 40-minute talk: 18 slides, every figure with its equation and symbol table |
-| `selfcheck.py` | 38 stdlib assertions (works without pytest) |
+| `reporting/deck.py` | → `deck.html`, the 40-minute talk: 20 slides in 8 sections, timed to 39 min; every figure carries its equation |
+| `selfcheck.py` | 39 stdlib assertions (works without pytest) |
 | `CALIBRATION.md` | What is sourced vs fitted — **read before quoting anything** |
 | `SOURCES.md` | Generated. What each input claims and what would falsify it |
 | `ARTICLE.md` | Article outline / writing plan |
@@ -60,20 +61,26 @@ does with it.
 · β/(β−1) 3.5907 · p_M 27.50 · MAC 80.17 · p* 98.74 · p'_M 30.50 · MAC' 89.54 ·
 **p*' 109.52**
 
-**Base case:** T* 2029 · NPV0 €1,588.29/t capacity · trigger €109.52/tCO₂ ·
-crossed 2030 · T_rel 2032
+**Base case:** T* 2029 · NPV0 €1,605.94/t capacity · trigger €109.52/tCO₂ ·
+crossed 2030 · T_rel 2038
 
-**NPV by year (base):** 2026 1,252 | 2028 1,573 | **2029 1,588** | 2030 1,581 |
-2031 1,556 | 2032 1,520 | 2033 1,062
+**NPV by year (base):** 2026 1,380 | 2028 1,604 | **2029 1,606** | 2030 1,589 |
+2031 1,557 | 2038 1,058 | 2039 712
 
-**Correction ladder** (cumulative; T*, NPV, trigger): base 2029/1588/109.5 →
-+load factor 0.85 2030/1294/109.5 → +hot metal κ=0.94 2030/1166/116.9 → +real
-2031/754/116.9 → +H₂ €8.29 beyond/−49/366.9
+**Correction ladder** (cumulative; T*, NPV, trigger): base 2029/1606/109.5 →
++load factor 0.85 2029/1303/109.5 → +hot metal κ=0.94 2030/1174/116.9 → +real
+2031/755/116.9 → +H₂ €8.29 beyond/−129/366.9
 
-**Observed data (26 series, cached; retrieved 2026-09-03).** Euro-area HICP
+**Reconciliation against the v11 spec:** 54/62 published quantities reproduce.
+All eight differences are NPV *levels*, all high, by +1.1% to +8.0%; every
+input, commitment year, trigger and crossing year reproduces, including the
+full §4.3 age ladder. One tolerance (`NPV_TOL = 5`) judges every level. Run
+`python -m analysis.reconcile`.
+
+**Observed data (26 series, cached; Eurostat retrieved 2026-09-03, ECB 2026-09-07).** Euro-area HICP
 2.1%/yr · capacity utilisation 78.2% (2025-Q4) · capital-goods PPI 107.0→116.0
-and basic-metals PPI 124.7→111.0 (2022→2025) · ECB 10Y AAA 3.36% nominal,
-1.23% real.
+and basic-metals PPI 124.7→111.0 (2022→2025) · ECB 10Y AAA 3.39% nominal,
+1.26% real.
 
 Industrial electricity €/kWh (band IE, excl. taxes, 2025-S2): SE 0.0716 · FR
 0.0782 · ES 0.0991 · PL 0.1058 · BE 0.1115 · NL 0.1134 · DE 0.1363 · AT 0.1419 ·
@@ -82,7 +89,7 @@ BE 0.0370 · AT 0.0385 · SE 0.0389 · FR 0.0391 · IT 0.0408 · PL 0.0408
 
 **Green H₂ floors** (power only, 55 kWh/kg): SE 3.94 · FR 4.30 · ES 5.45 · DE
 7.50 · IT 8.05. Break-even €5.27/kg → **case exists only in Sweden and France**;
-Spain misses by €0.18. Where it exists, T* = 2032 = the reline.
+Spain misses by €0.18. Where it exists, T* is set by the reline (2038).
 
 **Grey H₂ floors** (gas at 41.1 kWh/kg + 9 kgCO₂ at €76/t): €2.00–2.36/kg. So
 €2.60/kg is not a green price anywhere — it is roughly the unabated fossil
@@ -98,14 +105,15 @@ itself. Findings 6–9 come from the observed-data layer and are reported by
    0.000%; 2 move the trigger and NPV by 0.000%; 4 move both. Structural — the
    trigger formula doesn't contain load factor, resale, support or price path.
    ⇒ a CfD and a grant are complements, not substitutes.
-2. **Utilisation inverts at €7.17/kg H₂.** Above it, running the plant *less*
+2. **Utilisation inverts at €6.15/kg H₂.** Above it, running the plant *less*
    raises NPV. (Caveat: sign of a sensitivity on an NPV-negative case.)
-3. **Reline capture from age 16.** T* = T_rel exactly. Value peaks at age 18;
-   the age-19 cliff is the €200 support forfeited by committing before 2028.
+3. **Reline capture from age 17.** For ages 0–16 the year is set by economics;
+   from 17 on, T* equals the reline year exactly — the calendar decides.
 4. **Rate "robustness" is cancellation.** r 6→10%: break-even +304%, multiple
    −68%, product +29%.
-5. **The correlation matrix misleads.** NPV vs trigger reads −0.87 across 81
-   scenarios, contradicting finding 1. The ensemble manufactured it.
+5. **The correlation matrix misleads.** Across 81 scenarios the strongest
+   opposition is T* vs NPV0 at −0.96 — an artefact of the ensemble, not of the
+   model, which finding 1 shows has orthogonal levers.
 
 **From the observed data** (`analysis/grounding.py`, verdict in brackets):
 
@@ -123,7 +131,7 @@ itself. Findings 6–9 come from the observed-data layer and are reported by
    is quoted in a trough currency year and every €/t-product term in a peak one
    — in a model whose central error class is confusing the two units.
 9. **The 8% hurdle rate is a 6.8pp risk premium** [context]. ECB 10Y AAA is
-   3.36% nominal, 1.23% real after HICP. Finding 4 says the trigger's apparent
+   3.39% nominal, 1.26% real after HICP. Finding 4 says the trigger's apparent
    robustness to `r` is cancellation, so this decomposition is load-bearing.
 
 **From the sourcing frontier** (`analysis/sourcing.py`; `p_H2` and `eps_cln`
@@ -166,10 +174,8 @@ tied into one parameter, the green share θ):
    Registered as `scenarios.SOURCED_RANGES.p_H2`, status `unverified`, and a test
    in `tests/test_sources.py`
    fails if anything ever quotes it as sourced. Confirm against a subscription.
-7. **`f_com2026(t)` unchecked against the legal annex.** Computes +8.97/−161 vs
-   published +7.82/−122. Structure right (10 terms, ~18× ratio, sign flip);
-   levels differ. Registered as `benefit.COM2026_FLOOR` and
-   `COM2026_FLOOR_YEARS`, both `unverified`.
+7. ~~`f_com2026(t)` unchecked against the legal annex.~~ **CLOSED.** Read off
+   v11 eq (12); the delta is now +7.70/−122.26 against a published +7.82/−122.
 8. **Non-steel sectors** have had no calibration or units review. Publish
    ordering only.
 9. **`charts.html` is 9 figures long** — wants sectioning or splitting.
@@ -191,7 +197,10 @@ tied into one parameter, the green share θ):
   in this project. Never conflate.
 - **NPV is a model output** — no statistical agency publishes it. Only *inputs*
   can be sourced.
-- **`T_rel = 2032` is a model output**, not a fact about any plant.
+- **`T_rel = 2038` is a model output**, not a fact about any plant.
+- **A constraint that pins a product does not pin its factors.** `K_s·(L_s−age0)`
+  was pinned by `S_s(2026)=360`; the factors chosen were both wrong and it took
+  the specification's age ladder to show it. Check inputs, not just outputs.
 - **Don't write "never"** about the trigger. At σ=0.45 it's crossed in 2043;
   correct phrasing is "beyond any recognisable investment horizon".
 - **The σ half of finding 1 is definitional** (the NPV layer is deterministic by
@@ -208,6 +217,20 @@ tied into one parameter, the green share θ):
 - **A page that only runs inside `run_all.py` is tested nowhere.** A rename
   once passed ruff and the whole unit suite and broke three pages.
   `tests/test_reporting.py` now builds every one of them.
+- **A published *schedule* needs checking branch by branch, not by its
+  outputs.** `s(t)` (v11 eq 9) was missing its first branch — `0.35·s_max`
+  before the Booster window — for the whole life of the build. Both support
+  scenarios commit inside the window, so both reproduced their published years
+  and the gap never showed. It put a €200 step at 2028 where the spec has €130,
+  i.e. the model paid the plant €70/t to wait a year. `reconcile.py` now walks
+  every branch of eq (9), plus the €130 step and the +€146 value of waiting.
+- **One tolerance per quantity class, or the count means nothing.**
+  `reconcile.py` briefly judged the base-case NPV at ±5 and the scenario NPVs
+  at ±25, so the identical 1,588-vs-1,606 comparison read as a pass in §4.2 and
+  a difference in §3. `NPV_TOL` is now single and a test enforces it.
+- **The spec's eq (11) hand check conflates doublings with years** (0.62 at
+  three years would need capacity to double annually). The model converts
+  through `gamma`; `L(2029) = 0.773`. Pinned by a test so nobody "fixes" it.
 - **Observed statistics are not automatically model inputs.** A risk-free rate
   is not a hurdle rate; all-industry utilisation is not furnace load. The
   grounding layer reports disagreements and changes nothing — deliberately.

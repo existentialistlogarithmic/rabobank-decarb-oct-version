@@ -105,6 +105,27 @@ def test_the_deck_quotes_the_model_not_a_memory(tmp_path: pathlib.Path) -> None:
     assert str(base.crossing_year) in title
 
 
+def test_the_charts_show_the_no_investment_case_against_the_switch() -> None:
+    """The standing comment, checked on the artefact rather than the intent.
+
+    "Plot also the no-investment scenario, the curve of the investment
+    scenario, the trigger point, and how much PV value you recover." All four
+    have to be on the page, carrying the model's own numbers - a chart that
+    quietly stopped drawing the do-nothing line would still look fine.
+    """
+    from analysis.regimes import recovery
+    from timing_model.scenarios import published_base
+
+    p, sc = published_base()
+    rec = recovery(p, sc)
+    card = plots.chart_recovery()
+    assert f"{rec['do nothing, carbon bill']:,.0f}" in card
+    assert f"{rec['share recovered at T*']:.0%}" in card
+    assert f"{rec['recovered at the crossing']:,.0f}" in card
+    assert "trigger reached" in card
+    assert card.count("<path class=\"ln") == 1, "the switch curve is missing"
+
+
 def test_the_provenance_register_regenerates(tmp_path: pathlib.Path) -> None:
     assert sources.main() == 0
     text = (tmp_path / "SOURCES.md").read_text(encoding="utf-8")
