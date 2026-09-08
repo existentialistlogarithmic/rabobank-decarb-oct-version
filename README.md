@@ -97,6 +97,7 @@ reporting/           generated deliverables — nothing imports these
   findings_report.py   -> findings.html, the derivations in full
   article.py           -> article.html, the written piece
   explorer.py          -> explorer.html, the interactive frontier
+  deck.py              -> deck.html, the 40-minute talk
 
 run_all.py           every section, in order
 selfcheck.py         38 stdlib assertions, for when pytest is unavailable
@@ -115,10 +116,11 @@ python -m pytest tests          # 219 tests
 python -m analysis.sourcing     # the frontier, as a table
 python -m analysis.grounding    # inputs against observed data
 python -m reporting.explorer    # rebuild explorer.html
+python -m reporting.deck        # rebuild deck.html
 ```
 
 Generated artefacts land at the repo root and are gitignored: `charts.html`,
-`findings.html`, `surface.html`, `article.html`, `explorer.html`,
+`findings.html`, `surface.html`, `article.html`, `explorer.html`, `deck.html`,
 `python_results.csv`. `SOURCES.md` is generated too but committed, because it
 is meant to be read in the repository — do not edit it by hand.
 
@@ -305,6 +307,19 @@ together against the published NPV. The model is **not** reimplemented in
 JavaScript — 891 runs are computed in Python and embedded, the page selects and
 draws, and a test recomputes every embedded point and fails if the two ever
 disagree.
+
+## The talk
+
+`deck.html` is a 40-minute presentation generated from the same model run —
+slides in seven sections, timed, with speaker notes (`n`), a slide grid (`g`)
+and a rehearsal timer (`t`). It prints one slide per page.
+
+Every figure in it is drawn from a live model run at build time, and **every
+figure slide carries the equation that produced it plus a table saying what
+each symbol means and what value it takes here**. Equations are MathML, which
+browsers render natively — no library, no CDN. Tests assert the timings sum
+into the slot, that no figure appears without an equation, and that the
+headline numbers on the title slide match a fresh `outputs()` call.
 
 ## Verification
 

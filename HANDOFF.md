@@ -43,6 +43,7 @@ Built from a v12 specification. The MATLAB reference (`timing_model.m`) was
 | `reporting/findings_report.py` | → `findings.html`, the derivations in full |
 | `reporting/article.py` | → `article.html`, **the finished article** |
 | `reporting/explorer.py` | → `explorer.html`, the frontier, interactive (891 embedded model runs) |
+| `reporting/deck.py` | → `deck.html`, the 40-minute talk: 18 slides, every figure with its equation and symbol table |
 | `selfcheck.py` | 38 stdlib assertions (works without pytest) |
 | `CALIBRATION.md` | What is sourced vs fitted — **read before quoting anything** |
 | `SOURCES.md` | Generated. What each input claims and what would falsify it |

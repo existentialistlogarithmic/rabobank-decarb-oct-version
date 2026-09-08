@@ -179,14 +179,15 @@ def section_documents() -> int:
     the provenance register and returns non-zero if the register and the model
     disagree about any input's value.
     """
-    banner(10, "CHARTS, FINDINGS REPORT AND SOURCES")
-    from reporting import article, explorer, findings_report, plots, sources, surface
+    banner(10, "CHARTS, PAGES, DECK AND SOURCES")
+    from reporting import article, deck, explorer, findings_report, plots, sources, surface
 
     plots.main()
     findings_report.main()
     surface.main()
     article.main()
     explorer.main()
+    deck.main()
     return sources.main()
 
 
@@ -243,7 +244,8 @@ def main() -> int:
         print("Gate passed, negative control behaved, self-check clean.")
         print("Base case: T* = 2029, NPV0 = 1588.29 EUR/t, trigger crossed 2030.")
         print(f"Charts written to {plots_out()}; provenance to SOURCES.md.")
-        print("The sourcing frontier is explorable in explorer.html.")
+        print("The sourcing frontier is explorable in explorer.html;")
+        print("the 40-minute talk is deck.html.")
         print("\nReminder: ladder rows 4-7 do not reproduce the published table.")
         print("CALIBRATION.md documents each one and why.")
     return 1 if failures else 0

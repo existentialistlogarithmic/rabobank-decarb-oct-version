@@ -17,7 +17,7 @@ import unittest.mock as mock
 import pytest
 
 from analysis import sourcing
-from reporting import article, explorer, findings_report, plots, sources, surface
+from reporting import article, deck, explorer, findings_report, plots, sources, surface
 
 #: (module, filename, smallest plausible size, a marker only a real page has).
 #: The marker differs by page on purpose: charts.html is SVG, findings.html is
@@ -60,6 +60,49 @@ def test_the_explorer_builds(tmp_path: pathlib.Path) -> None:
     text = (tmp_path / "explorer.html").read_text(encoding="utf-8")
     assert len(text) > 20_000
     assert 'id="payload"' in text and "<svg" in text
+
+
+def test_the_deck_builds_and_is_timed_for_the_slot(tmp_path: pathlib.Path) -> None:
+    """40 minutes means 40 minutes: the timings are data, so they are checked."""
+    assert deck.main() == 0
+    text = (tmp_path / "deck.html").read_text(encoding="utf-8")
+    assert len(text) > 40_000
+    slides = deck.build_slides()
+    total = sum(s.minutes for s in slides)
+    assert 34.0 <= total <= 40.0, f"deck runs {total} min; the slot is 40"
+    assert len(slides) >= 15
+    assert all(s.notes.strip() for s in slides), "every slide needs a speaker note"
+    assert all(0.5 <= s.minutes <= 5.0 for s in slides), "no slide is a whole act"
+
+
+def test_every_deck_figure_carries_its_equation() -> None:
+    """The brief: each graph says which equation produced it and what the
+    symbols mean. A figure without one is a picture, not an explanation."""
+    for s in deck.build_slides():
+        if "<svg" not in s.body:
+            continue
+        assert "<math" in s.body, f"slide '{s.title}' has a figure but no equation"
+        assert "<figcaption" in s.body, f"slide '{s.title}' has an unlabelled figure"
+
+
+def test_the_deck_defines_the_symbols_it_uses() -> None:
+    """Every equation-bearing slide in the model section explains its terms."""
+    model_slides = [s for s in deck.build_slides() if s.section == "The model"]
+    assert len(model_slides) >= 4
+    for s in model_slides:
+        assert "table class='sym'" in s.body or 'table class="sym"' in s.body, s.title
+
+
+def test_the_deck_quotes_the_model_not_a_memory(tmp_path: pathlib.Path) -> None:
+    """Headline numbers on the title slide must match a live model run."""
+    from timing_model.params import Params, ScenarioParams
+    from timing_model.results import outputs
+
+    base = outputs(Params(), ScenarioParams(u=1.0))
+    title = deck.build_slides()[0].body
+    assert str(base.t_star) in title
+    assert f"{base.npv0:,.0f}" in title
+    assert str(base.crossing_year) in title
 
 
 def test_the_provenance_register_regenerates(tmp_path: pathlib.Path) -> None:
