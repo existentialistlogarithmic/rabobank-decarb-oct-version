@@ -1,0 +1,14 @@
+year,f_law2023,f_com2026,unit,verification_status,source_id,url
+2026,0.975,0.975,fraction,VERIFIED_law2023,S37_ART10a,https://cbamguide.com/carbon/free-allocation/
+2027,0.95,0.95,fraction,VERIFIED_law2023,S37_ART10a,https://cbamguide.com/carbon/free-allocation/
+2028,0.90,0.915,fraction,com2026_RECONSTRUCTED,S37_ART10a,https://cbamguide.com/learn/free-allocation/
+2029,0.775,0.81,fraction,com2026_RECONSTRUCTED,S37_ART10a,https://cbamguide.com/learn/free-allocation/
+2030,0.515,0.59,fraction,com2026_RECONSTRUCTED,S37_ART10a,https://cbamguide.com/learn/free-allocation/
+2031,0.39,0.48,fraction,com2026_RECONSTRUCTED,S37_ART10a,NOT_CAPTURED
+2032,0.265,0.375,fraction,com2026_RECONSTRUCTED,S37_ART10a,NOT_CAPTURED
+2033,0.14,0.27,fraction,com2026_RECONSTRUCTED,S37_ART10a,NOT_CAPTURED
+2034,0.0,0.15,fraction,com2026_RECONSTRUCTED,S4_COM2026,NOT_CAPTURED
+2035,0.0,0.15,fraction,com2026_RECONSTRUCTED,S4_COM2026,NOT_CAPTURED
+2036,0.0,0.15,fraction,com2026_RECONSTRUCTED,S4_COM2026,NOT_CAPTURED
+2037,0.0,0.15,fraction,com2026_RECONSTRUCTED,S4_COM2026,NOT_CAPTURED
+2038,0.0,0.0,fraction,com2026_RECONSTRUCTED,S4_COM2026,NOT_CAPTURED

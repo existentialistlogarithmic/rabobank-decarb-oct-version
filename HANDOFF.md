@@ -7,7 +7,7 @@ commit on this branch.
 **Branch:** `main` (single branch; history was flattened to one root commit)
 
 **Run everything:** `python run_all.py` (13 sections, ~40 s). Python 3.11+,
-**zero dependencies**; `pytest` and `ruff` optional. Currently **249 tests +
+**zero dependencies**; `pytest` and `ruff` optional. Currently **266 tests +
 39 self-checks** green, ruff clean, `run_all` exits 0.
 
 **Read in this order:** this file → `CALIBRATION.md` (sourced vs fitted) →
@@ -38,6 +38,9 @@ Built from a v12 specification. The MATLAB reference (`timing_model.m`) was
 | `analysis/grounding.py` | Model inputs vs observed data, one verdict per row |
 | `analysis/sourcing.py` | The hydrogen sourcing frontier: `p_H2` and `eps_cln` as one input |
 | `analysis/reconcile.py` | The model against every quantity the v11 specification published |
+| `analysis/sourced.py` | The published base case against the Sept-2026 sourced recalibration |
+| `data/sourced.py` + `data/sourced/*.csv` | The research pass's parameters, projects, H2 prices, support shapes |
+| `docs/research-*.md` | That pass's findings, sources with tiers, and its documented holes |
 | `reporting/sources.py` | → `SOURCES.md`, the provenance register — audited against the code on every run |
 | `reporting/plots.py` | → `charts.html`, 9 SVG charts, no matplotlib |
 | `reporting/surface.py` | → `surface.html`, rotatable 3D fleet surface (Canvas) |
@@ -149,6 +152,63 @@ tied into one parameter, the green share θ):
     is a grey price with green emissions — off the frontier entirely. Hold the
     price, make the intensity consistent, and NPV falls by that much. This is
     finding 6 quantified.
+
+## 4b. The sourced recalibration (September 2026)
+
+A research pass went back to primary and near-primary documents for every input
+the published base case assumes. Its data is in `data/sourced/`, its narrative
+in `docs/research-findings.md`, its holes in `docs/research-open-items.md`.
+`analysis/sourced.py` runs the model on it and prints the comparison;
+`python -m analysis.sourced`.
+
+**The published base case is not wrong arithmetically. It is optimistic on
+every input that matters, and the errors compound in one direction.**
+
+| case | I0 | p_H2 | a | trigger | T* | NPV | crossing |
+|---|---|---|---|---|---|---|---|
+| published | 900 | 2.60 | −60 | 109.5 | 2029 | 1,606 | 2030 |
+| low | 1,200 | 3.69 | −120 | 172.4 | 2031 | 991 | 2039 |
+| central | 1,420 | 5.00 | −192 | **239.4** | 2038 | 537 | **2046** |
+| high | 2,600 | 8.65 | −393 | 460.4 | — | −124 | beyond |
+
+All four rows reproduce the research pass's own table to €0.1, and the `a(p_H2)`
+curve matches at five separate prices — the two sides are the same arithmetic on
+different inputs, which is what makes the comparison usable.
+
+**Capex.** Every project still under construction or commissioning costs
+≥ €1,300/t capacity (tkH2Steel 1,300 · SALCOS 1,420 · Stegra 2,600). The two at
+or below the model's €900 are an EAF-only retrofit (Dunkirk, €600) and a scheme
+ArcelorMittal **cancelled**, forfeiting €1.3bn of approved German aid (Bremen +
+Eisenhüttenstadt, €700). Note the package's own prose says €900 "sits below
+every announced transformation project"; its table does not support that —
+Bremen is €700. The defensible claim is about the survivors.
+
+**Support shape.** The German CCfD pays a stream per tCO₂ over 15 years, not a
+capex lump. At b = 1.8, r = 8%, 10 years: €261/t at €20/tCO₂ rising to €652/t at
+€50 — 1.3× to 3.3× the model's €200 lump. Strike prices were not disclosed (H1),
+so the premium is inferred from the mechanism, not observed.
+
+**ρ is contested by a factor of three.** Spec 0.35 (R = €210/t) against
+Schwelgern's implied 0.08–0.17 (R ≈ €48–102/t). R is a reason to wait, so this
+does not cancel.
+
+**σ = 0.20 is a choice, not an observation.** Carbon-VIX puts realised EUA
+volatility near 0.45 and the headline average at 0.54, range 0.30–0.83. Across
+that range the option multiple runs 2.92 → 14.97, moving the trigger more than
+every cost parameter combined.
+
+**Independent confirmation:** `data/sourced/free_allocation.csv` matches both
+`F_LAW2023` and `F_COM2026` exactly — but marks `com2026` from 2028
+`RECONSTRUCTED`, i.e. a pending proposal, not the legal annex. Our register
+cites it to `spec_v11` without that qualifier.
+
+**The provenance caveat, which governs all of the above.** Only **9 of 98**
+research rows (9%) carry a captured URL. The rest name a source correctly
+without linking it — `unverified` in this project's vocabulary, not `sourced`.
+Nothing here has been promoted into `reporting/sources.py`, and
+`tests/test_recalibration.py` fails if link coverage rises above 50% without
+someone revisiting the statuses. Of the links that *were* captured, most are
+Tier C trade press.
 
 ## 5. OPEN ITEMS — what to work on next
 

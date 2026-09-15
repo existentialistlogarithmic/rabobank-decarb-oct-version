@@ -119,6 +119,8 @@ python -m analysis.sourcing     # the frontier, as a table
 python -m analysis.grounding    # inputs against observed data
 python -m analysis.regimes      # the scenario map and the what-ifs
 python -m analysis.reconcile    # the model against the v11 specification
+python -m analysis.sourced      # the published case against the sourced one
+python -m data.sourced          # what the research pass returned, and how much is linked
 python -m reporting.explorer    # rebuild explorer.html
 python -m reporting.deck        # rebuild deck.html
 ```
@@ -349,6 +351,39 @@ sections once.
 MATLAB reference, because there is no reference. The harness, the fixture and
 the negative control are built and tested; drop a reference CSV beside them and
 `diff()` completes.
+
+## The sourced recalibration
+
+`analysis/sourced.py` puts the published base case next to one built from
+primary documents (`data/sourced/`, narrative in `docs/research-findings.md`).
+It reports; it does not recalibrate. `Params()` still carries the published
+case and the gate still reproduces the published nine.
+
+| case | I0 | p_H2 | a | trigger | T* | NPV | crossing |
+|---|---|---|---|---|---|---|---|
+| published | 900 | 2.60 | −60 | 109.5 | 2029 | 1,606 | 2030 |
+| low | 1,200 | 3.69 | −120 | 172.4 | 2031 | 991 | 2039 |
+| central | 1,420 | 5.00 | −192 | **239.4** | 2038 | 537 | **2046** |
+| high | 2,600 | 8.65 | −393 | 460.4 | — | −124 | beyond |
+
+The base case is not wrong arithmetically. It is optimistic on every input that
+matters, and the errors compound the same way: capex below every surviving
+project, a hydrogen price that is a fossil price, a furnace that never stops,
+and a volatility that is a choice. All four rows reproduce the research pass's
+own table to €0.1.
+
+Three findings are structural rather than numerical. Support is a **stream**
+(the German CCfD pays per tCO₂ over fifteen years; at €20–50/tCO₂ that is
+€261–652/t of capacity against a €200 lump). Capex is a **distribution with a
+scope boundary** — whether the electrolyser is inside it moves the figure about
+2×. And every project still being built costs ≥ €1,300/t; the two under €900 are
+an EAF-only retrofit and a scheme ArcelorMittal cancelled, forfeiting €1.3bn of
+approved aid.
+
+**Provenance caveat.** 9 of 98 research rows carry a captured URL. The rest name
+a source without linking it — `unverified` here, not `sourced`. Nothing has been
+promoted into the register, and a test fails if link coverage rises above 50%
+without the statuses being revisited.
 
 ## Known limitations
 

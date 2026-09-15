@@ -1,0 +1,10 @@
+instrument,pot_EUR,award_mechanism,SHAPE,duration_years,strike_or_clearing,unit,indexation_clawback,state_aid_basis,status,source_id,url,note
+German Klimaschutzvertraege round 1,2800000000,competitive auction on EUR/tCO2 avoided,STREAM_per_tCO2,15,NOT_DISCLOSED,EUR/tCO2,"two-way; indexed to ETS + energy prices; clawback",approved,awarded 2024-10-16,S28_CCFD,NOT_CAPTURED,"15 of 17 bids; 5 of 15 use hydrogen; ~17 Mt CO2 over 15 yr. THE ONE THAT MATTERS STRUCTURALLY."
+German Klimaschutzvertraege round 2,5000000000,competitive auction,STREAM_per_tCO2,15,PENDING,EUR/tCO2,as round 1,pending,bidding ~mid-2026,S28_CCFD,NOT_CAPTURED,130 pre-notified
+European Hydrogen Bank round 1,720000000,competitive auction,STREAM_per_kg,10,0.37-0.48,EUR/kg,fixed premium,approved,awarded,S10_EHB,NOT_CAPTURED,1.58 Mt over 10 yr
+European Hydrogen Bank round 2,1200000000,competitive auction,STREAM_per_kg,10,NOT_CAPTURED,EUR/kg,fixed premium,approved,"largely failed: only 271m of 1.2bn signed, 380 MW of 2.3 GW",S10_EHB,NOT_CAPTURED,Material for rationing calibration
+European Hydrogen Bank round 3,1090000000,competitive auction,STREAM_per_kg,10,0.57-3.49,EUR/kg,fixed premium,approved,awarded 2026-05-07,S10_EHB,NOT_CAPTURED,1.3 Mt
+EU Innovation Fund,NOT_CAPTURED,competitive + auction-as-a-service,LUMP_at_milestones,,NOT_CAPTURED,,,approved,running,S4_COM2026,NOT_CAPTURED,200 million allowances endowment per COM(2026) 616
+ETS Investment Booster,400000000_allowances,first-in-first-served with completion bonds,fixed_carbon_premia,,NOT_CAPTURED,EUR/tCO2,payments linked to verified emissions avoidance,Art 10cd (PROPOSAL),proposal 2028-2031,S4_COM2026,NOT_CAPTURED,PROPOSED not enacted; ~400 Mt ~ EUR 30bn against ~EUR 54bn requirement
+Industrial Decarbonisation Bank,100000000000,CfDs from 2031,STREAM,,NOT_CAPTURED,,,Art 10ce (PROPOSAL),proposal,S4_COM2026,NOT_CAPTURED,"EUR 100bn is Explanatory Memorandum framing; appropriated vs announced NOT VERIFIED"
+Dutch SDE++,NOT_CAPTURED,ranked by EUR/tCO2,STREAM_per_tCO2,,NOT_CAPTURED,EUR/tCO2,,approved,running,S38_SDE,NOT_CAPTURED,Steel clearing prices NOT FOUND - see OPEN_ITEMS.md

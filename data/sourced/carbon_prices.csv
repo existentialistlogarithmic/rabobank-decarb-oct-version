@@ -1,0 +1,21 @@
+series,year,value,unit,geography,basis,source_id,url,note
+model_central_path,2026,76,EUR/tCO2,EU,modelled,S5_ICE,NOT_CAPTURED,Published model path
+model_central_path,2027,86,EUR/tCO2,EU,modelled,S5_ICE,NOT_CAPTURED,
+model_central_path,2028,96,EUR/tCO2,EU,modelled,S5_ICE,NOT_CAPTURED,
+model_central_path,2029,104,EUR/tCO2,EU,modelled,S5_ICE,NOT_CAPTURED,
+model_central_path,2030,112,EUR/tCO2,EU,modelled,S5_ICE,NOT_CAPTURED,Extended at +5%/yr beyond 2030
+model_reform_soft,2026,74,EUR/tCO2,EU,modelled,S6_FORECAST,NOT_CAPTURED,
+model_reform_soft,2030,96,EUR/tCO2,EU,modelled,S6_FORECAST,NOT_CAPTURED,
+model_tight_market,2026,82,EUR/tCO2,EU,modelled,S6_FORECAST,NOT_CAPTURED,
+model_tight_market,2030,145,EUR/tCO2,EU,modelled,S6_FORECAST,NOT_CAPTURED,
+GMK_consensus,2026,85,EUR/tCO2,EU,analyst_estimate,S34_GMK,NOT_CAPTURED,"+18.1% y-o-y; median of BNEF, ABN AMRO, Refinitiv, ICIS, S&P Global, Aurora, PIK"
+GMK_consensus,2027,100,EUR/tCO2,EU,analyst_estimate,S34_GMK,NOT_CAPTURED,
+GMK_consensus,2030,126,EUR/tCO2,EU,analyst_estimate,S34_GMK,NOT_CAPTURED,Range 80-147
+ABN_Citi,2030,145,EUR/tCO2,EU,analyst_estimate,S35_ABN,NOT_CAPTURED,
+ABN_Citi,2035,200,EUR/tCO2,EU,analyst_estimate,S35_ABN,NOT_CAPTURED,
+CBAM_reference_price,2026,75.36,EUR/tCO2e,EU,actual,S36_CBAM,https://europe.influencemap.org/policy/EU-Carbon-Border-Adjustment-Mechanism-430,"Q1-2026 certificate, published by the Commission 7 Apr 2026; VWAP of EUAs auctioned in primary market"
+CBAM_reference_price,2026,75.28,EUR/tCO2e,EU,actual,S36_CBAM,NOT_CAPTURED,Q2-2026
+EUA_observed,2026,89.58,EUR/tCO2,EU,actual,S5_ICE,NOT_CAPTURED,"January 2026 high, ICE Endex 9 Jan 2026"
+EUA_observed,2026,72,EUR/tCO2,EU,actual,S5_ICE,NOT_CAPTURED,April 2026 average
+EUA_observed,2026,79.4,EUR/tCO2,EU,actual,S5_ICE,NOT_CAPTURED,July 2026 trading range low
+EUA_observed,2026,81.8,EUR/tCO2,EU,actual,S5_ICE,NOT_CAPTURED,July 2026 trading range high

@@ -240,6 +240,71 @@ than at the argmax. **`T*` = "beyond horizon" reproduces correctly** in every
 one of these rows, which is the row's actual finding; only the accompanying
 NPV level differs.
 
+## The September 2026 sourced recalibration
+
+A research pass went back to primary and near-primary documents for every input
+this file describes as researched, fitted or assumed. Its data is in
+`data/sourced/`; `analysis/sourced.py` runs the model on it. **Nothing in it has
+been promoted into the running model** — `Params()` still carries the published
+base case and the gate still reproduces the published nine. The two are reported
+side by side, because they rest on different evidence.
+
+| case | I0 | p_H2 | a | trigger | T* | NPV | crossing |
+|---|---|---|---|---|---|---|---|
+| published | 900 | 2.60 | −60 | 109.5 | 2029 | 1,606 | 2030 |
+| low | 1,200 | 3.69 | −120 | 172.4 | 2031 | 991 | 2039 |
+| central | 1,420 | 5.00 | −192 | **239.4** | 2038 | 537 | **2046** |
+| high | 2,600 | 8.65 | −393 | 460.4 | — | −124 | beyond |
+
+The recomputation reproduces the research pass's own table to €0.1 on all four
+rows, and `a(p_H2)` agrees at five separate prices — same arithmetic, different
+inputs.
+
+### What it says about the constants in this file
+
+- **`I0 = 900` is low against every surviving project.** tkH2Steel €1,300/t,
+  SALCOS €1,420/t, Stegra €2,600/t — all under construction or commissioning.
+  The two below €900 are an EAF-only retrofit (Dunkirk, €600) and a **cancelled**
+  scheme (Bremen + Eisenhüttenstadt, €700, with €1.3bn of approved German aid
+  forfeited). Capex is a distribution with a scope boundary attached, not a
+  number: whether the electrolyser is inside the boundary moves it by ~2×.
+- **`rho = 0.35` is contested by a factor of three.** Schwelgern implies
+  0.08–0.17. This file adopted 0.35 from v11 §1 after the age-ladder correction;
+  the research puts a named plant against it. Carried as disagreement D6, not
+  averaged — R is a reason to wait, so it does not cancel.
+- **`sigma = 0.20` is a choice, and this file already said so.** Carbon-VIX
+  (NBER WP 32937) puts realised EUA volatility near 0.45, headline average 0.54,
+  range 0.30–0.83. The option multiple runs 2.92 → 14.97 across that range,
+  which moves the trigger more than every cost parameter combined.
+- **`s_max = 200` as a lump is the wrong shape.** The German CCfD pays a stream
+  per tCO₂ over fifteen years. At b = 1.8 and r = 8% over ten years, a premium
+  of €20–50/tCO₂ is worth €261–652/t of capacity, i.e. 1.3× to 3.3× the lump.
+  The model already carries `support_basis='stream'`, so this is a calibration
+  rather than a rewrite.
+- **Both free-allocation schedules are independently confirmed.**
+  `data/sourced/free_allocation.csv` matches `F_LAW2023` and `F_COM2026`
+  exactly. But it marks `com2026` from 2028 `RECONSTRUCTED` — a pending
+  proposal reconstructed from the confirmed mechanism, not a legal annex anyone
+  read. Our register cites it to `spec_v11` without that qualifier, which
+  overstates it.
+
+### The provenance caveat that governs all of the above
+
+**9 of 98 research rows carry a captured URL.** The rest name their source
+correctly and attribute the figure to it, but the working link was not captured.
+In this project's status vocabulary that is `unverified`, not `sourced`, and the
+distinction is the entire point of `reporting/sources.py`. Of the links that
+*were* captured, most are Tier C trade press. `tests/test_recalibration.py`
+fails if coverage rises above 50% without someone revisiting the statuses —
+failing on improvement, deliberately, because that is the moment to re-read
+every claim built on these rows.
+
+Five things the pass looked for and could not find are recorded in
+`docs/research-open-items.md`. The one that blocks the NPV sanity check is H3:
+enterprise value per tonne of annual capacity for the named European
+steelmakers. Without it, the question "is €1,606/t of capacity a plausible
+number" still has no external benchmark.
+
 ## Three places the spec's own text does not hold
 
 1. **§1.7 eq (14) sanity check.** "As `sigma -> 0` the multiple -> 1 and the

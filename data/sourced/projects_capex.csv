@@ -1,0 +1,6 @@
+project,operator,country,capex_EUR_absolute,capacity_Mt_per_yr,capex_EUR_per_t_capacity,scope_boundary,announce_year,status,status_date,public_support_EUR,stated_reason_if_stopped,basis,source_id,url
+tkH2Steel Duisburg,thyssenkrupp,DE,3000000000,2.3,1300,DRI shaft + 2 melters; external H2 (EXCLUDES electrolyser),2023,under construction; H2 tender paused,2025,2000000000,H2 tender suspended,actual,S20_TKH2,NOT_CAPTURED
+SALCOS stage 1,Salzgitter,DE,2700000000,1.9,1420,DRI + EAF + 100 MW electrolyser (partial H2),2023,under construction; stages 2-3 deferred to 2028-29,2025,1322000000,later stages deferred,actual,S21_SALCOS,NOT_CAPTURED
+Boden,Stegra (H2 Green Steel),SE,6500000000,2.5,2600,Greenfield: 700-800 MW electrolyser + DRI + EAF + rolling,2021,commissioning,2025,265000000,,actual,S22_STEGRA,https://enkiai.com/hydrogen/stegra-green-steel-financing/
+Bremen + Eisenhuettenstadt,ArcelorMittal,DE,2500000000,3.5,700,DRI + EAF,2021,CANCELLED,2025-06,1300000000,"market situation, high energy prices, uncompetitive H2 economics; EUR 1.3bn approved aid forfeited",actual,S13_AM_CANCEL,https://www.circularbusinessreview.com/german-steel-giants-abandon-e3-3-billion-hydrogen-projects-despite-record-subsidies/
+Dunkirk EAF,ArcelorMittal,FR,1200000000,2.0,600,EAF only (brownfield; no DRI; no electrolyser),2025,confirmed,2025-05,,,actual,S30_AM_DUNKIRK,NOT_CAPTURED

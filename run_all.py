@@ -165,9 +165,12 @@ def section_findings() -> None:
     allowances shown rather than folded into a coefficient, the scenario map,
     and the four what-ifs. ``reconcile`` checks the model against every
     quantity the v11 specification published - inputs as well as outputs.
+    ``sourced`` puts the published base case next to the one a research pass
+    built from primary documents, and leads with how much of that pass is
+    actually linked rather than merely attributed.
     """
     banner(9, "STRUCTURAL FINDINGS")
-    from analysis import findings, reconcile, regimes, sourcing
+    from analysis import findings, reconcile, regimes, sourced, sourcing
 
     for i, fnd in enumerate(findings.all_findings(), 1):
         print(f"\n  {i}. {fnd.title}")
@@ -178,6 +181,8 @@ def section_findings() -> None:
     regimes.main()
     print()
     reconcile.main()
+    print()
+    sourced.main()
 
 
 def section_documents() -> int:

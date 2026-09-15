@@ -1,0 +1,15 @@
+observation,value,unit,geography,date,basis,is_price_or_subsidy,source_id,url,note
+Platts EU-compliant green H2 production cost (alkaline + PPA),8.66,EUR/kg,ES,2026-01-21,assessed_actual,price,S23_PLATTS_JAN26,NOT_CAPTURED,Most recent assessment in this package
+Platts cost of production,8.29,EUR/kg,ES,2026-05-08,assessed_actual,price,S9_PLATTS,NOT_CAPTURED,The model stress-test point; NPV -101
+Platts green H2 Germany alkaline,9.35,EUR/kg,DE,2025-03,assessed_actual,price,S31_PLATTS_DE,NOT_CAPTURED,Down from 14.5 EUR/kg Dec-2024
+Platts EU-compliant green H2,7.49,EUR/kg,ES,2025-12-22,assessed_actual,price,S9_PLATTS,NOT_CAPTURED,Year to 22 Dec 2025
+Model parameter as previously assumed,7.08,EUR/kg,DE,2025-2026,assessed_actual,price,S9_PLATTS,NOT_CAPTURED,Superseded
+Unsubsidised green H2 production cost range,4.00,EUR/kg,EU,2026,analyst_estimate,price,S32_RANGE,NOT_CAPTURED,Low endpoint of 4-10 range
+Unsubsidised green H2 production cost range,10.00,EUR/kg,EU,2026,analyst_estimate,price,S32_RANGE,NOT_CAPTURED,High endpoint of 4-10 range
+ArcelorMittal-cited market H2,5.00,EUR/kg,EU,2025-06,company_guidance,price,S33_AM_H2,NOT_CAPTURED,Low endpoint of company-cited 5-8 range
+ArcelorMittal-cited market H2,8.00,EUR/kg,EU,2025-06,company_guidance,price,S33_AM_H2,NOT_CAPTURED,High endpoint of company-cited 5-8 range
+Steelmaking viability threshold (trade source),3.00,EUR/kg,EU,2025-06,analyst_estimate,price,S33_AM_H2,NOT_CAPTURED,"Described as 'just a breakeven price' for steelmaking"
+European Hydrogen Bank round 1 clearing,0.37,EUR/kg,EU,2024,actual_auction,SUBSIDY_PREMIUM,S10_EHB,NOT_CAPTURED,NOT A PRICE. Low endpoint. 720m EUR / 1.58 Mt over 10 yr
+European Hydrogen Bank round 1 clearing,0.48,EUR/kg,EU,2024,actual_auction,SUBSIDY_PREMIUM,S10_EHB,NOT_CAPTURED,NOT A PRICE. High endpoint.
+European Hydrogen Bank round 3 clearing,0.57,EUR/kg,EU,2026-05-07,actual_auction,SUBSIDY_PREMIUM,S10_EHB,NOT_CAPTURED,NOT A PRICE. Low endpoint. 1.09bn EUR / 1.3 Mt
+European Hydrogen Bank round 3 clearing,3.49,EUR/kg,EU,2026-05-07,actual_auction,SUBSIDY_PREMIUM,S10_EHB,NOT_CAPTURED,NOT A PRICE. High endpoint.
