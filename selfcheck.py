@@ -223,6 +223,34 @@ def _units_bridge() -> None:
         )
 
 
+@check("tables: every column declares its unit and no cell is truncated")
+def _tables() -> None:
+    """The finalised review tables, checked for the two dishonest failures.
+
+    A quantity column without a unit is the defect the whole set exists to
+    fix, and a truncated cell silently changes a number.
+    """
+    from analysis import tables
+
+    label_cols = {
+        "project", "instrument", "status", "source", "shape", "outcome",
+        "quantity", "unit", "comment", "what exists now", "blocked by", "#",
+        "state", "cost line", "basis", "legal", "years", "premium",
+    }
+    seen = 0
+    for table in tables.all_tables():
+        for col in table.columns:
+            assert len(col.name) <= col.width, f"{table.title}: {col.name}"
+            if col.name.lower() not in label_cols:
+                assert col.unit, f"{table.title}: {col.name} has no unit"
+                seen += 1
+        for row in table.rows:
+            for col, val in zip(table.columns, row, strict=True):
+                text = "" if val is None else str(val)
+                assert len(text) <= col.width, f"{table.title}: {text!r}"
+    assert seen >= 10, "the tables lost their unit-bearing columns"
+
+
 @check("guard: gate failure raises rather than returning a flag")
 def _guard_gate() -> None:
     p, sc = published_base()

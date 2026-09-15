@@ -113,12 +113,13 @@ assumption, so a test forbids it outright.
 
 ```
 python run_all.py               # gate, ladders, reconciliation, pages, checks
-python selfcheck.py             # 40 assertions, standard library only
-python -m pytest tests          # 175 test functions, 273 cases after parametrisation
+python selfcheck.py             # 41 assertions, standard library only
+python -m pytest tests          # 188 test functions, 285 cases after parametrisation
 python -m analysis.sourcing     # the frontier, as a table
 python -m analysis.grounding    # inputs against observed data
 python -m analysis.regimes      # the scenario map and the what-ifs
 python -m analysis.reconcile    # the model against the v11 specification
+python -m analysis.tables       # the finalised tables, one per review comment
 python -m analysis.units        # what the per-tonne figures are in actual money
 python -m analysis.sourced      # the published case against the sourced one
 python -m data.sourced          # what the research pass returned, and how much is linked
@@ -336,8 +337,8 @@ headline numbers on the title slide match a fresh `outputs()` call.
 |---|---|
 | validation gate | nine published quantities to 1e-3 relative, before anything prints |
 | feasibility guards | `r − mu`, `u ∈ (0,1]`, monotone allocation, non-negative residual, capex clamp — all raise, never return a flag |
-| 175 test functions | units, layering, findings, provenance, observed data, the specification, generated pages — 273 cases after parametrisation |
-| 40 self-checks | the same load-bearing claims with no third-party packages |
+| 188 test functions | units, layering, findings, provenance, observed data, the specification, generated pages — 285 cases after parametrisation |
+| 41 self-checks | the same load-bearing claims with no third-party packages |
 | diff harness | 50-case grid, self-diff, and a negative control that must flag exactly two |
 | `ruff` | clean on `F, E, W, I, UP, B, C4, SIM, RET`; config and exceptions in `pyproject.toml` |
 

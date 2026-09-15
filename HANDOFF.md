@@ -7,8 +7,8 @@ commit on this branch.
 **Branch:** `main` (single branch; history was flattened to one root commit)
 
 **Run everything:** `python run_all.py` (13 sections, ~40 s). Python 3.11+,
-**zero dependencies**; `pytest` and `ruff` optional. Currently **273 tests +
-40 self-checks** green, ruff clean, `run_all` exits 0.
+**zero dependencies**; `pytest` and `ruff` optional. Currently **285 tests +
+41 self-checks** green, ruff clean, `run_all` exits 0.
 
 **Read in this order:** this file → `CALIBRATION.md` (sourced vs fitted) →
 `SOURCES.md` (generated; what each input claims and what would falsify it).
@@ -39,6 +39,7 @@ Built from a v12 specification. The MATLAB reference (`timing_model.m`) was
 | `analysis/sourcing.py` | The hydrogen sourcing frontier: `p_H2` and `eps_cln` as one input |
 | `analysis/reconcile.py` | The model against every quantity the v11 specification published |
 | `analysis/units.py` | The denominator, restored: EUR/t capacity → money for a real plant |
+| `analysis/tables.py` | The finalised tables, one per review comment, units in every header |
 | `analysis/sourced.py` | The published base case against the Sept-2026 sourced recalibration |
 | `data/sourced.py` + `data/sourced/*.csv` | The research pass's parameters, projects, H2 prices, support shapes |
 | `docs/research-*.md` | That pass's findings, sources with tiers, and its documented holes |
@@ -49,7 +50,7 @@ Built from a v12 specification. The MATLAB reference (`timing_model.m`) was
 | `reporting/article.py` | → `article.html`, **the finished article** |
 | `reporting/explorer.py` | → `explorer.html`, the frontier, interactive (891 embedded model runs) |
 | `reporting/deck.py` | → `deck.html`, the 40-minute talk: 20 slides in 8 sections, timed to 39 min; every figure carries its equation |
-| `selfcheck.py` | 40 stdlib assertions (works without pytest) |
+| `selfcheck.py` | 41 stdlib assertions (works without pytest) |
 | `CALIBRATION.md` | What is sourced vs fitted — **read before quoting anything** |
 | `SOURCES.md` | Generated. What each input claims and what would falsify it |
 | `ARTICLE.md` | Article outline / writing plan |

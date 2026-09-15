@@ -173,10 +173,20 @@ def section_findings() -> None:
     "I0 = 900" read as EUR 900 is the most common misreading in the build.
     ``sourced`` puts the published base case next to the one a research pass
     built from primary documents, and leads with how much of that pass is
-    actually linked rather than merely attributed.
+    actually linked rather than merely attributed. ``tables`` is the finalised
+    set, one per review comment, with the unit of every column in its header
+    and documented holes left empty rather than filled.
     """
     banner(9, "STRUCTURAL FINDINGS")
-    from analysis import findings, reconcile, regimes, sourced, sourcing, units
+    from analysis import (
+        findings,
+        reconcile,
+        regimes,
+        sourced,
+        sourcing,
+        tables,
+        units,
+    )
 
     for i, fnd in enumerate(findings.all_findings(), 1):
         print(f"\n  {i}. {fnd.title}")
@@ -191,6 +201,8 @@ def section_findings() -> None:
     units.main()
     print()
     sourced.main()
+    print()
+    tables.main()
 
 
 def section_documents() -> int:
