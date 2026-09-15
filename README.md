@@ -94,7 +94,7 @@ analysis/            studies that run on the model without changing it
 
 reporting/           generated deliverables — nothing imports these
   sources.py           -> SOURCES.md, the provenance register (audited)
-  plots.py             -> charts.html, nine SVG charts, no matplotlib
+  plots.py             -> charts.html, 14 SVG charts, no matplotlib
   surface.py           -> surface.html, rotatable 3D fleet surface
   findings_report.py   -> findings.html, the derivations in full
   article.py           -> article.html, the written piece
@@ -114,7 +114,7 @@ assumption, so a test forbids it outright.
 ```
 python run_all.py               # gate, ladders, reconciliation, pages, checks
 python selfcheck.py             # 41 assertions, standard library only
-python -m pytest tests          # 188 test functions, 285 cases after parametrisation
+python -m pytest tests          # 192 test functions, 290 cases after parametrisation
 python -m analysis.sourcing     # the frontier, as a table
 python -m analysis.grounding    # inputs against observed data
 python -m analysis.regimes      # the scenario map and the what-ifs
@@ -337,7 +337,7 @@ headline numbers on the title slide match a fresh `outputs()` call.
 |---|---|
 | validation gate | nine published quantities to 1e-3 relative, before anything prints |
 | feasibility guards | `r − mu`, `u ∈ (0,1]`, monotone allocation, non-negative residual, capex clamp — all raise, never return a flag |
-| 188 test functions | units, layering, findings, provenance, observed data, the specification, generated pages — 285 cases after parametrisation |
+| 192 test functions | units, layering, findings, provenance, observed data, the specification, generated pages — 290 cases after parametrisation |
 | 41 self-checks | the same load-bearing claims with no third-party packages |
 | diff harness | 50-case grid, self-diff, and a negative control that must flag exactly two |
 | `ruff` | clean on `F, E, W, I, UP, B, C4, SIM, RET`; config and exceptions in `pyproject.toml` |

@@ -244,8 +244,8 @@ def _tables() -> None:
             if col.name.lower() not in label_cols:
                 assert col.unit, f"{table.title}: {col.name} has no unit"
                 seen += 1
-        for row in table.rows:
-            for col, val in zip(table.columns, row, strict=True):
+        for line in table.rows:
+            for col, val in zip(table.columns, line, strict=True):
                 text = "" if val is None else str(val)
                 assert len(text) <= col.width, f"{table.title}: {text!r}"
     assert seen >= 10, "the tables lost their unit-bearing columns"

@@ -7,7 +7,7 @@ commit on this branch.
 **Branch:** `main` (single branch; history was flattened to one root commit)
 
 **Run everything:** `python run_all.py` (13 sections, ~40 s). Python 3.11+,
-**zero dependencies**; `pytest` and `ruff` optional. Currently **285 tests +
+**zero dependencies**; `pytest` and `ruff` optional. Currently **290 tests +
 41 self-checks** green, ruff clean, `run_all` exits 0.
 
 **Read in this order:** this file → `CALIBRATION.md` (sourced vs fitted) →
@@ -44,7 +44,7 @@ Built from a v12 specification. The MATLAB reference (`timing_model.m`) was
 | `data/sourced.py` + `data/sourced/*.csv` | The research pass's parameters, projects, H2 prices, support shapes |
 | `docs/research-*.md` | That pass's findings, sources with tiers, and its documented holes |
 | `reporting/sources.py` | → `SOURCES.md`, the provenance register — audited against the code on every run |
-| `reporting/plots.py` | → `charts.html`, 9 SVG charts, no matplotlib |
+| `reporting/plots.py` | → `charts.html`, 14 SVG charts (5 decision, 4 review comments, 5 structure), no matplotlib |
 | `reporting/surface.py` | → `surface.html`, rotatable 3D fleet surface (Canvas) |
 | `reporting/findings_report.py` | → `findings.html`, the derivations in full |
 | `reporting/article.py` | → `article.html`, **the finished article** |

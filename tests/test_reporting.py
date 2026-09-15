@@ -152,3 +152,57 @@ def test_no_page_leaks_a_python_repr(tmp_path: pathlib.Path) -> None:
             assert found is None, (
                 f"{filename} leaked {found.group(0)!r} at offset {found.start()}"
                 f": ...{text[max(0, found.start() - 60):found.start() + 60]}...")
+
+
+def test_every_chart_declares_the_unit_of_its_axes() -> None:
+    """The complaint this answers: a EUR axis that does not say EUR of what.
+
+    Three charts shipped with bare labels - "change in NPV", "change in
+    trigger", "dNPV / du" - so a reader could not tell a percentage from a
+    euro. Every axis title must now name a unit, a dimensionless index, or a
+    year.
+    """
+    import re
+
+    page = plots.build()
+    labels = re.findall(r'class="axt[^"]*"[^>]*>([^<]+)</text>', page)
+    assert len(labels) >= 12, f"only {len(labels)} axis titles found"
+    unit_words = ("EUR", "%", "year", "index", "kWh", "kg", "tCO2", "rate r",
+                  "Mt", "tonne")
+    for label in labels:
+        assert any(w in label for w in unit_words), f"axis {label!r} has no unit"
+
+
+def test_the_review_comment_charts_are_on_the_page() -> None:
+    """Each comment that has a table now also has a picture.
+
+    A table answers the question; a chart is what gets looked at. These four
+    were tables only until someone asked where the graphs were.
+    """
+    page = plots.build()
+    for heading in ("Capex: what the announced projects actually cost",
+                    "Opex: the cost lines, and the ones the model leaves out",
+                    "Is electricity cheaper than gas",
+                    "Subsidy: a stream is not a lump"):
+        assert heading in page, f"missing chart: {heading}"
+
+
+def test_the_capacity_charts_say_annual_capacity_not_just_eur() -> None:
+    """EUR/t of ANNUAL capacity is the distinction the whole units pass is for.
+
+    An axis reading "EUR per tonne" would re-open exactly the misreading that
+    made EUR 900 look like pocket change.
+    """
+    for chart in (plots.chart_capex_projects(), plots.chart_support_shape()):
+        assert "ANNUAL capacity" in chart
+    assert "steel PRODUCT" in plots.chart_opex_stack()
+
+
+def test_the_money_context_travels_with_the_per_tonne_charts() -> None:
+    """A per-tonne bar without its absolute is the original complaint again."""
+    from analysis import units
+
+    capex = plots.chart_capex_projects()
+    assert units.eur(units.absolute(900.0, 2.5)) in capex
+    support = plots.chart_support_shape()
+    assert units.eur(units.absolute(200.0, 2.5)) in support
