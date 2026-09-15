@@ -211,6 +211,21 @@ Nothing here has been promoted into `reporting/sources.py`, and
 someone revisiting the statuses. Of the links that *were* captured, most are
 Tier C trade press.
 
+## 4c. `newcomments.md` — the five review comments, and where each stands
+
+The file lives on `main`. Status of each, honestly:
+
+| # | Comment | Status |
+|---|---|---|
+| 1 | capex, opex, revenues, fiscal harmonisation; electricity vs gas; carbon, subsidies, fuel cost → opex | **Partial.** Capex, revenues, carbon and subsidies are in `data/sourced/`. The fiscal/energy layer is still absent — the nine-state decomposition into energy / network / taxes / levies / exemptions was requested and not found (holes H6, H9). |
+| 2 | fix NPV on actual steel numbers; why is it thousands; benchmark other industries; no way €1,000/t | **Done for the units and the scale.** `analysis/units.py` shows €900/t = €2.2bn for 2.5 Mt/yr and round-trips off the real announcements; `analysis/sourced.py` puts the published €4.0bn-on-€2.2bn next to Boden's actual €6.5bn build. Cross-industry benchmark is **cement only** (Brevik); ammonia, aluminium and crackers are uncalibrated (H4), so ordering only. |
+| 3 | land equations on real case scenarios, different companies | **Done.** `data/sourced/projects_capex.csv`: thyssenkrupp, Salzgitter, Stegra, ArcelorMittal ×2, with capex, capacity, scope boundary, status, subsidy, and the stated reason where a project stopped. |
+| 4 | subsidy pot and the shape of it | **Done.** `data/sourced/support_instruments.csv` carries a `SHAPE` column; `analysis/sourced.py` values the CCfD stream against the model's lump via eq (10) (€261–652/t vs €200). Per-company strike prices were not disclosed (H1), so the premium is inferred from the mechanism. |
+| 5 | make sure the opex is actually related to the industry | **Open.** Still one lumped constant driven only by the hydrogen price. Decomposing it needs a line-by-line BF-BOF vs H2-DRI-EAF stack at one consistent boundary, which the research pass looked for and could not find (H10). Building it from mismatched boundaries would invent the numbers this comment asks us to stop inventing. |
+
+So 3 and 4 are closed, 2 is closed on the part that was actionable, and 1 and 5
+are blocked on documented holes rather than on effort.
+
 ## 5. OPEN ITEMS — what to work on next
 
 ### Blocked without external data
