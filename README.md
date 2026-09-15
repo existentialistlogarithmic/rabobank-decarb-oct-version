@@ -94,6 +94,7 @@ analysis/            studies that run on the model without changing it
 
 reporting/           generated deliverables — nothing imports these
   sources.py           -> SOURCES.md, the provenance register (audited)
+  results.py           -> results.html, START HERE: every table, named and explained
   plots.py             -> charts.html, 14 SVG charts, no matplotlib
   surface.py           -> surface.html, rotatable 3D fleet surface
   findings_report.py   -> findings.html, the derivations in full
@@ -119,6 +120,7 @@ python -m analysis.sourcing     # the frontier, as a table
 python -m analysis.grounding    # inputs against observed data
 python -m analysis.regimes      # the scenario map and the what-ifs
 python -m analysis.reconcile    # the model against the v11 specification
+python -m reporting.results     # -> results.html, the step-by-step walkthrough
 python -m analysis.tables       # the finalised tables, one per review comment
 python -m analysis.units        # what the per-tonne figures are in actual money
 python -m analysis.sourced      # the published case against the sourced one

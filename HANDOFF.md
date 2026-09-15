@@ -44,6 +44,7 @@ Built from a v12 specification. The MATLAB reference (`timing_model.m`) was
 | `data/sourced.py` + `data/sourced/*.csv` | The research pass's parameters, projects, H2 prices, support shapes |
 | `docs/research-*.md` | That pass's findings, sources with tiers, and its documented holes |
 | `reporting/sources.py` | → `SOURCES.md`, the provenance register — audited against the code on every run |
+| `reporting/results.py` | → `results.html`, **the page to open first**: all 8 tables with handles (T0–T7), what each answers, and its sources |
 | `reporting/plots.py` | → `charts.html`, 14 SVG charts (5 decision, 4 review comments, 5 structure), no matplotlib |
 | `reporting/surface.py` | → `surface.html`, rotatable 3D fleet surface (Canvas) |
 | `reporting/findings_report.py` | → `findings.html`, the derivations in full |

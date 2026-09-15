@@ -213,7 +213,16 @@ def section_documents() -> int:
     disagree about any input's value.
     """
     banner(10, "CHARTS, PAGES, DECK AND SOURCES")
-    from reporting import article, deck, explorer, findings_report, plots, sources, surface
+    from reporting import (
+        article,
+        deck,
+        explorer,
+        findings_report,
+        plots,
+        results,
+        sources,
+        surface,
+    )
 
     plots.main()
     findings_report.main()
@@ -221,6 +230,7 @@ def section_documents() -> int:
     article.main()
     explorer.main()
     deck.main()
+    results.main()
     return sources.main()
 
 
@@ -285,6 +295,7 @@ def main() -> int:
               f"({_u.eur(_u.absolute(o.npv0, 2.5))} for 2.5 Mt/yr), "
               f"trigger crossed {o.crossing_year}.")
         print(f"Charts written to {plots_out()}; provenance to SOURCES.md.")
+        print("Start at results.html: every table, named and explained.")
         print("The sourcing frontier is explorable in explorer.html;")
         print("the 40-minute talk is deck.html.")
         print("\nReminder: ladder rows 4-7 do not reproduce the published table.")

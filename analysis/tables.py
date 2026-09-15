@@ -49,6 +49,65 @@ REFERENCE_MT: Final[float] = 2.5
 MISSING: Final[str] = "MISSING"
 
 
+#: Research source ids whose documents are trade press or aggregators. They
+#: point at the right fact but must not be cited to a steel analyst; the
+#: research pass grades them Tier C in docs/research-sources.md.
+TIER_C: Final[frozenset[str]] = frozenset({
+    "S13_AM_CANCEL", "S22_STEGRA", "S32_RANGE", "S34_GMK", "S41_HRC_C",
+    "S42_PREMIUM", "S45_EUROSTAT", "S46_ELECTRODES",
+})
+
+
+@dataclass(frozen=True)
+class SourceRef:
+    """One citation behind a table: what it is, and whether it can be opened.
+
+    ``url`` is None where the research pass named the source correctly but did
+    not capture a working link. That is the difference between *attributed* and
+    *checked*, and it is shown rather than smoothed over.
+    """
+
+    key: str
+    title: str
+    url: str | None
+    tier: str
+
+    @property
+    def linked(self) -> bool:
+        return bool(self.url)
+
+
+def _research_urls() -> dict[str, str]:
+    """source_id -> the one URL the research pass actually captured for it."""
+    found: dict[str, str] = {}
+    for _table, row in src.all_rows():
+        if row.linked and row.source_id:
+            found.setdefault(row.source_id, row.url)
+    return found
+
+
+def resolve(*keys: str) -> list[SourceRef]:
+    """Citations for the given ids, from the model register or the research CSVs.
+
+    The model's own register (``reporting/sources.py``) carries checked, live
+    URLs; the research package mostly does not. Both are looked up here so a
+    table's footer can show which of its sources a reader can actually open.
+    """
+    from reporting import sources as reg
+
+    research = _research_urls()
+    out = []
+    for key in keys:
+        if key in reg.SOURCES:
+            s = reg.SOURCES[key]
+            out.append(SourceRef(key, s.title, s.url, "model register"))
+        else:
+            url = research.get(key)
+            tier = "Tier C" if key in TIER_C else ("Tier A/B" if url else "unlinked")
+            out.append(SourceRef(key, key, url, tier))
+    return out
+
+
 @dataclass(frozen=True)
 class Column:
     """One column, and the unit every cell in it is expressed in."""
@@ -77,13 +136,16 @@ class Column:
 class Table:
     """A titled table whose header always carries units, plus its caveats."""
 
+    name: str
+    """Short indicative handle, e.g. "T3 capex". What to say when pointing."""
     title: str
     columns: Sequence[Column]
     rows: Sequence[Sequence[object]]
     notes: Sequence[str] = field(default_factory=tuple)
+    sources: Sequence[SourceRef] = field(default_factory=tuple)
 
     def render(self) -> str:
-        out = [self.title, "=" * 78]
+        out = [f"[{self.name}]  {self.title}", "=" * 78]
         out.append("  " + "".join(c.head() for c in self.columns))
         if any(c.unit for c in self.columns):
             out.append("  " + "".join(c.unit_head() for c in self.columns))
@@ -93,6 +155,11 @@ class Table:
                 col.cell(val) for col, val in zip(self.columns, row, strict=True)))
         for note in self.notes:
             out.append(f"\n  {note}")
+        if self.sources:
+            out.append("\n  Sources:")
+            for ref in self.sources:
+                where = ref.url if ref.url else f"NOT LINKED ({ref.tier})"
+                out.append(f"    {ref.key:<16}{where}")
         return "\n".join(out)
 
 
@@ -115,6 +182,7 @@ def table_npv_units() -> Table:
     rows.append(["opex penalty a", f"{-60:,.0f}", "n/a - it is a flow",
                  "EUR/t product/yr"])
     return Table(
+        "T1 units",
         "Comment 2 - what unit is the NPV in, and what is that in money?",
         [Column("quantity", "", 34, "<"), Column("value", "as quoted", 12),
          Column(f"for {REFERENCE_MT:g} Mt/yr", "absolute", 22),
@@ -128,6 +196,48 @@ def table_npv_units() -> Table:
          "(EUR/tCO2)\n  and a flow (EUR/t product/yr) have different "
          "denominators and do not.",
          "Scaling is linear: halve the plant, halve the absolute column."],
+        resolve("S20_TKH2", "S21_SALCOS", "S22_STEGRA", "S30_AM_DUNKIRK", "S13_AM_CANCEL"),
+    )
+
+
+def table_npv_cases() -> Table:
+    """The NPV itself, in money, across every sourced case.
+
+    The table to reach for when the question is simply *how much is it worth*.
+    The per-tonne column is what the model computes; the money column is that
+    times a real plant's annual tonnes. They are one statement, not two.
+    """
+    base_npv = sourced.run_case("base").out.npv0
+    cen = sourced.run_case("central")
+    rows = []
+    for c in sourced.all_cases():
+        rows.append([
+            c.name, f"{c.I0:,.0f}", f"{c.p_H2:.2f}", f"{c.out.npv0:,.0f}",
+            units.eur(units.absolute(c.out.npv0, REFERENCE_MT)),
+            f"{c.out.trigger:.1f}", str(c.out.t_star or "none"),
+        ])
+    per_mt = units.eur(units.absolute(base_npv, 1.0))
+    return Table(
+        "T2 NPV in money",
+        "How much money is the NPV? Billions - and it depends which inputs you use",
+        [Column("case", "", 10, "<"), Column("I0", "EUR/t cap", 11),
+         Column("p_H2", "EUR/kg", 9), Column("NPV", "EUR/t cap", 11),
+         Column("NPV, 2.5 Mt/yr", "EUR absolute", 18),
+         Column("trigger", "EUR/tCO2", 11), Column("T*", "year", 7)],
+        rows,
+        ["The NPV is a RATE - EUR per tonne of ANNUAL capacity. Multiply by annual"
+         "\n  tonnes and it is money: the fifth column. About " + per_mt + " per Mt/yr"
+         "\n  of capacity in the published case.",
+         "Stegra's Boden is exactly 2.5 Mt/yr and cost EUR 6.5bn to build. The"
+         "\n  published case says the switch alone is worth "
+         + units.eur(units.absolute(base_npv, REFERENCE_MT)) + " on a modelled spend"
+         "\n  of " + units.eur(units.absolute(Params().sector.I0, REFERENCE_MT))
+         + ". The sourced central case says "
+         + units.eur(units.absolute(cen.out.npv0, REFERENCE_MT)) + " on "
+         + units.eur(units.absolute(cen.I0, REFERENCE_MT)) + ".",
+         "So 'how much money' is a RANGE across these four rows, not one figure."
+         "\n  Which end you believe is the whole argument."],
+        resolve("S20_TKH2", "S21_SALCOS", "S22_STEGRA", "S9_PLATTS", "diw2082"),
     )
 
 
@@ -176,6 +286,7 @@ def table_capex() -> Table:
                  units.eur(units.absolute(p.sector.I0, REFERENCE_MT)),
                  f"{REFERENCE_MT:g}", f"{p.sector.I0:,.0f}", "-", "-"])
     return Table(
+        "T3 capex",
         "Comment 3 - capex from real projects, not a single assumed number",
         [Column("project", "", 28, "<"), Column("announced", "EUR total", 12),
          Column("capacity", "Mt/yr", 10), Column("capex", "EUR/t cap", 11),
@@ -191,6 +302,7 @@ def table_capex() -> Table:
          "Boundaries differ and are not comparable line for line: Dunkirk is EAF"
          "\n  only; tkH2Steel excludes the electrolyser; Boden includes 700-800 MW"
          "\n  of it plus rolling. See data/sourced/projects_capex.csv."],
+        resolve("S20_TKH2", "S21_SALCOS", "S22_STEGRA", "S30_AM_DUNKIRK", "S13_AM_CANCEL"),
     )
 
 
@@ -238,6 +350,7 @@ def table_opex() -> Table:
          MISSING, "H10"],
     ]
     return Table(
+        "T4 opex",
         "Comments 1 and 5 - the opex delta, and how much of it the model carries",
         [Column("cost line", "", 31, "<"), Column("status", "", 9, "<"),
          Column("basis", "", 24, "<"), Column("value", "EUR/t prod/yr", 13),
@@ -261,6 +374,7 @@ def table_opex() -> Table:
          "\n  them from sources with different boundaries would invent the number"
          "\n  comment 5 asks us to stop inventing, so they stay empty.",
          "Until H10 closes, c_avoided = 83 is an assumption, not a sum."],
+        resolve("eurostat_power", "S9_PLATTS", "S47_PELLET", "S46_ELECTRODES"),
     )
 
 
@@ -285,6 +399,7 @@ def table_power_vs_gas() -> Table:
                      f"{green:.2f}", f"{grey:.2f}"])
     rows.sort(key=lambda r: float(r[1]))
     return Table(
+        "T5 energy",
         "Comment 1 - is electricity cheaper than gas? Not per kWh, nowhere",
         [Column("state", "", 8, "<"), Column("electricity", "EUR/kWh", 14),
          Column("gas", "EUR/kWh", 12), Column("ratio", "power/gas", 12),
@@ -300,6 +415,7 @@ def table_power_vs_gas() -> Table:
          "\n  charges / taxes / levies / exemptions, and the ETS indirect-cost"
          "\n  compensation each state pays. Those are exactly what 'fiscal"
          "\n  harmonisation' would change, and the model has no tax layer at all."],
+        resolve("eurostat_power", "eurostat_gas", "iea_h2"),
     )
 
 
@@ -333,6 +449,7 @@ def table_subsidies() -> Table:
             law,
         ])
     return Table(
+        "T6 subsidy pots",
         "Comment 4 - the subsidy pot, and its shape",
         [Column("instrument", "", 33, "<"), Column("pot", "total", 13),
          Column("shape", "", 19, "<"), Column("years", "", 6),
@@ -349,6 +466,7 @@ def table_subsidies() -> Table:
          "Strike prices marked MISSING are hole H1: the German awards are public,"
          "\n  the per-company strikes are not. So the stream's value below is derived"
          "\n  from the mechanism, never from an observed award."],
+        resolve("S28_CCFD", "S10_EHB", "S4_COM2026"),
     )
 
 
@@ -364,6 +482,7 @@ def table_support_shape() -> Table:
     rows.append(["the model's lump", f"{lump:,.0f}",
                  units.eur(units.absolute(lump, REFERENCE_MT)), "1.0x"])
     return Table(
+        "T7 subsidy shape",
         "Comment 4 - what a CCfD-style stream is worth against the model's lump",
         [Column("premium", "EUR/tCO2", 18, "<"), Column("worth", "EUR/t cap", 12),
          Column(f"for {REFERENCE_MT:g} Mt/yr", "absolute", 20),
@@ -373,6 +492,7 @@ def table_support_shape() -> Table:
          "\n  The German instrument runs FIFTEEN years, so these understate it.",
          "Per-company strike prices were not disclosed (hole H1), so the premium"
          "\n  column is the mechanism's range, not an observed award."],
+        resolve("S28_CCFD", "ec_ccfd", "zoe_idb"),
     )
 
 
@@ -393,6 +513,7 @@ def table_comment_status() -> Table:
          "still one lumped hydrogen-driven constant", "H10"],
     ]
     return Table(
+        "T0 status",
         "All five review comments (newcomments.md), and where each stands",
         [Column("#", "", 4, "<"), Column("comment", "", 30, "<"),
          Column("status", "", 10, "<"), Column("what exists now", "", 52, "<"),
@@ -402,6 +523,7 @@ def table_comment_status() -> Table:
          "\n  matters most: a line-by-line BF-BOF vs H2-DRI-EAF opex stack at a"
          "\n  single consistent boundary. Without it, comment 5 cannot be closed"
          "\n  honestly - only plausibly."],
+        resolve("S4_COM2026"),
     )
 
 
@@ -410,6 +532,7 @@ def all_tables() -> list[Table]:
     return [
         table_comment_status(),
         table_npv_units(),
+        table_npv_cases(),
         table_capex(),
         table_opex(),
         table_power_vs_gas(),

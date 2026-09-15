@@ -17,7 +17,16 @@ import unittest.mock as mock
 import pytest
 
 from analysis import sourcing
-from reporting import article, deck, explorer, findings_report, plots, sources, surface
+from reporting import (
+    article,
+    deck,
+    explorer,
+    findings_report,
+    plots,
+    results,
+    sources,
+    surface,
+)
 
 #: (module, filename, smallest plausible size, a marker only a real page has).
 #: The marker differs by page on purpose: charts.html is SVG, findings.html is
@@ -29,6 +38,7 @@ PAGES = [
     (findings_report, "findings.html", 20_000, "<table"),
     (surface, "surface.html", 10_000, "<canvas"),
     (article, "article.html", 10_000, "<svg"),
+    (results, "results.html", 20_000, "<table"),
 ]
 
 
@@ -206,3 +216,49 @@ def test_the_money_context_travels_with_the_per_tonne_charts() -> None:
     assert units.eur(units.absolute(900.0, 2.5)) in capex
     support = plots.chart_support_shape()
     assert units.eur(units.absolute(200.0, 2.5)) in support
+
+
+def test_the_results_page_explains_every_table_it_prints() -> None:
+    """A table on the page without a written explanation defeats its purpose.
+
+    `section()` raises on a missing GUIDE entry rather than rendering a bare
+    table, so this catches a new table added without the three questions
+    answered - which is the failure mode the page exists to prevent.
+    """
+    from analysis import tables as tbl
+
+    for t in tbl.all_tables():
+        assert t.name in results.GUIDE, f"{t.name} has no GUIDE entry"
+        for key in ("look", "read", "means"):
+            assert results.GUIDE[t.name][key].strip(), f"{t.name}: empty {key}"
+
+
+def test_every_table_has_an_indicative_handle() -> None:
+    """The handles are how a reader points at a table across a room."""
+    from analysis import tables as tbl
+
+    names = [t.name for t in tbl.all_tables()]
+    assert len(names) == len(set(names)), f"duplicate handles: {names}"
+    for name in names:
+        assert name.startswith("T"), name
+        assert len(name.split()) >= 2, f"{name!r} is a number, not a handle"
+
+
+def test_the_page_links_the_sources_it_can_and_flags_the_rest() -> None:
+    """Both halves matter: real links, and an honest marker where none exists."""
+    page = results.build()
+    assert "https://www.diw.de" in page, "a live model-register link is missing"
+    assert "named but not linked" in page, "unlinked sources are not being flagged"
+    assert "unverified" in page and "sourced" in page
+
+
+def test_the_npv_money_table_is_on_the_page_with_billions() -> None:
+    """The question that prompted the page: how much money is the NPV."""
+    from analysis import tables as tbl
+    from analysis import units
+
+    page = results.build()
+    assert "T2 NPV in money" in page
+    for case in ("base", "central"):
+        npv = tbl.sourced.run_case(case).out.npv0
+        assert units.eur(units.absolute(npv, tbl.REFERENCE_MT)) in page
