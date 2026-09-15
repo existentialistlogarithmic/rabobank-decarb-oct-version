@@ -46,11 +46,17 @@ import math
 from dataclasses import dataclass, replace
 from typing import Final
 
+from analysis import units
 from data import sourced as src
 from timing_model import cost, option
 from timing_model.params import Params, ScenarioParams
 from timing_model.primitives import mac
 from timing_model.results import Outputs, outputs
+
+#: Plant size the absolute-money columns are quoted at, in Mt/yr. Stegra's
+#: Boden capacity, so the figures sit beside a real announced project rather
+#: than a round invented one. Scaling is linear; any other size follows.
+REFERENCE_MT: Final[float] = 2.5
 
 #: The four parameter cases the research pass returned, in order of severity.
 CASES: Final[tuple[str, ...]] = ("base", "low", "central", "high")
@@ -213,14 +219,39 @@ def main() -> int:
     print("  until docs/research-sources.md has its Tier C rows replaced.\n")
 
     cases = all_cases()
-    print(f"  {'case':<9}{'I0':>7}{'p_H2':>7}{'a':>8}{'MAC':>8}{'p_M':>8}"
-          f"{'trigger':>9}{'T*':>7}{'NPV':>9}{'crossing':>10}")
+    print(f"  {'':<9}{'I0':>7}{'p_H2':>7}{'a':>8}{'MAC':>8}{'p_M':>8}"
+          f"{'trigger':>9}{'':>7}{'NPV':>9}{'':>10}")
+    print(f"  {'case':<9}{'EUR/t':>7}{'EUR/kg':>7}{'EUR/t':>8}{'EUR/':>8}{'EUR/':>8}"
+          f"{'EUR/':>9}{'T*':>7}{'EUR/t':>9}{'crossing':>10}")
+    print(f"  {'':<9}{'cap':>7}{'':>7}{'prod/yr':>8}{'tCO2':>8}{'tCO2':>8}"
+          f"{'tCO2':>9}{'':>7}{'cap':>9}{'':>10}")
     print("  " + "-" * 82)
     for c in cases:
         o = c.out
         print(f"  {c.name:<9}{c.I0:>7,.0f}{c.p_H2:>7.2f}{c.a:>8,.0f}{c.mac:>8.1f}"
               f"{c.p_M:>8.1f}{o.trigger:>9.1f}{str(o.t_star):>7}{o.npv0:>9,.0f}"
               f"{str(o.crossing_year):>10}")
+    print(f"\n  The same two money columns for a {REFERENCE_MT:g} Mt/yr plant, because"
+          " 'EUR 900' and")
+    print("  'EUR 1,606' read as pocket change until the denominator is put back:\n")
+    print(f"    {'case':<9}{'capex I0':>14}{'NPV at T*':>14}")
+    print("    " + "-" * 37)
+    for c in cases:
+        print(f"    {c.name:<9}{units.eur(units.absolute(c.I0, REFERENCE_MT)):>14}"
+              f"{units.eur(units.absolute(c.out.npv0, REFERENCE_MT)):>14}")
+    boden = next((r for r in src.projects() if r["project"] == "Boden"), None)
+    if boden and boden.num("capex_EUR_absolute"):
+        built = units.eur(boden.num("capex_EUR_absolute") or 0.0)
+        b_cap, b_npv = cases[0].I0, cases[0].out.npv0
+        c_cap, c_npv = cases[2].I0, cases[2].out.npv0
+        print(f"\n  Stegra's Boden is that size and cost {built} to build. The published")
+        print(f"  case says a plant of it is worth "
+              f"{units.eur(units.absolute(b_npv, REFERENCE_MT))} on a "
+              f"{units.eur(units.absolute(b_cap, REFERENCE_MT))} spend; the")
+        print(f"  sourced central case says "
+              f"{units.eur(units.absolute(c_npv, REFERENCE_MT))} on "
+              f"{units.eur(units.absolute(c_cap, REFERENCE_MT))}. Only one of those")
+        print("  survives being read next to the announced projects.")
     base, central = cases[0], cases[2]
     print(f"\n  Published to sourced central: the trigger goes "
           f"{base.out.trigger:.1f} -> {central.out.trigger:.1f} EUR/tCO2 and the")

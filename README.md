@@ -113,12 +113,13 @@ assumption, so a test forbids it outright.
 
 ```
 python run_all.py               # gate, ladders, reconciliation, pages, checks
-python selfcheck.py             # 39 assertions, standard library only
-python -m pytest tests          # 154 test functions, 249 cases after parametrisation
+python selfcheck.py             # 40 assertions, standard library only
+python -m pytest tests          # 175 test functions, 273 cases after parametrisation
 python -m analysis.sourcing     # the frontier, as a table
 python -m analysis.grounding    # inputs against observed data
 python -m analysis.regimes      # the scenario map and the what-ifs
 python -m analysis.reconcile    # the model against the v11 specification
+python -m analysis.units        # what the per-tonne figures are in actual money
 python -m analysis.sourced      # the published case against the sourced one
 python -m data.sourced          # what the research pass returned, and how much is linked
 python -m reporting.explorer    # rebuild explorer.html
@@ -335,8 +336,8 @@ headline numbers on the title slide match a fresh `outputs()` call.
 |---|---|
 | validation gate | nine published quantities to 1e-3 relative, before anything prints |
 | feasibility guards | `r − mu`, `u ∈ (0,1]`, monotone allocation, non-negative residual, capex clamp — all raise, never return a flag |
-| 154 test functions | units, layering, findings, provenance, observed data, the specification, generated pages — 249 cases after parametrisation |
-| 39 self-checks | the same load-bearing claims with no third-party packages |
+| 175 test functions | units, layering, findings, provenance, observed data, the specification, generated pages — 273 cases after parametrisation |
+| 40 self-checks | the same load-bearing claims with no third-party packages |
 | diff harness | 50-case grid, self-diff, and a negative control that must flag exactly two |
 | `ruff` | clean on `F, E, W, I, UP, B, C4, SIM, RET`; config and exceptions in `pyproject.toml` |
 
@@ -351,6 +352,29 @@ sections once.
 MATLAB reference, because there is no reference. The harness, the fixture and
 the negative control are built and tested; drop a reference CSV beside them and
 `diff()` completes.
+
+## Reading the units
+
+Every stock in the model — capex, support, write-off, and every NPV — is **EUR
+per tonne of annual nameplate capacity**. Not per tonne of steel, and not a
+total. `I0 = 900` is therefore not €900; it is **€2.2bn for a 2.5 Mt/yr works**.
+
+That is checkable, and `analysis/units.py` checks it: each per-tonne figure in
+`data/sourced/projects_capex.csv` came from an operator's announced total
+divided by their announced capacity, so dividing again has to land back on it.
+
+| project | announced | capacity | €/t capacity |
+|---|---|---|---|
+| Dunkirk EAF | €1.2bn | 2.0 Mt/yr | 600 |
+| Bremen + Eisenhüttenstadt | €2.5bn | 3.5 Mt/yr | 700 |
+| tkH2Steel Duisburg | €3.0bn | 2.3 Mt/yr | 1,300 |
+| SALCOS stage 1 | €2.7bn | 1.9 Mt/yr | 1,420 |
+| Boden (Stegra) | €6.5bn | 2.5 Mt/yr | 2,600 |
+| **this model, `I0`** | **€2.2bn** | 2.5 Mt/yr | **900** |
+
+Flows are a different denominator: `a`, `B(t)` and `c_avoided` are per tonne of
+steel **made**, per year, and the load factor `u` is the only bridge between the
+two families. An AST test fails the build if `cost.py` so much as names `u`.
 
 ## The sourced recalibration
 

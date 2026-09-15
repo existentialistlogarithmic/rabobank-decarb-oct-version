@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from analysis import findings as fnd
-from analysis import grounding, regimes, sourcing
+from analysis import grounding, regimes, sourcing, units
 from data import ecb, eurostat
 from timing_model import cost, objective, option, primitives
 from timing_model.benefit import carbon_price_path, free_allocation_factor
@@ -287,9 +287,23 @@ point of the talk. The first two ignore uncertainty. The last two price it.</p>
     "<mfrac><mrow><mi>EUR</mi></mrow><mrow><mi>t</mi><mspace width='3px'/>"
     "<mtext>product</mtext></mrow></mfrac></mrow>",
     "the only legal conversion between the two families")}
-""", 1.5,
+<p class="lede">And the question everyone asks first: <b>&euro;900 of what?</b>
+Per tonne of <em>annual</em> capacity. Multiply by annual tonnes and the
+denominator cancels &mdash; it is the same kind of number an operator
+announces.</p>
+<table class="grid"><thead><tr><th>project</th><th>announced</th>
+<th>capacity</th><th>&euro;/t capacity</th></tr></thead><tbody>
+{"".join(f"<tr><td>{esc(n)}</td><td class='val'>{units.eur(tot)}</td>"
+         f"<td class='val'>{mt:g} Mt/yr</td><td class='val'>{st:,.0f}</td></tr>"
+         for n, tot, mt, st, _ in units.round_trip())}
+<tr><td><b>this model, I0</b></td>
+<td class="val"><b>{units.eur(units.absolute(p.sector.I0, 2.5))}</b></td>
+<td class="val">2.5 Mt/yr</td><td class="val"><b>{p.sector.I0:,.0f}</b></td></tr>
+</tbody></table>
+""", 2.0,
         "If they remember one slide, make it this one. Every error in the "
-        "published version traces back here."))
+        "published version traces back here. The table is the answer to "
+        "'why is it only 900' - it is 2.2 billion."))
 
     # ------------------------------------------------- 2. the model, layer by layer
     ph2_range = [0.5 + 0.25 * i for i in range(37)]

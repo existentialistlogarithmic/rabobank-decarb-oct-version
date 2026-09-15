@@ -7,8 +7,8 @@ commit on this branch.
 **Branch:** `main` (single branch; history was flattened to one root commit)
 
 **Run everything:** `python run_all.py` (13 sections, ~40 s). Python 3.11+,
-**zero dependencies**; `pytest` and `ruff` optional. Currently **266 tests +
-39 self-checks** green, ruff clean, `run_all` exits 0.
+**zero dependencies**; `pytest` and `ruff` optional. Currently **273 tests +
+40 self-checks** green, ruff clean, `run_all` exits 0.
 
 **Read in this order:** this file → `CALIBRATION.md` (sourced vs fitted) →
 `SOURCES.md` (generated; what each input claims and what would falsify it).
@@ -38,6 +38,7 @@ Built from a v12 specification. The MATLAB reference (`timing_model.m`) was
 | `analysis/grounding.py` | Model inputs vs observed data, one verdict per row |
 | `analysis/sourcing.py` | The hydrogen sourcing frontier: `p_H2` and `eps_cln` as one input |
 | `analysis/reconcile.py` | The model against every quantity the v11 specification published |
+| `analysis/units.py` | The denominator, restored: EUR/t capacity → money for a real plant |
 | `analysis/sourced.py` | The published base case against the Sept-2026 sourced recalibration |
 | `data/sourced.py` + `data/sourced/*.csv` | The research pass's parameters, projects, H2 prices, support shapes |
 | `docs/research-*.md` | That pass's findings, sources with tiers, and its documented holes |
@@ -48,7 +49,7 @@ Built from a v12 specification. The MATLAB reference (`timing_model.m`) was
 | `reporting/article.py` | → `article.html`, **the finished article** |
 | `reporting/explorer.py` | → `explorer.html`, the frontier, interactive (891 embedded model runs) |
 | `reporting/deck.py` | → `deck.html`, the 40-minute talk: 20 slides in 8 sections, timed to 39 min; every figure carries its equation |
-| `selfcheck.py` | 39 stdlib assertions (works without pytest) |
+| `selfcheck.py` | 40 stdlib assertions (works without pytest) |
 | `CALIBRATION.md` | What is sourced vs fitted — **read before quoting anything** |
 | `SOURCES.md` | Generated. What each input claims and what would falsify it |
 | `ARTICLE.md` | Article outline / writing plan |
@@ -255,6 +256,12 @@ Tier C trade press.
 
 - **€/t capacity vs €/tCO₂ are different units.** The single largest error class
   in this project. Never conflate.
+- **Never print a per-tonne figure without its denominator.** `I0 = 900` read
+  as "€900" is absurd and invites the reader to dismiss the model; read as
+  €900 **per tonne of annual capacity** it is **€2.2bn** for a 2.5 Mt/yr works,
+  the same order as the announced projects. `analysis/units.py` does the
+  conversion and proves it round-trips off the real announcements
+  (€3.0bn ÷ 2.3 Mt = €1,300/t). Run `python -m analysis.units`.
 - **NPV is a model output** — no statistical agency publishes it. Only *inputs*
   can be sourced.
 - **`T_rel = 2038` is a model output**, not a fact about any plant.

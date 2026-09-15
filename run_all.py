@@ -57,6 +57,10 @@ def section_base() -> None:
     print(f"  T*             {o.t_star}")
     print(f"  T_exp          {o.t_exp}")
     print(f"  NPV0           {o.npv0:.2f} EUR/t capacity (discounted to 2026)")
+    from analysis import units as _u
+
+    print(f"                 = {_u.eur(_u.absolute(o.npv0, 2.5))} for a 2.5 Mt/yr plant"
+          f" - the unit is per tonne of ANNUAL capacity, not a total")
     print(f"  trigger p*'    {o.trigger:.2f} EUR/tCO2")
     print(f"  crossing year  {o.crossing_year} ({o.crossing_reason})")
     print("\n  Diagnostics (communication objects, not decision inputs):")
@@ -165,12 +169,14 @@ def section_findings() -> None:
     allowances shown rather than folded into a coefficient, the scenario map,
     and the four what-ifs. ``reconcile`` checks the model against every
     quantity the v11 specification published - inputs as well as outputs.
+    ``units`` puts the denominator back on every per-tonne figure, because
+    "I0 = 900" read as EUR 900 is the most common misreading in the build.
     ``sourced`` puts the published base case next to the one a research pass
     built from primary documents, and leads with how much of that pass is
     actually linked rather than merely attributed.
     """
     banner(9, "STRUCTURAL FINDINGS")
-    from analysis import findings, reconcile, regimes, sourced, sourcing
+    from analysis import findings, reconcile, regimes, sourced, sourcing, units
 
     for i, fnd in enumerate(findings.all_findings(), 1):
         print(f"\n  {i}. {fnd.title}")
@@ -181,6 +187,8 @@ def section_findings() -> None:
     regimes.main()
     print()
     reconcile.main()
+    print()
+    units.main()
     print()
     sourced.main()
 
@@ -259,7 +267,10 @@ def main() -> int:
     else:
         print("Gate passed, negative control behaved, self-check clean.")
         o = outputs(*published_base())
-        print(f"Base case: T* = {o.t_star}, NPV0 = {o.npv0:.2f} EUR/t, "
+        from analysis import units as _u
+
+        print(f"Base case: T* = {o.t_star}, NPV0 = {o.npv0:.2f} EUR/t capacity "
+              f"({_u.eur(_u.absolute(o.npv0, 2.5))} for 2.5 Mt/yr), "
               f"trigger crossed {o.crossing_year}.")
         print(f"Charts written to {plots_out()}; provenance to SOURCES.md.")
         print("The sourcing frontier is explorable in explorer.html;")

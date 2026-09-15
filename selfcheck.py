@@ -201,6 +201,28 @@ def _support_envelope() -> None:
         assert abs(support(t, pr, sc) / p.policy.s_max - q) < 1e-9, t
 
 
+@check("units: EUR/t capacity times annual tonnes is money, and the round trip closes")
+def _units_bridge() -> None:
+    """The misreading this guards: I0 = 900 read as EUR 900.
+
+    It is EUR 900 per tonne of ANNUAL capacity - EUR 2.2bn for a 2.5 Mt/yr
+    works. The check that settles it is the round trip: every per-tonne figure
+    in the projects table came from an announced total divided by an announced
+    capacity, so dividing them again has to land back on it.
+    """
+    from analysis import units
+
+    assert units.absolute(900.0, 2.5) == 2.25e9
+    assert units.eur(2.25e9) == "EUR 2.2bn"
+    rows = units.round_trip()
+    assert len(rows) >= 4, "the projects table lost rows"
+    for name, total, mt, stated, recomputed in rows:
+        assert abs(recomputed - stated) <= 0.03 * stated, (
+            f"{name}: {total:,.0f} over {mt} Mt gives {recomputed:,.0f}, "
+            f"table says {stated:,.0f}"
+        )
+
+
 @check("guard: gate failure raises rather than returning a flag")
 def _guard_gate() -> None:
     p, sc = published_base()

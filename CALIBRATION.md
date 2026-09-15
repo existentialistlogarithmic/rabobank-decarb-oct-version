@@ -240,6 +240,39 @@ than at the argmax. **`T*` = "beyond horizon" reproduces correctly** in every
 one of these rows, which is the row's actual finding; only the accompanying
 NPV level differs.
 
+## What the per-tonne numbers are in money
+
+`I0 = 900` is the most misread figure in the build. It is **not €900**. It is
+€900 **per tonne of annual nameplate capacity**, i.e. **€2.2bn** for a 2.5 Mt/yr
+works — the same order as the projects European operators have actually
+announced. Every stock in the model carries that denominator: `I0`, `K_s`,
+`S_s`, `R`, `s_max`, and every NPV.
+
+The per-tonne figures in `data/sourced/projects_capex.csv` are derived *from*
+absolute announcements, so the conversion round-trips and `analysis/units.py`
+checks that it does:
+
+| project | announced | capacity | €/t capacity |
+|---|---|---|---|
+| Dunkirk EAF | €1.2bn | 2.0 Mt/yr | 600 |
+| Bremen + Eisenhüttenstadt | €2.5bn | 3.5 Mt/yr | 700 |
+| tkH2Steel Duisburg | €3.0bn | 2.3 Mt/yr | 1,300 |
+| SALCOS stage 1 | €2.7bn | 1.9 Mt/yr | 1,420 |
+| Boden (Stegra) | €6.5bn | 2.5 Mt/yr | 2,600 |
+| **this model, `I0`** | **€2.2bn** | 2.5 Mt/yr | **900** |
+
+Putting the denominator back is what makes the NPV objection checkable at all.
+For a 2.5 Mt/yr plant the published base case says the switch is worth **€4.0bn**
+on a modelled spend of **€2.2bn**. Stegra's Boden is exactly that size and cost
+**€6.5bn** to build. The sourced central case says €1.3bn on €3.5bn. The
+comparison only becomes available once both sides are in the same units, which
+is the whole reason this section exists.
+
+Flows are a different denominator and do not convert this way: `a`, `B(t)` and
+`c_avoided` are per tonne of steel **made**, per year. The load factor `u` is
+the only bridge, an AST test fails the build if `cost.py` names it, and
+`tests/test_units.py` plus a self-check pin the arithmetic.
+
 ## The September 2026 sourced recalibration
 
 A research pass went back to primary and near-primary documents for every input
