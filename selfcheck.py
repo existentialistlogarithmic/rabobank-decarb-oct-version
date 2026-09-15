@@ -236,6 +236,7 @@ def _tables() -> None:
         "project", "instrument", "status", "source", "shape", "outcome",
         "quantity", "unit", "comment", "what exists now", "blocked by", "#",
         "state", "cost line", "basis", "legal", "years", "premium",
+        "case",
     }
     seen = 0
     for table in tables.all_tables():

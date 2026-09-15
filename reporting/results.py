@@ -22,6 +22,7 @@ from collections.abc import Sequence
 from typing import Final
 
 from analysis import tables, units
+from reporting import sources
 from timing_model.params import Params
 from timing_model.results import outputs
 from timing_model.scenarios import published_base
@@ -205,19 +206,34 @@ def table_html(t: tables.Table) -> str:
             f"<tbody>{''.join(body)}</tbody></table></div>")
 
 
+def cite(ref: tables.SourceRef) -> tuple[str, str | None, str]:
+    """(title, url, tier) for one citation, joining both registries.
+
+    ``analysis`` may not import ``reporting``, so it resolves only the research
+    package and leaves the rest unlinked. This is the layer that can see the
+    model's own bibliography, so the join belongs here: a key the register
+    knows gets its checked, live URL and its real title.
+    """
+    if ref.key in sources.SOURCES:
+        s = sources.SOURCES[ref.key]
+        return s.title, s.url, "model register"
+    return ref.key, ref.url, ref.tier
+
+
 def sources_html(refs: Sequence[tables.SourceRef]) -> str:
     """The citations, with the links that exist and a marker where none does."""
     if not refs:
         return ""
     items = []
-    for r in refs:
-        if r.url:
-            items.append(f"<li><code>{esc(r.key)}</code> &mdash; "
-                         f"<a href='{esc(r.url)}' rel='noopener'>{esc(r.title)}</a>"
-                         f"{'' if r.tier == 'model register' else f' <em>({esc(r.tier)})</em>'}"
-                         "</li>")
+    for ref in refs:
+        title, url, tier = cite(ref)
+        if url:
+            extra = "" if tier == "model register" else f" <em>({esc(tier)})</em>"
+            items.append(f"<li><code>{esc(ref.key)}</code> &mdash; "
+                         f"<a href='{esc(url)}' rel='noopener'>{esc(title)}</a>"
+                         f"{extra}</li>")
         else:
-            items.append(f"<li><code>{esc(r.key)}</code> &mdash; "
+            items.append(f"<li><code>{esc(ref.key)}</code> &mdash; "
                          f"<span class='nolink'>named but not linked</span> "
                          f"&mdash; see <code>docs/research-sources.md</code></li>")
     return ("<div class='srcs'><h4>Sources</h4><ul>" + "".join(items) + "</ul>"

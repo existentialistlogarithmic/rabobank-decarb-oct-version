@@ -60,15 +60,19 @@ TIER_C: Final[frozenset[str]] = frozenset({
 
 @dataclass(frozen=True)
 class SourceRef:
-    """One citation behind a table: what it is, and whether it can be opened.
+    """One citation behind a table: its key, and the URL if one was captured.
 
     ``url`` is None where the research pass named the source correctly but did
     not capture a working link. That is the difference between *attributed* and
     *checked*, and it is shown rather than smoothed over.
+
+    Only the research package is resolved here. The model's own bibliography
+    lives in ``reporting/sources.py``, which this layer must not import - the
+    reporting layer joins the two, and :func:`reporting.results.cite` is where
+    that happens.
     """
 
     key: str
-    title: str
     url: str | None
     tier: str
 
@@ -87,24 +91,18 @@ def _research_urls() -> dict[str, str]:
 
 
 def resolve(*keys: str) -> list[SourceRef]:
-    """Citations for the given ids, from the model register or the research CSVs.
+    """Citations for the given ids, resolved as far as this layer can see.
 
-    The model's own register (``reporting/sources.py``) carries checked, live
-    URLs; the research package mostly does not. Both are looked up here so a
-    table's footer can show which of its sources a reader can actually open.
+    A key the research CSVs do not link is left with ``url = None`` and the
+    tier that says why. The reporting layer fills in anything that belongs to
+    the model's own register.
     """
-    from reporting import sources as reg
-
     research = _research_urls()
     out = []
     for key in keys:
-        if key in reg.SOURCES:
-            s = reg.SOURCES[key]
-            out.append(SourceRef(key, s.title, s.url, "model register"))
-        else:
-            url = research.get(key)
-            tier = "Tier C" if key in TIER_C else ("Tier A/B" if url else "unlinked")
-            out.append(SourceRef(key, key, url, tier))
+        url = research.get(key)
+        tier = "Tier C" if key in TIER_C else ("Tier A/B" if url else "unlinked")
+        out.append(SourceRef(key, url, tier))
     return out
 
 
@@ -158,7 +156,7 @@ class Table:
         if self.sources:
             out.append("\n  Sources:")
             for ref in self.sources:
-                where = ref.url if ref.url else f"NOT LINKED ({ref.tier})"
+                where = ref.url or f"see SOURCES.md / docs ({ref.tier})"
                 out.append(f"    {ref.key:<16}{where}")
         return "\n".join(out)
 
