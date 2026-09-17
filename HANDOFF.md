@@ -7,7 +7,7 @@ commit on this branch.
 **Branch:** `main` (single branch; history was flattened to one root commit)
 
 **Run everything:** `python run_all.py` (13 sections, ~40 s). Python 3.11+,
-**zero dependencies**; `pytest` and `ruff` optional. Currently **290 tests +
+**zero dependencies**; `pytest` and `ruff` optional. Currently **318 tests +
 41 self-checks** green, ruff clean, `run_all` exits 0.
 
 **Read in this order:** this file → `CALIBRATION.md` (sourced vs fitted) →
@@ -39,11 +39,13 @@ Built from a v12 specification. The MATLAB reference (`timing_model.m`) was
 | `analysis/sourcing.py` | The hydrogen sourcing frontier: `p_H2` and `eps_cln` as one input |
 | `analysis/reconcile.py` | The model against every quantity the v11 specification published |
 | `analysis/units.py` | The denominator, restored: EUR/t capacity → money for a real plant |
+| `analysis/verify.py` | Re-derives every table cell from its raw source; 114 checks, half-ULP tolerance |
 | `analysis/tables.py` | The finalised tables, one per review comment, units in every header |
 | `analysis/sourced.py` | The published base case against the Sept-2026 sourced recalibration |
 | `data/sourced.py` + `data/sourced/*.csv` | The research pass's parameters, projects, H2 prices, support shapes |
 | `docs/research-*.md` | That pass's findings, sources with tiers, and its documented holes |
 | `reporting/sources.py` | → `SOURCES.md`, the provenance register — audited against the code on every run |
+| `reporting/brief.py` | → `brief.html` + `brief.pdf`, the two-page version to send on |
 | `reporting/results.py` | → `results.html`, **the page to open first**: all 8 tables with handles (T0–T7), what each answers, and its sources |
 | `reporting/plots.py` | → `charts.html`, 14 SVG charts (5 decision, 4 review comments, 5 structure), no matplotlib |
 | `reporting/surface.py` | → `surface.html`, rotatable 3D fleet surface (Canvas) |

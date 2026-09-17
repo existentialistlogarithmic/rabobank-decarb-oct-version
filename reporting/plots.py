@@ -679,10 +679,12 @@ def chart_capex_projects() -> str:
     slot = {"BUILDING": 0, "CONFIRMED": 2, "CANCELLED": 1}
     rows = []
     for r in src.projects():
-        per_t, mt = r.num("capex_EUR_per_t_capacity"), r.num("capacity_Mt_per_yr")
-        total = r.num("capex_EUR_absolute")
-        if per_t is None or not mt or total is None:
+        mt, total = r.num("capacity_Mt_per_yr"), r.num("capex_EUR_absolute")
+        if not mt or total is None:
             continue
+        # Derived from the two primary figures, matching tables.table_capex();
+        # the CSV's own per-tonne column is rounded and differs by up to 2%.
+        per_t = total / (mt * 1e6)
         out = tables.outcome(r["status"])
         # Long site names are shortened here rather than truncated in the
         # renderer, so the label always names a recognisable project.

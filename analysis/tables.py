@@ -270,9 +270,14 @@ def table_capex() -> Table:
     for r in src.projects():
         total = r.num("capex_EUR_absolute")
         mt = r.num("capacity_Mt_per_yr")
-        per_t = r.num("capex_EUR_per_t_capacity")
-        if total is None or not mt or per_t is None:
+        if total is None or not mt:
             continue
+        # Derived, not read. The CSV also carries a per-tonne column, but it is
+        # rounded to two or three significant figures and disagrees with its own
+        # absolute-over-capacity by up to 2% (Bremen: 700 stated, 714 derived).
+        # The announced total and the announced capacity are the primary facts;
+        # the ratio of them is what this table shows, so it is self-consistent.
+        per_t = total / (mt * 1e6)
         aid = r.num("public_support_EUR")
         rows.append([
             r["project"][:26], units.eur(total), f"{mt:g}", f"{per_t:,.0f}",

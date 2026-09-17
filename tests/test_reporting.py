@@ -19,6 +19,7 @@ import pytest
 from analysis import sourcing
 from reporting import (
     article,
+    brief,
     deck,
     explorer,
     findings_report,
@@ -262,3 +263,40 @@ def test_the_npv_money_table_is_on_the_page_with_billions() -> None:
     for case in ("base", "central"):
         npv = tbl.sourced.run_case(case).out.npv0
         assert units.eur(units.absolute(npv, tbl.REFERENCE_MT)) in page
+
+
+def test_the_brief_builds_and_stays_short(tmp_path: pathlib.Path) -> None:
+    """Two pages is the whole point of the brief. Length is a feature."""
+    assert brief.main() == 0
+    page = (tmp_path / "brief.html").read_text(encoding="utf-8")
+    assert len(page) < 20_000, "the brief is growing into a report"
+    assert "<table" in page and "per tonne of annual nameplate" in page
+
+
+def test_the_brief_leads_with_money_not_a_rate() -> None:
+    """Someone reading this once needs the total, not EUR/t of capacity."""
+    from analysis import sourced as an_sourced
+    from analysis import tables as tbl
+    from analysis import units
+
+    page = brief.build()
+    for case in ("base", "central"):
+        npv = an_sourced.run_case(case).out.npv0
+        assert units.eur(units.absolute(npv, tbl.REFERENCE_MT)) in page
+
+
+def test_the_brief_states_what_is_not_checked() -> None:
+    """A two-page summary that drops the caveats is worse than no summary."""
+    page = brief.build()
+    for caveat in ("Provenance", "Operating costs", "No tax layer",
+                   "No MATLAB reference"):
+        assert caveat in page, f"the brief dropped: {caveat}"
+    assert "unverified" in page
+
+
+def test_the_brief_quotes_the_live_verification_count() -> None:
+    """The count must come from running the checks, not from memory."""
+    from analysis import verify as vf
+
+    n = len(vf.all_checks())
+    assert f"{n}/{n} agree" in brief.build()

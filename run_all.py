@@ -159,6 +159,9 @@ def section_observed() -> None:
     grounding.main(offline=True)
 
 
+_verify_failures: list[int] = []
+
+
 def section_findings() -> None:
     """The derived findings, the sourcing frontier, and the reconciliation.
 
@@ -186,6 +189,7 @@ def section_findings() -> None:
         sourcing,
         tables,
         units,
+        verify,
     )
 
     for i, fnd in enumerate(findings.all_findings(), 1):
@@ -203,6 +207,8 @@ def section_findings() -> None:
     sourced.main()
     print()
     tables.main()
+    print()
+    _verify_failures.append(verify.main())
 
 
 def section_documents() -> int:
@@ -215,6 +221,7 @@ def section_documents() -> int:
     banner(10, "CHARTS, PAGES, DECK AND SOURCES")
     from reporting import (
         article,
+    brief,
         deck,
         explorer,
         findings_report,
@@ -231,6 +238,7 @@ def section_documents() -> int:
     explorer.main()
     deck.main()
     results.main()
+    brief.main()
     return sources.main()
 
 
@@ -279,6 +287,10 @@ def main() -> int:
     section_csv()
     section_observed()
     section_findings()
+    section_findings_failures = sum(_verify_failures)
+    if section_findings_failures:
+        print(f"\n{section_findings_failures} table cell(s) did not re-derive. See section 9.")
+    failures += section_findings_failures
     failures += section_documents()
     failures += section_selfcheck()
     failures += section_tests()
@@ -296,6 +308,7 @@ def main() -> int:
               f"trigger crossed {o.crossing_year}.")
         print(f"Charts written to {plots_out()}; provenance to SOURCES.md.")
         print("Start at results.html: every table, named and explained.")
+        print("brief.pdf is the two-page version, for sending on.")
         print("The sourcing frontier is explorable in explorer.html;")
         print("the 40-minute talk is deck.html.")
         print("\nReminder: ladder rows 4-7 do not reproduce the published table.")
