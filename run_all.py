@@ -192,6 +192,7 @@ def section_findings() -> None:
     """
     banner(9, "STRUCTURAL FINDINGS")
     from analysis import (
+        cashflow,
         findings,
         reconcile,
         regimes,
@@ -217,6 +218,8 @@ def section_findings() -> None:
     sourced.main()
     print()
     tables.main()
+    print()
+    cashflow.main()
     print()
     _verify_failures.append(verify.main())
 

@@ -41,6 +41,7 @@ Built from a v12 specification. The MATLAB reference (`timing_model.m`) was
 | `analysis/grounding.py` | Model inputs vs observed data, one verdict per row |
 | `analysis/sourcing.py` | The hydrogen sourcing frontier: `p_H2` and `eps_cln` as one input |
 | `analysis/reconcile.py` | The model against every quantity the v11 specification published |
+| `analysis/cashflow.py` | **The half step between the model and a business case.** The four inputs (capex, opex, subsidy, CO2) unfolded into annual trajectories, summed into a cash flow with peak exposure and payback. The discounted series equals the model's NPV to the cent — a test checks it. Answers the review note that the charts were "one step before the visual analysis" |
 | `analysis/market.py` | The model against the **live** market, in euros: the carbon price vs the path anchor, and `s_max` vs the Innovation Fund's actual receipts. Reports the gap; recalibrates nothing |
 | `analysis/units.py` | The denominator, restored: EUR/t capacity → money for a real plant |
 | `analysis/verify.py` | Re-derives every table cell from its raw source; 145 checks, half-ULP tolerance |
@@ -52,9 +53,9 @@ Built from a v12 specification. The MATLAB reference (`timing_model.m`) was
 | `reporting/brief.py` | → `brief.html` + `brief.pdf`, the two-page version to send on |
 | `reporting/results.py` | → `results.html`, **the page to open first**: all 10 tables with handles (T0–T9), what each answers, and its sources |
 | `reporting/figures.py` | The figure registry: each chart's drawing function next to its five-part explanation. `gallery.py` and `explained.py` both render it, so neither can drift from the other |
-| `reporting/gallery.py` | → `gallery.html`, **all 16 figures and all 10 tables, titles only** — no ledes, no caption prose, no notes. `titles_only()` strips them and a test fails if any survives |
-| `reporting/explained.py` | → `explained.html`, **the one page that has everything**: the same 16 figures and 10 tables, each with **300+ words** across six parts — what it shows, **the theory behind it**, where the numbers come from, how to read it, what it means, and **what it does not show**. `figures.MIN_WORDS` enforces the floor. Table anchors match `results.html` |
-| `reporting/plots.py` | → `charts.html`, 16 SVG charts (5 decision, 4 review comments, 2 live market, 5 structure), no matplotlib |
+| `reporting/gallery.py` | → `gallery.html`, **all 19 figures and all 10 tables, titles only** — no ledes, no caption prose, no notes. `titles_only()` strips them and a test fails if any survives |
+| `reporting/explained.py` | → `explained.html`, **the one page that has everything**: the same 19 figures and 10 tables, each with **300+ words** across six parts — what it shows, **the theory behind it**, where the numbers come from, how to read it, what it means, and **what it does not show**. `figures.MIN_WORDS` enforces the floor. Table anchors match `results.html` |
+| `reporting/plots.py` | → `charts.html`, 19 SVG charts (5 decision, 4 review comments, 2 live market, 3 business case, 5 structure), no matplotlib |
 | `reporting/surface.py` | → `surface.html`, rotatable 3D fleet surface (Canvas) |
 | `reporting/findings_report.py` | → `findings.html`, the derivations in full |
 | `reporting/article.py` | → `article.html`, **the finished article** |

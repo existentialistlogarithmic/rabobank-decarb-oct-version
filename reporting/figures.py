@@ -149,6 +149,12 @@ SECTIONS: Final[tuple[tuple[str, str], ...]] = (
      "Two figures drawn from data fetched at build time - the EU ETS auction "
      "record. Neither feeds the model. They say whether its assumptions still "
      "hold, and what the gap is worth in euros."),
+    ("The business case",
+     "Three figures that do the half step between the model and the way a "
+     "lender reads a project: the four inputs unfolded into trajectories over "
+     "time, the cash flow they add up to, and what the subsidy is worth in "
+     "each possible commitment year. Everything here is already inside the "
+     "model's equations - this is where it gets drawn."),
     ("The structure underneath",
      "Five figures on how the model behaves rather than what it concludes: "
      "which input moves which output, where a coefficient changes sign, and "
@@ -593,6 +599,139 @@ FIGURES: Final[tuple[Figure, ...]] = (
         "Any entitlement. None of this money is earmarked for steel - the ETS "
         "Directive's spending clause is a non-binding target on national "
         "budgets. No bar here is money this project could draw on.",
+    ),
+    # --------------------------------------------------- the business case
+    Figure(
+        "inputs-over-time", "The business case",
+        "The four inputs over time",
+        "What do capex, opex, subsidies and CO2 actually look like year by year?",
+        plots.chart_inputs_over_time,
+        "The model's four economic inputs are all present but entangled: "
+        "capex sits inside I'(T) behind a learning multiplier, the subsidy "
+        "inside eq (9)'s window, the operating penalty inside the coefficient "
+        "a, and the carbon term inside B(t) net of a free-allocation factor. "
+        "Unfolding them means evaluating each at every year rather than only "
+        "at the optimum, and applying the right denominator to each: capex and "
+        "support are per tonne of ANNUAL CAPACITY, so they multiply by "
+        "nameplate tonnes; the opex penalty and the carbon flow are per tonne "
+        "of PRODUCT per year, so they multiply by nameplate times the load "
+        "factor. Applying one blended factor to all four is precisely the unit "
+        "error the build exists to prevent, so the two conversions are done "
+        "separately. The sign convention is a cash flow's rather than the "
+        "model's: money out is negative, which is why capex points down and "
+        "the subsidy points up against it. Each panel is scaled to its own "
+        "data because the quantities differ by more than an order of "
+        "magnitude, and a shared axis would render the operating line "
+        "invisible next to a two-billion-euro spike.",
+        "Four stacked panels sharing one year axis, each with its own scale, "
+        "in EUR per year for a 2.5 Mt/yr plant. Capex and subsidy are bars "
+        "because they happen in single years; opex and CO2 are lines because "
+        "they run continuously. Two verticals mark the commitment year and "
+        "the payback year.",
+        "``analysis.cashflow.trajectories``, which evaluates "
+        "``cost.switching_cost``, ``cost.support``, "
+        "``primitives.opex_penalty`` and the carbon half of "
+        "``benefit.annual_benefit`` at every year in the horizon.",
+        "Read each panel for its SHAPE, not against the others - the scales "
+        "differ deliberately. Then read the two verticals across all four: "
+        "everything to the left of the commitment year is zero because the "
+        "model's NPV is an increment over carrying on unchanged, and the "
+        "whole case is what happens to the right of it.",
+        "The story a lender expects and the story the model tells are "
+        "different in one specific place. Capex is a single spike rather than "
+        "a construction profile, the subsidy lands with it, and the carbon "
+        "line steepens because the price rises AND free allocation phases out "
+        "at the same time. The second capex bar is the avoided reline.",
+        "The opex shape. The line is FLAT because the model carries one "
+        "constant driven only by the hydrogen price. A real plant's operating "
+        "cost falls as a new asset beds in, rises as it ages and needs "
+        "repair, jumps again at the switch while an unfamiliar technology is "
+        "learned, then settles lower as contracts improve. None of that is "
+        "here - it is hole H10 and review comment 5, open, and drawing a "
+        "plausible curve would invent the numbers this build exists to stop "
+        "inventing.",
+    ),
+    Figure(
+        "cash-flow", "The business case", "The decision as a cash flow",
+        "What does this look like to someone sizing debt against it?",
+        plots.chart_cash_flow,
+        "This is the same object as the NPV curve, re-presented in the form a "
+        "lender uses, and the equivalence is exact rather than approximate: "
+        "discounting this annual series at the model's own 8% real rate "
+        "returns NPV(T*) to the cent, which ``analysis.verify`` checks on "
+        "every build. What changes is not the arithmetic but which features "
+        "are visible. An NPV is a single number that has already integrated "
+        "over time, so it hides the two quantities debt is actually sized "
+        "against: the trough of the cumulative curve, which is the financing "
+        "requirement, and the year it crosses zero, which is the payback "
+        "period. Note that the trough is deeper than the capex alone - the "
+        "cumulative keeps falling for as long as the annual net stays "
+        "negative, so peak exposure is a distinct number from the "
+        "investment. Everything is real rather than nominal, so the payback "
+        "year is in constant purchasing power and is not flattered by "
+        "inflation, and the series is undiscounted: discounting is what turns "
+        "it back into the NPV.",
+        "Two stacked panels on a shared year axis. Above: the net annual cash "
+        "flow in EUR per year, as bars. Below: the running cumulative, in "
+        "EUR, as a line. Verticals mark the commitment year and the year the "
+        "cumulative turns positive.",
+        "``analysis.cashflow.build``, which sums the four trajectories, "
+        "accumulates them, and finds the first year at or after commitment "
+        "where the cumulative is non-negative.",
+        "Read the trough first - that is what has to be financed. Then the "
+        "crossing - that is the payback period, and many lenders have a hard "
+        "limit on it well short of the asset's life. The bars above tell you "
+        "how fast: tall early bars pull the crossing in, and the bars grow "
+        "here because the carbon term grows.",
+        "The case is financeable on this reading, and the payback period is "
+        "far shorter than the asset's life - but the whole of it rests on the "
+        "carbon line, which is the one input the firm does not control. The "
+        "bars are small in the first years and grow: this is a project whose "
+        "returns are back-loaded by policy, not by construction.",
+        "Debt service, tax, working capital and the revenue side of the "
+        "business. This is the INCREMENT from switching, not the plant's cash "
+        "flow: steel revenue, raw materials and everything else that does not "
+        "change between the two routes nets out of it by construction. A real "
+        "sizing exercise starts here and adds the rest.",
+    ),
+    Figure(
+        "subsidy-window", "The business case", "The subsidy window",
+        "What is the support worth if we commit in a different year?",
+        plots.chart_subsidy_window,
+        "Equation (9) makes support an explicit function of the commitment "
+        "year, in three regimes: 0.35 of the maximum before the Investment "
+        "Booster window opens, full weight through 2031, then a linear taper "
+        "to nothing by 2035. That time dependence is the mechanism behind one "
+        "of the model's more counter-intuitive results - the age-19 cliff in "
+        "finding 3 - where committing slightly too early forfeits the whole "
+        "of the Booster and the NPV falls off a step. The pre-window floor is "
+        "not decoration: it represents the Innovation Fund and national aid, "
+        "which exist before the Booster does, and an earlier version of this "
+        "code returned zero there. That bug paid the plant to wait and "
+        "overstated the value of delay, which is the single quantity the "
+        "model exists to measure. This figure is the opportunity map rather "
+        "than a cash flow: it shows what each possible commitment year is "
+        "worth in support alone, holding everything else aside.",
+        "One panel of bars, in EUR for a 2.5 Mt/yr plant, against the "
+        "commitment year rather than against calendar time. Verticals mark "
+        "T*, the end of full weight, and the year support reaches zero.",
+        "``analysis.cashflow.support_window``, which evaluates "
+        "``cost.support`` at every admissible commitment year, multiplied out "
+        "at the reference plant size.",
+        "Read the steps rather than the levels. The jump where the window "
+        "opens is what a year's delay is worth before the decision, and the "
+        "taper is what a year's delay costs after 2031. Then compare against "
+        "T*: the model's chosen year sits inside the full-weight band, which "
+        "is not a coincidence.",
+        "Subsidy timing is a first-order term in this decision, not an "
+        "administrative detail. The step at the window's opening is worth "
+        "hundreds of millions to a plant of this size, which is larger than "
+        "most of the input uncertainties the stress ladder tests.",
+        "Whether any of this money would actually be awarded. This is a "
+        "published rule applied to a hypothetical plant, not an allocation: "
+        "T6 lists the instruments and their legal status, and T9 shows what "
+        "the auctions have actually paid out. The Innovation Fund awards "
+        "competitively against applications, so no plant is entitled to this.",
     ),
     # ------------------------------------------------ the structure underneath
     Figure(

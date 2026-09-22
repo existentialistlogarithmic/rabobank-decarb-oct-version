@@ -31,6 +31,7 @@ from __future__ import annotations
 import html
 import json
 from collections.abc import Iterable, Sequence
+from typing import Final
 
 from analysis.findings import (
     _d_npv_du,
@@ -1228,3 +1229,235 @@ def findings_html() -> str:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+# ====================================================== the business case
+# The review comment these answer: the charts and tables are one step before
+# the visual analysis. Capex, opex, subsidies and CO2 are all inside the
+# model, entangled in its equations, and nobody had drawn them against time.
+# A lender does not read NPV(T); a lender reads money out, money in, year by
+# year, and when the cumulative turns positive.
+#
+# Both use small multiples with a shared year axis rather than one plot with
+# two y-scales. A capex spike of EUR 2.1bn and an opex line of EUR 150m/yr do
+# not share an axis usefully - the small line becomes invisible - and a second
+# y-axis would invite reading a crossing point that means nothing.
+
+#: Height of one panel in a stacked small-multiple, and the gap between them.
+PANEL_H: Final[float] = 96.0
+PANEL_GAP: Final[float] = 36.0
+
+
+def money(v: float) -> str:
+    """Compact euros for an axis tick: 2.1bn, 500m, 0."""
+    a = abs(v)
+    if a >= 1e9:
+        return f"{v / 1e9:,.1f}bn"
+    if a >= 1e6:
+        return f"{v / 1e6:,.0f}m"
+    return f"{v:,.0f}"
+
+
+def panels(
+    series, years, unit, title, caption, note=None, marks=(),
+) -> str:
+    """Stacked panels sharing one year axis, each with its own scale.
+
+    ``series`` is a sequence of (label, {year: value}, slot, kind) where kind
+    is "bar" or "line". Each panel is scaled to its own data, which is the
+    point: these quantities differ by an order of magnitude and the shape of
+    each is what the reader needs, not their relative height.
+
+    ``marks`` are (year, label) verticals drawn across every panel - the
+    commitment year and the payback year, which is where a lender looks.
+    """
+    n = len(series)
+    height = PAD_T + 10 + n * (PANEL_H + PANEL_GAP) + 34
+    left, right = 92, W - 30
+    y0, y1 = min(years), max(years)
+
+    def X(t: float) -> float:
+        return scale(t, y0, y1, left, right)
+
+    parts: list[str] = []
+    for i, (label, values, slot, kind) in enumerate(series):
+        top = PAD_T + 10 + i * (PANEL_H + PANEL_GAP)
+        bot = top + PANEL_H
+        vals = [values.get(t, 0.0) for t in years]
+        lo, hi = min(min(vals), 0.0), max(max(vals), 0.0)
+        span = (hi - lo) or 1.0
+        lo, hi = lo - span * 0.12, hi + span * 0.12
+
+        def Y(v: float, top: float = top, bot: float = bot,
+              lo: float = lo, hi: float = hi) -> float:
+            return scale(v, lo, hi, bot, top)
+
+        zero = Y(0.0)
+        parts.append(f'<line class="grid" x1="{left}" y1="{zero:.1f}" '
+                     f'x2="{right}" y2="{zero:.1f}"/>')
+        # Ticks at the real extremes, not the padded ones, and never a bare
+        # zero - the zero line is already drawn and labelling it twice is
+        # noise. The panel label sits ABOVE the panel rather than inside it:
+        # at x=0 it collided with the tick labels on the first render.
+        for v in (min(vals), max(vals)):
+            if abs(v) > span * 0.02:
+                parts.append(f'<text class="tick ar" x="{left - 8}" '
+                             f'y="{Y(v) + 4:.1f}">{esc(money(v))}</text>')
+        parts.append(f'<text class="cat al" x="0" y="{top - 7:.1f}">'
+                     f"{esc(label)}</text>")
+
+        if kind == "bar":
+            width = max((right - left) / max(len(years), 1) * 0.66, 1.6)
+            for t in years:
+                v = values.get(t, 0.0)
+                if abs(v) < span * 1e-6:
+                    continue
+                y_top = Y(max(v, 0.0))
+                parts.append(
+                    f'<rect class="br s{slot}" x="{X(t) - width / 2:.1f}" '
+                    f'y="{y_top:.1f}" width="{width:.1f}" '
+                    f'height="{abs(Y(v) - zero):.1f}" rx="2">'
+                    f"<title>{esc(f'{t}: {money(v)}')}</title></rect>")
+        else:
+            pts = " ".join(f"{X(t):.1f},{Y(values.get(t, 0.0)):.1f}" for t in years)
+            parts.append(f'<path class="ln s{slot}" d="M{pts.replace(" ", " L")}"/>')
+
+        for year, _lab in marks:
+            if y0 <= year <= y1:
+                parts.append(f'<line class="mark" x1="{X(year):.1f}" '
+                             f'y1="{top:.1f}" x2="{X(year):.1f}" y2="{bot:.1f}"/>')
+
+    for year, lab in marks:
+        if y0 <= year <= y1:
+            parts.append(f'<text class="val am" x="{X(year):.1f}" '
+                         f'y="{PAD_T - 8:.1f}">{esc(lab)}</text>')
+    for t in [y for y in years if y % 4 == 0]:
+        parts.append(f'<text class="tick am" x="{X(t):.1f}" '
+                     f'y="{height - 16:.1f}">{t}</text>')
+    parts.append(f'<text class="axt am" x="{(left + right) / 2:.1f}" '
+                 f'y="{height - 2:.1f}">{esc(unit)}</text>')
+
+    return (
+        '<figure class="card">'
+        f"<figcaption><h3>{title}</h3><p>{caption}</p></figcaption>"
+        f'<svg viewBox="0 0 {W} {height:.0f}" role="img" class="plot">'
+        + "".join(parts) + "</svg>"
+        + (f'<p class="note">{note}</p>' if note else "")
+    )
+
+
+def chart_inputs_over_time() -> str:
+    """The four inputs as trajectories, which is where the conversation started."""
+    from analysis import cashflow, units
+
+    cf = cashflow.build()
+    lines = cf.lines
+    slots = {"capex": 1, "subsidy": 2, "opex": 3, "co2": 0}
+    series = [
+        (f"{lines[k].name} (EUR/yr)", lines[k].values, slots[k],
+         "bar" if k in ("capex", "subsidy") else "line")
+        for k in cashflow.COMPONENTS
+    ]
+    marks = [(cf.commit_year, f"commit {cf.commit_year}")]
+    if cf.payback_year:
+        marks.append((cf.payback_year, f"payback {cf.payback_year}"))
+
+    return panels(
+        series, list(cf.years), "year",
+        "The four inputs, as they actually fall over time",
+        "Capex, subsidy, opex and CO2 for a "
+        f"{cf.mt_per_yr:g}&nbsp;Mt/yr plant committing in {cf.commit_year}. "
+        "Each panel has its own scale - a EUR 2.1bn spike and a EUR 150m/yr "
+        "line do not share an axis usefully - and all four share the year axis.",
+        marks=marks,
+        note="CAPEX is a spike, not a profile: the model commits in one year, "
+             "so there is no construction schedule. SUBSIDY is paid against "
+             "capex in that same year and is worth less the later it comes - "
+             "full weight to 2031, then a taper to nothing by 2035. CO2 "
+             "steepens because the carbon price rises AND free allocation "
+             "phases out. OPEX IS FLAT, and that is the model's limitation "
+             "rather than a finding: it carries one constant, where a real "
+             "plant's operating cost rises with age, jumps at the switch while "
+             "the technology is learned, then settles. Hole H10, comment 5.",
+    ) + table(
+        ["Year", "Capex", "Subsidy", "Opex", "CO2 avoided", "Net"],
+        ([t] + [units.eur(lines[k].values[t]) for k in cashflow.COMPONENTS]
+         + [units.eur(cf.net[t])]
+         for t in cf.years if t >= cf.commit_year - 1),
+        "Table view - the four inputs by year",
+    ) + "</figure>"
+
+
+def chart_cash_flow() -> str:
+    """The banker's chart: annual net, cumulative, and when it turns positive."""
+    from analysis import cashflow, units
+
+    cf = cashflow.build()
+    trough_year, trough = cf.peak_exposure()
+    marks = [(cf.commit_year, f"commit {cf.commit_year}")]
+    if cf.payback_year:
+        marks.append((cf.payback_year, f"payback {cf.payback_year}"))
+
+    series = [
+        ("Net cash flow (EUR/yr)", cf.net, 0, "bar"),
+        ("Cumulative (EUR)", cf.cumulative, 2, "line"),
+    ]
+    here, model = cf.npv_check
+    return panels(
+        series, list(cf.years), "year",
+        "The same decision as a cash flow",
+        "Money out and money in, year by year, then accumulated. This is the "
+        "form debt is sized against - not an optimum, but a trough and a date.",
+        marks=marks,
+        note=f"Peak exposure is {units.eur(trough)} in {trough_year}: that is "
+             "the financing requirement, and it is deeper than the capex "
+             "alone because the cumulative keeps falling while the annual net "
+             f"is still negative. Cumulative turns positive in "
+             f"{cf.payback_year or 'no year within the horizon'} - "
+             f"{cf.payback_reason}. Discounting this same series at "
+             f"{Params().common.r:.0%} gives {units.eur(here)}, which is the "
+             f"model's own NPV(T*) of {units.eur(model)} - the two agree by "
+             "construction, and analysis/verify.py checks it. Undiscounted "
+             "and nominal-free: every figure is real EUR.",
+    ) + table(
+        ["Year", "Net (EUR/yr)", "Cumulative (EUR)"],
+        ([t, units.eur(cf.net[t]), units.eur(cf.cumulative[t])]
+         for t in cf.years if t >= cf.commit_year - 1),
+        "Table view - annual and cumulative cash flow",
+    ) + "</figure>"
+
+
+def chart_subsidy_window() -> str:
+    """What the subsidy is worth for each possible commitment year."""
+    from analysis import cashflow, units
+    from timing_model.cost import SUPPORT_END, SUPPORT_FULL_UNTIL
+
+    window = cashflow.support_window()
+    mt = cashflow.REFERENCE_MT
+    absolute = {t: v * mt * 1e6 for t, v in window.items()}
+    cf = cashflow.build()
+
+    return panels(
+        [("Support available (EUR)", absolute, 2, "bar")],
+        list(window), "commitment year",
+        "The subsidy window: what committing in each year is worth",
+        "Not a cash flow - a map of the opportunity. Equation (9) drawn "
+        "directly, showing what the support is worth if the plant commits in "
+        "that year rather than another.",
+        marks=[(cf.commit_year, f"T* {cf.commit_year}"),
+               (SUPPORT_FULL_UNTIL, f"full to {SUPPORT_FULL_UNTIL}"),
+               (SUPPORT_END, f"nothing after {SUPPORT_END}")],
+        note="Three regimes. Before the window opens the Innovation Fund and "
+             "national aid are worth 0.35 of the maximum. Through "
+             f"{SUPPORT_FULL_UNTIL} the Booster pays full weight. Then a "
+             f"linear taper to nothing by {SUPPORT_END}. For a "
+             f"{mt:g}&nbsp;Mt/yr plant the step at the window's opening is "
+             f"{units.eur((max(window.values()) - min(v for v in window.values() if v > 0)) * mt * 1e6)} "
+             "- which is why the timing of a subsidy is not a detail. This is "
+             "a published rule, not an observation: see T6 for the "
+             "instruments and T9 for the money actually paid out.",
+    ) + table(
+        ["Commitment year", "EUR/t capacity", f"For {mt:g} Mt/yr"],
+        ([t, f"{v:,.0f}", units.eur(absolute[t])] for t, v in window.items()),
+        "Table view - support by commitment year",
+    ) + "</figure>"

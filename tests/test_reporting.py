@@ -398,7 +398,11 @@ def test_the_theory_is_not_a_restatement_of_the_caption() -> None:
     machinery = ("beta", "Bellman", "annuity", "derivative", "discount",
                  "Spearman", "efficiency", "denominator", "increment",
                  "boundary", "identity", "allocation", "auction", "option",
-                 "variance", "index", "constant", "correction")
+                 "variance", "index", "constant", "correction",
+                 # Naming the equation IS naming the mechanism; the first
+                 # version of this list left that out and flagged a theory
+                 # whose whole content was eq (9)'s three regimes.
+                 "quation", "regime")
     for f in figures.FIGURES:
         assert any(w in f.theory for w in machinery), f.key
         assert f.theory != f.what_it_means, f.key
@@ -608,3 +612,97 @@ def test_stripping_prose_leaves_the_chart_intact() -> None:
     assert "NPV by commitment year" in bare, "the title was stripped too"
     assert "<p class=\"note\">" not in bare
     assert len(bare) < len(full), "nothing was removed"
+
+
+# --------------------------------------------- the business case as cash flow
+
+def test_the_discounted_cash_flow_equals_the_models_npv() -> None:
+    """The load-bearing claim of the whole cash-flow layer.
+
+    If these disagree, the cash flow is a different object from the model and
+    every figure drawn from it is a separate, unvalidated calculation. They
+    agree by construction - this is the check that construction held.
+    """
+    from analysis import cashflow
+
+    cf = cashflow.build()
+    here, model = cf.npv_check
+    assert here == pytest.approx(model, abs=1.0), (here, model)
+
+
+def test_the_cash_flow_is_zero_before_the_commitment_year() -> None:
+    """NPV is an increment, so nothing happens until the decision does."""
+    from analysis import cashflow
+
+    cf = cashflow.build()
+    for t in cf.years:
+        if t < cf.commit_year:
+            assert cf.net[t] == pytest.approx(0.0), t
+
+
+def test_peak_exposure_is_deeper_than_the_capex_alone() -> None:
+    """The distinction a lender cares about, and the reason the trough is drawn.
+
+    Exposure keeps growing while the annual net is negative, so the financing
+    requirement is not the investment. If this ever stops being true the note
+    on the chart is wrong.
+    """
+    from analysis import cashflow
+
+    cf = cashflow.build()
+    _year, trough = cf.peak_exposure()
+    assert trough < 0.0
+    assert trough <= cf.net[cf.commit_year] + 1.0
+
+
+def test_the_opex_line_is_flat_and_says_so() -> None:
+    """The honest gap, pinned. If the model ever grows a real opex shape this
+    test fails, which is the point: the caveat must not outlive the defect."""
+    from analysis import cashflow
+
+    lines = cashflow.trajectories(2029)
+    opex = lines["opex"]
+    assert opex.modelled is False
+    after = [v for t, v in opex.values.items() if t >= 2029]
+    assert len({round(v, 6) for v in after}) == 1, "the opex line has a shape now"
+    assert "H10" in opex.shape
+
+
+def test_the_subsidy_window_has_its_three_regimes() -> None:
+    """eq (9): a pre-window floor, full weight, then a taper to nothing."""
+    from analysis import cashflow
+    from timing_model.cost import SUPPORT_END, SUPPORT_FULL_UNTIL
+
+    window = cashflow.support_window()
+    assert window[2026] > 0.0, "the pre-window floor is missing again"
+    assert window[SUPPORT_FULL_UNTIL] > window[2026]
+    assert window[SUPPORT_END] == pytest.approx(0.0)
+    assert window[SUPPORT_END - 2] > 0.0, "the taper is not tapering"
+
+
+def test_the_two_denominators_are_applied_separately() -> None:
+    """Capacity for the stocks, product for the flows - never one blend.
+
+    Checked by halving the load factor: the per-product lines must halve and
+    the per-capacity lines must not move at all.
+    """
+    from analysis import cashflow
+    from timing_model.params import Params, ScenarioParams
+
+    p = Params()
+    full = cashflow.trajectories(2029, p, ScenarioParams(u=1.0))
+    half = cashflow.trajectories(2029, p, ScenarioParams(u=0.5))
+    assert half["capex"].values[2029] == pytest.approx(full["capex"].values[2029])
+    assert half["subsidy"].values[2029] == pytest.approx(full["subsidy"].values[2029])
+    assert half["opex"].values[2035] == pytest.approx(full["opex"].values[2035] / 2)
+
+
+def test_the_business_case_figures_are_registered_and_explained() -> None:
+    from reporting import figures
+
+    keys = {f.key for f in figures.FIGURES}
+    for key in ("inputs-over-time", "cash-flow", "subsidy-window"):
+        assert key in keys, key
+        fig = next(f for f in figures.FIGURES if f.key == key)
+        assert fig.words() >= figures.MIN_WORDS
+        assert fig.section == "The business case"

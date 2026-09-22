@@ -94,15 +94,16 @@ analysis/            studies that run on the model without changing it
   regimes.py           the scenario map: which decision each situation implies
   reconcile.py         the model against every published v11 quantity
   market.py            the model against the live market, in euros
+  cashflow.py          the four inputs over TIME, and the cash flow they make
 
 reporting/           generated deliverables — nothing imports these
   sources.py           -> SOURCES.md, the provenance register (audited)
   brief.py             -> brief.html + brief.pdf, the two-page version to send on
   results.py           -> results.html, START HERE: every table, named and explained
   figures.py           the figure registry: every chart + its full explanation
-  gallery.py           -> gallery.html, all 16 figures + 10 tables, titles only
-  explained.py         -> explained.html, the same 26, 300+ words on each
-  plots.py             -> charts.html, 16 SVG charts, no matplotlib
+  gallery.py           -> gallery.html, all 19 figures + 10 tables, titles only
+  explained.py         -> explained.html, the same 29, 300+ words on each
+  plots.py             -> charts.html, 19 SVG charts, no matplotlib
   surface.py           -> surface.html, rotatable 3D fleet surface
   findings_report.py   -> findings.html, the derivations in full
   article.py           -> article.html, the written piece
@@ -136,6 +137,7 @@ python -m analysis.tables       # the finalised tables, one per review comment
 python -m analysis.units        # what the per-tonne figures are in actual money
 python -m analysis.sourced      # the published case against the sourced one
 python -m analysis.market       # assumptions vs the live market, in money
+python -m analysis.cashflow     # capex/opex/subsidy/CO2 by year -> payback
 python -m data.eex              # what the EU ETS auctions cleared at, and paid out
 python -m data.sourced          # what the research pass returned, and how much is linked
 python -m reporting.explorer    # rebuild explorer.html
