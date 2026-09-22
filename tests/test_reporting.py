@@ -21,8 +21,10 @@ from reporting import (
     article,
     brief,
     deck,
+    explained,
     explorer,
     findings_report,
+    gallery,
     plots,
     results,
     sources,
@@ -40,6 +42,8 @@ PAGES = [
     (surface, "surface.html", 10_000, "<canvas"),
     (article, "article.html", 10_000, "<svg"),
     (results, "results.html", 20_000, "<table"),
+    (gallery, "gallery.html", 40_000, "<svg"),
+    (explained, "explained.html", 60_000, "<svg"),
 ]
 
 
@@ -323,3 +327,117 @@ def test_the_brief_quotes_the_live_verification_count() -> None:
 
     n = len(vf.all_checks())
     assert f"{n}/{n} agree" in brief.build()
+
+
+# ------------------------------------------- the figure registry and its pages
+
+def test_the_registry_is_complete() -> None:
+    """A chart with no explanation is the failure both new pages exist to stop.
+
+    `check_complete` is what makes that structural rather than a matter of
+    remembering: it fails on a duplicate key, a chart in plots.py that nobody
+    registered, an answer too short to be an answer, and a question that is not
+    a question.
+    """
+    from reporting import figures
+
+    assert not figures.check_complete()
+
+
+def test_every_chart_in_plots_is_registered() -> None:
+    """The specific drift this prevents: a sixteenth chart and a fifteen-chart page."""
+    from reporting import figures, plots
+
+    charted = {n for n in dir(plots) if n.startswith("chart_")}
+    registered = {f.draw.__name__ for f in figures.FIGURES}
+    assert charted == registered, charted ^ registered
+
+
+def test_every_figure_states_what_it_does_not_show() -> None:
+    """The row that earns the explainer. Enforced, because it is the skippable one."""
+    from reporting import figures
+
+    for f in figures.FIGURES:
+        assert len(f.not_shown.split()) >= 12, f.key
+
+
+def test_the_gallery_holds_every_figure_on_one_page(tmp_path: pathlib.Path) -> None:
+    """The complaint: the graphs were spread across five files."""
+    from reporting import figures, gallery
+
+    assert gallery.main() == 0
+    page = (tmp_path / "gallery.html").read_text(encoding="utf-8")
+    assert page.count("<svg") >= len(figures.FIGURES)
+    for f in figures.FIGURES:
+        assert f'id="{f.key}"' in page, f.key
+        assert f.question in page, f.key
+    for href, _title, _note in gallery.INTERACTIVE:
+        assert href in page, f"{href} is not linked from the gallery"
+
+
+def test_the_explainer_answers_all_five_questions_per_figure(
+    tmp_path: pathlib.Path,
+) -> None:
+    from reporting import explained, figures
+
+    assert explained.main() == 0
+    page = (tmp_path / "explained.html").read_text(encoding="utf-8")
+    for f in figures.FIGURES:
+        assert f'id="{f.key}"' in page, f.key
+        for label, _text in f.explanation():
+            assert label in page, f"{f.key}: {label}"
+    assert page.count("What it does NOT show") == len(figures.FIGURES)
+
+
+def test_the_explainer_leads_with_the_three_denominators(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Units first, because no per-figure caption fixes that misreading later."""
+    from reporting import explained
+
+    page = explained.build()
+    for unit, _what, _note in explained.UNITS:
+        assert unit in page, unit
+    assert "EUR 2.2bn" in page, "the worked conversion for I0 is missing"
+
+
+def test_the_two_pages_cross_link(tmp_path: pathlib.Path) -> None:
+    """Each is useless without the other; the links are how a reader finds out."""
+    from reporting import explained, figures, gallery
+
+    assert "explained.html" in gallery.build()
+    assert "gallery.html" in explained.build()
+    first = figures.FIGURES[0].key
+    assert f"explained.html#{first}" in gallery.build()
+
+
+def test_no_reST_literal_leaks_into_either_page() -> None:
+    """The explanations use the docstring convention; the pages must not show it.
+
+    Written in double backticks so they read in the source as well as in the
+    browser, and rendered to <code> spans. A leaked ``literal`` means the
+    rendering path was skipped somewhere.
+    """
+    import re
+
+    from reporting import explained, gallery
+
+    for name, page in (("gallery", gallery.build()), ("explained", explained.build())):
+        leaked = re.findall(r"``[^`\n]{1,60}``", page)
+        assert not leaked, f"{name}.html shows reST literals: {leaked[:3]}"
+    assert "<code>" in explained.build()
+
+
+def test_the_new_pages_do_not_collide_with_the_chart_stylesheet() -> None:
+    """`.band` is an SVG shading class in plots.CSS at 7% opacity.
+
+    Both pages first used it for their section headings, which rendered them
+    invisible - present, correct, and unreadable. This pins the specific
+    collision rather than the general rule, because the general rule is not
+    checkable and this one bit.
+    """
+    from reporting import explained, gallery, plots
+
+    assert ".band{" in plots.CSS, "the collision this guards moved; re-check both pages"
+    for name, css in (("gallery", gallery.CSS), ("explained", explained.CSS)):
+        assert ".band" not in css, f"{name}.CSS reuses a plots.CSS class name"

@@ -252,6 +252,27 @@ def _tables() -> None:
     assert seen >= 10, "the tables lost their unit-bearing columns"
 
 
+@check("figures: every chart is registered and carries a full explanation")
+def _figures() -> None:
+    """A chart nobody explained, checked without pytest installed.
+
+    The failure this catches is invisible in the rendered page - a figure with
+    no explanation just looks like one somebody forgot to caption - and it is
+    exactly the sort of thing that slips in when a chart is added in a hurry.
+    """
+    from reporting import figures, plots
+
+    problems = figures.check_complete()
+    assert not problems, "; ".join(problems)
+
+    charted = {n for n in dir(plots) if n.startswith("chart_")}
+    registered = {f.draw.__name__ for f in figures.FIGURES}
+    assert charted == registered, f"unregistered: {sorted(charted ^ registered)}"
+
+    for f in figures.FIGURES:
+        assert len(f.not_shown.split()) >= 12, f"{f.key}: no stated boundary"
+
+
 @check("guard: gate failure raises rather than returning a flag")
 def _guard_gate() -> None:
     p, sc = published_base()

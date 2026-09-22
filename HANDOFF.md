@@ -10,7 +10,7 @@ commit on this branch.
 minutes on a cold run that fetches Eurostat, the ECB and the EEX auction
 record). Python 3.11+,
 **zero dependencies**; `pytest` and `ruff` optional. Currently **347 tests +
-41 self-checks** green, ruff clean, `run_all` exits 0.
+42 self-checks** green, ruff clean, `run_all` exits 0.
 
 **Read in this order:** this file → `CALIBRATION.md` (sourced vs fitted) →
 `SOURCES.md` (generated; what each input claims and what would falsify it).
@@ -51,6 +51,9 @@ Built from a v12 specification. The MATLAB reference (`timing_model.m`) was
 | `reporting/sources.py` | → `SOURCES.md`, the provenance register — audited against the code on every run |
 | `reporting/brief.py` | → `brief.html` + `brief.pdf`, the two-page version to send on |
 | `reporting/results.py` | → `results.html`, **the page to open first**: all 10 tables with handles (T0–T9), what each answers, and its sources |
+| `reporting/figures.py` | The figure registry: each chart's drawing function next to its five-part explanation. `gallery.py` and `explained.py` both render it, so neither can drift from the other |
+| `reporting/gallery.py` | → `gallery.html`, **all 16 figures on one organised page** with a sticky index — the answer to "the graphs are scattered across five files" |
+| `reporting/explained.py` | → `explained.html`, the same 16, each followed by what it shows, where the numbers come from, how to read it, what it means, and **what it does not show** |
 | `reporting/plots.py` | → `charts.html`, 16 SVG charts (5 decision, 4 review comments, 2 live market, 5 structure), no matplotlib |
 | `reporting/surface.py` | → `surface.html`, rotatable 3D fleet surface (Canvas) |
 | `reporting/findings_report.py` | → `findings.html`, the derivations in full |

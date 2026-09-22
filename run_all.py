@@ -231,16 +231,19 @@ def section_documents() -> int:
     banner(10, "CHARTS, PAGES, DECK AND SOURCES")
     from reporting import (
         article,
-    brief,
+        brief,
         deck,
+        explained,
         explorer,
         findings_report,
+        gallery,
         plots,
         results,
         sources,
         surface,
     )
 
+    failures = 0
     plots.main()
     findings_report.main()
     surface.main()
@@ -249,7 +252,11 @@ def section_documents() -> int:
     deck.main()
     results.main()
     brief.main()
-    return sources.main()
+    # These two return non-zero if the figure registry is incomplete - a chart
+    # with no explanation, or one that exists in plots.py and nowhere else.
+    failures += gallery.main()
+    failures += explained.main()
+    return failures + sources.main()
 
 
 def section_selfcheck() -> int:
@@ -329,6 +336,8 @@ def main() -> int:
             print("Live check: no auction observation reachable or cached.")
         print(f"Charts written to {plots_out()}; provenance to SOURCES.md.")
         print("Start at results.html: every table, named and explained.")
+        print("gallery.html is every graph on one page; explained.html is the")
+        print("same graphs with the full explanation under each one.")
         print("brief.pdf is the two-page version, for sending on.")
         print("The sourcing frontier is explorable in explorer.html;")
         print("the 40-minute talk is deck.html.")
