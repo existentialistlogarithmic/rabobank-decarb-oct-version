@@ -510,6 +510,30 @@ def inline(text: str) -> str:
     return re.sub(r"``([^`]+)``", r"<code>\1</code>", plots.esc(text))
 
 
+#: What the tables half of both pages is called, and what it is for. The
+#: figures answer "what does this look like"; the tables answer "what is the
+#: number, and on whose authority" - which is why every one of them carries its
+#: sources and the figures mostly do not.
+TABLE_SECTION: Final[tuple[str, str]] = (
+    "The tables",
+    "Ten tables, one per review comment plus the live market pair. Where a "
+    "figure shows a shape, a table gives the figure and names the document it "
+    "came from. Every column states its unit in its own header, and a cell the "
+    "research pass looked for and did not find is left marked MISSING rather "
+    "than filled with something plausible.",
+)
+
+
+def table_anchor(name: str) -> str:
+    """A table handle as a URL anchor. Matches the one ``results.html`` uses.
+
+    Shared so a link into any of the three pages lands in the same place -
+    ``results.html#T3-capex`` and ``explained.html#T3-capex`` are the same
+    table, and a reader following one should not have to guess at the other.
+    """
+    return name.replace(" ", "-")
+
+
 def by_section() -> list[tuple[str, str, list[Figure]]]:
     """Figures grouped in :data:`SECTIONS` order: (name, lede, figures)."""
     out = []

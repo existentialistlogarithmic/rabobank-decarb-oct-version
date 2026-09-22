@@ -1,16 +1,21 @@
-"""gallery.py -> gallery.html: every figure in the build, on one page.
+"""gallery.py -> gallery.html: every figure AND every table, on one page.
 
-The complaint this answers: the graphs were scattered. Five generated pages
-each carried some of them - ``charts.html`` had sixteen, ``article.html`` drew
-its own, the deck had more, ``surface.html`` and ``explorer.html`` were
-interactive and separate - so "show me the graphs" meant opening five files and
-knowing in advance which one held the figure you wanted.
+The complaint this answers came in two parts. First the graphs were scattered -
+``charts.html`` had sixteen, ``article.html`` drew its own, the deck had more,
+and ``surface.html`` and ``explorer.html`` were separate again, so "show me the
+graphs" meant opening five files and knowing which. Then, once they were
+gathered: *which one has all the graphs AND tables?* Nothing did. The gallery
+and the explainer were figures only and ``results.html`` was tables only.
 
-This is the contact sheet: all sixteen figures, in argument order, with a
-sticky contents list that follows you down the page and a link to each one's
-full explanation in ``explained.html``. Nothing here is new work - it renders
-``figures.FIGURES``, the same registry the explainer uses, so the two pages
-cannot drift apart.
+So this page carries both: all sixteen figures in argument order, then all ten
+tables, with a sticky contents rail over the lot and a link from every item to
+its full explanation in ``explained.html``. Nothing here is new work - the
+figures come from ``figures.FIGURES`` and the tables from
+``analysis.tables.all_tables()``, rendered with ``results.table_html``, so no
+content lives only on this page and none of the three can drift apart.
+
+Anchors match ``results.html`` exactly, so ``gallery.html#T3-capex`` and
+``results.html#T3-capex`` are the same table.
 
 The two interactive figures stay where they are and are linked rather than
 inlined: the 3D fleet surface needs a canvas and a drag handler, and the
@@ -22,7 +27,8 @@ from __future__ import annotations
 
 from typing import Final
 
-from reporting import figures, plots
+from analysis import tables
+from reporting import figures, plots, results
 from timing_model.results import outputs
 from timing_model.scenarios import published_base
 
@@ -66,6 +72,22 @@ border-radius:10px;background:var(--card);text-decoration:none;color:inherit}
 .links a.tile:hover{border-color:var(--acc)}
 .links b{display:block;color:var(--acc);margin:0 0 5px}
 .links span{color:var(--mut);font-size:14px}
+.tbl{padding:16px 18px 12px;background:var(--card);border:1px solid var(--line);
+border-radius:14px;margin:0 0 22px}
+.tbl .tag{display:inline-block;font:600 11px/1 ui-monospace,monospace;
+color:var(--mut);border:1px solid var(--line);border-radius:4px;
+padding:3px 7px;margin:0 0 12px}
+.scroll{overflow-x:auto;margin:0 -2px}
+.tbl table{border-collapse:collapse;width:100%;font-size:13.5px}
+.tbl th,.tbl td{padding:6px 10px;text-align:right;white-space:nowrap;
+border-bottom:1px solid var(--line)}
+.tbl th:first-child,.tbl td:first-child{text-align:left}
+.tbl thead th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+color:var(--mut);font-weight:600}
+.tbl thead tr.u th{text-transform:none;letter-spacing:0;font-weight:400;
+font-style:italic;border-bottom:2px solid var(--line)}
+.tbl tbody tr:hover{background:rgba(127,127,127,.07)}
+.tbl td.miss{color:var(--warn);font-weight:600}
 @media (max-width:700px){.toc-rail ol{gap:5px 12px;font-size:12px}}
 """
 
@@ -79,6 +101,12 @@ def contents() -> str:
             f'<li><a href="#{plots.esc(f.key)}">{plots.esc(f.title)}</a></li>'
             for f in figs
         )
+    items.append(f'<li class="sec">{plots.esc(figures.TABLE_SECTION[0])}</li>')
+    items.extend(
+        f'<li><a href="#{plots.esc(figures.table_anchor(t.name))}">'
+        f"{plots.esc(t.name)}</a></li>"
+        for t in tables.all_tables()
+    )
     return f'<nav class="toc-rail"><ol>{"".join(items)}</ol></nav>'
 
 
@@ -98,6 +126,20 @@ def build() -> str:
                 + f.draw()
             )
 
+    name, lede = figures.TABLE_SECTION
+    body.append(f'<section class="grp"><h2>{plots.esc(name)}</h2>'
+                f"<p>{figures.inline(lede)}</p></section>")
+    for t in tables.all_tables():
+        anchor = figures.table_anchor(t.name)
+        body.append(
+            f'<div class="qline" id="{plots.esc(anchor)}">'
+            f'<span class="q">{plots.esc(t.title)}</span>'
+            f'<a class="why" href="explained.html#{plots.esc(anchor)}">'
+            "full explanation &rarr;</a></div>"
+            f'<div class="card tbl"><div class="tag">{plots.esc(t.name)}</div>'
+            f"{results.table_html(t)}</div>"
+        )
+
     tiles = "".join(
         f'<a class="tile" href="{plots.esc(href)}"><b>{plots.esc(title)}</b>'
         f"<span>{figures.inline(note)}</span></a>"
@@ -114,14 +156,15 @@ def build() -> str:
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        "<title>Investment timing - every figure</title>"
+        "<title>Investment timing - every figure and table</title>"
         f"<style>{plots.CSS}{figures.THEME_BRIDGE}{CSS}</style></head><body><div class=\"wrap\">"
-        "<h1>Every figure, one page</h1>"
-        '<p class="sub">All sixteen charts the model produces, in the order the '
-        "argument runs: the decision, the objections to it, the live check "
-        "against the market, and the structure underneath. Generated by "
-        "<code>gallery.py</code> - no third-party libraries. Each figure links "
-        "to its full explanation in <code>explained.html</code>.</p>"
+        "<h1>Everything on one page</h1>"
+        '<p class="sub">All sixteen charts <b>and all ten tables</b>, in the '
+        "order the argument runs: the decision, the objections to it, the live "
+        "check against the market, the structure underneath, and then the "
+        "tables that carry the figures and their sources. Generated by "
+        "<code>gallery.py</code> - no third-party libraries. Everything here "
+        "links to its full explanation in <code>explained.html</code>.</p>"
         f'<p class="cond">Published base case: T* = <b>{o.t_star}</b> &middot; '
         f"NPV0 <b>{o.npv0:,.0f}</b> EUR/t capacity &middot; trigger "
         f"<b>{o.trigger:,.2f}</b> EUR/tCO2 &middot; crossing "
@@ -147,7 +190,8 @@ def main() -> int:
     page = build()
     with open(OUT, "w", encoding="utf-8") as fh:
         fh.write(page)
-    print(f"Wrote {OUT} ({len(figures.FIGURES)} figures, {len(page) // 1024} KB)")
+    print(f"Wrote {OUT} ({len(figures.FIGURES)} figures + "
+          f"{len(tables.all_tables())} tables, {len(page) // 1024} KB)")
     return 0
 
 

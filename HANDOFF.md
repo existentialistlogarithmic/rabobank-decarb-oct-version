@@ -52,8 +52,8 @@ Built from a v12 specification. The MATLAB reference (`timing_model.m`) was
 | `reporting/brief.py` | → `brief.html` + `brief.pdf`, the two-page version to send on |
 | `reporting/results.py` | → `results.html`, **the page to open first**: all 10 tables with handles (T0–T9), what each answers, and its sources |
 | `reporting/figures.py` | The figure registry: each chart's drawing function next to its five-part explanation. `gallery.py` and `explained.py` both render it, so neither can drift from the other |
-| `reporting/gallery.py` | → `gallery.html`, **all 16 figures on one organised page** with a sticky index — the answer to "the graphs are scattered across five files" |
-| `reporting/explained.py` | → `explained.html`, the same 16, each followed by what it shows, where the numbers come from, how to read it, what it means, and **what it does not show** |
+| `reporting/gallery.py` | → `gallery.html`, **all 16 figures AND all 10 tables on one page** with a sticky index — the answer to "the graphs are scattered" and then to "which one has all the graphs and tables" |
+| `reporting/explained.py` | → `explained.html`, **the one page that has everything**: the same 16 figures and 10 tables, each followed by what it shows, where the numbers come from, how to read it, what it means, and **what it does not show**. Table anchors match `results.html`, so `#T3-capex` resolves on either |
 | `reporting/plots.py` | → `charts.html`, 16 SVG charts (5 decision, 4 review comments, 2 live market, 5 structure), no matplotlib |
 | `reporting/surface.py` | → `surface.html`, rotatable 3D fleet surface (Canvas) |
 | `reporting/findings_report.py` | → `findings.html`, the derivations in full |

@@ -378,6 +378,7 @@ def test_the_gallery_holds_every_figure_on_one_page(tmp_path: pathlib.Path) -> N
 def test_the_explainer_answers_all_five_questions_per_figure(
     tmp_path: pathlib.Path,
 ) -> None:
+    from analysis import tables as tbl
     from reporting import explained, figures
 
     assert explained.main() == 0
@@ -386,7 +387,87 @@ def test_the_explainer_answers_all_five_questions_per_figure(
         assert f'id="{f.key}"' in page, f.key
         for label, _text in f.explanation():
             assert label in page, f"{f.key}: {label}"
-    assert page.count("What it does NOT show") == len(figures.FIGURES)
+    # Every figure AND every table gets the same five parts.
+    assert page.count("What it does NOT show") == (
+        len(figures.FIGURES) + len(tbl.all_tables()))
+
+
+def test_the_explainer_holds_the_tables_as_well_as_the_figures(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The request this answers: one page with both, fully explained.
+
+    Before this, gallery.html and explained.html were graphs only and
+    results.html was tables only - so nothing had both, and the reader had to
+    know which file to open.
+    """
+    from analysis import tables as tbl
+    from reporting import explained, figures
+
+    page = explained.build()
+    for t in tbl.all_tables():
+        anchor = figures.table_anchor(t.name)
+        assert f'id="{anchor}"' in page, t.name
+        # Escaped, not raw: several titles contain an apostrophe.
+        assert plots.esc(t.title) in page, t.name
+    assert page.count('class="card tbl"') == len(tbl.all_tables())
+
+
+def test_a_table_in_the_explainer_carries_its_sources(tmp_path: pathlib.Path) -> None:
+    """A table's "where the numbers come from" is its citation list.
+
+    That is the part a figure mostly cannot supply and a table always can, so
+    it is the reason the tables belong on this page rather than only on
+    results.html.
+    """
+    from analysis import tables as tbl
+    from reporting import explained
+
+    page = explained.build()
+    sourced = [t for t in tbl.all_tables() if t.sources]
+    assert len(sourced) >= 5
+    assert page.count("<h4>Sources</h4>") == len(sourced)
+    assert "https://" in page, "no live source link reached the page"
+
+
+def test_the_table_shape_line_is_derived_not_typed() -> None:
+    """Generated from t.columns, so a renamed column cannot go stale."""
+    from analysis import tables as tbl
+    from reporting import explained
+
+    t = next(x for x in tbl.all_tables() if x.name == "T3 capex")
+    shape = explained.table_shape(t)
+    assert f"{len(t.rows)} rows" in shape
+    for col in t.columns:
+        assert col.name in shape, col.name
+        if col.unit:
+            assert col.unit in shape, col.unit
+
+
+def test_the_gallery_holds_the_tables_too(tmp_path: pathlib.Path) -> None:
+    """"Which one has all the graphs AND tables" - this one, and the explainer."""
+    from analysis import tables as tbl
+    from reporting import figures, gallery
+
+    page = gallery.build()
+    for t in tbl.all_tables():
+        assert f'id="{figures.table_anchor(t.name)}"' in page, t.name
+    assert page.count('class="card tbl"') == len(tbl.all_tables())
+
+
+def test_the_table_anchors_match_the_results_page() -> None:
+    """A link into any of the three pages must land on the same table.
+
+    results.html builds its ids by the same rule; if either side changes it,
+    every cross-page link silently stops resolving - the page still loads, it
+    just ignores the fragment.
+    """
+    from analysis import tables as tbl
+    from reporting import figures, results
+
+    page = results.build()
+    for t in tbl.all_tables():
+        assert f"id='{figures.table_anchor(t.name)}'" in page, t.name
 
 
 def test_the_explainer_leads_with_the_three_denominators(
