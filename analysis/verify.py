@@ -19,11 +19,13 @@ reports; it does not gate - but ``run_all.py`` counts the failures.
 
 from __future__ import annotations
 
+import datetime as dt
+import math
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Final
 
-from analysis import sourced, tables
+from analysis import market, sourced, tables, units
 from data import eurostat
 from data import sourced as src
 from timing_model import cost, option
@@ -221,6 +223,7 @@ def check_opex() -> Iterator[Check]:
 def check_energy() -> Iterator[Check]:
     """T5. Both prices against the cache, and both hydrogen floors re-derived."""
     s = eurostat.refresh(offline=True)
+    carbon, _ = eurostat.observed_carbon_price(offline=True)
     for state, power, gas, ratio, green, grey in tables.table_power_vs_gas().rows:
         p_obs, g_obs = s[f"power_{state}"].value, s[f"gas_{state}"].value
         yield Check("T5 energy", f"{state}: electricity", "EUR/kWh",
@@ -233,8 +236,8 @@ def check_energy() -> Iterator[Check]:
                     green, p_obs * eurostat.KWH_PER_KG_H2, "power x 55 kWh/kg")
         yield Check("T5 energy", f"{state}: grey floor", "EUR/kg", grey,
                     g_obs * eurostat.KWH_GAS_PER_KG_H2
-                    + 76.0 * eurostat.KG_CO2_PER_KG_H2_SMR / 1000.0,
-                    "gas x 41.1 + 76 x 9/1000")
+                    + carbon * eurostat.KG_CO2_PER_KG_H2_SMR / 1000.0,
+                    f"gas x 41.1 + {carbon:.2f} x 9/1000")
 
 
 def check_support_shape() -> Iterator[Check]:
@@ -256,6 +259,87 @@ def check_support_shape() -> Iterator[Check]:
                     f"x {tables.REFERENCE_MT}e6 t/yr")
         yield Check("T7 support", f"stream at {pi:.0f} vs lump", "dimensionless",
                     ratio, derived / p.policy.s_max, "worth / s_max")
+
+
+def check_market() -> Iterator[Check]:
+    """T8 and T9, re-derived from the auction rows rather than from ``market``.
+
+    This is the check that matters most for the live data, because a figure
+    that arrives over the network is the one nobody can eyeball. Every cell is
+    rebuilt by summing the settlement record itself: the volume-weighted mean
+    from the individual clearing prices, the pot from the per-auction revenue,
+    each recipient's share from the workbook's own split columns.
+
+    The auctions are read once per process and cached, so the rows the table
+    printed and the rows this sums are the same rows - a network refresh
+    between the two would otherwise show up as a spurious failure.
+    """
+    from data import eex
+
+    try:
+        rows = eex.auctions()
+    except (ValueError, OSError):
+        return  # no auction record reachable or cached; nothing to re-derive
+
+    window = rows[:eex.MEAN_WINDOW]
+    volume = sum(a.volume_t for a in window)
+    mean = sum(a.price * a.volume_t for a in window) / volume
+    total = sum(a.revenue_eur for a in rows)
+    package = units.absolute(Params().policy.s_max, tables.REFERENCE_MT)
+
+    for what, assumed, observed, ratio, unit, money, _period in tables.table_market().rows:
+        label = str(what)
+        if label.startswith("EUA price"):
+            yield Check("T8 market", "EUA observed", "EUR/tCO2", observed, mean,
+                        f"volume-weighted mean of {len(window)} clearing prices")
+            year, anchor = market.anchor_for()
+            yield Check("T8 market", "EUA assumed", "EUR/tCO2", assumed, anchor,
+                        f"CENTRAL_PATH[{year}]")
+            emissions = tables.REFERENCE_MT * 1e6 * Params().common.eps_inc
+            yield Check("T8 market", "EUA gap -> money", "EUR/yr", money,
+                        (mean - anchor) * emissions,
+                        "(observed - assumed) x 4.75 MtCO2/yr")
+        elif label.startswith("volatility"):
+            # The MLE for GBM on irregular spacing, written out again: mean of
+            # the squared log return divided by the years between auctions.
+            eu = sorted((a for a in rows if a.zone.upper() == "EU"),
+                        key=lambda a: a.date)
+            sq_sum, n = 0.0, 0
+            for earlier, later in zip(eu, eu[1:], strict=False):
+                days = (dt.date.fromisoformat(later.date)
+                        - dt.date.fromisoformat(earlier.date)).days
+                if days <= 0:
+                    continue
+                sq_sum += (math.log(later.price / earlier.price) ** 2
+                           / (days / eex.DAYS_PER_YEAR))
+                n += 1
+            yield Check("T8 market", "sigma observed", "1/yr^0.5", observed,
+                        math.sqrt(sq_sum / n),
+                        f"MLE over {n} EU auction gaps")
+            yield Check("T8 market", "sigma assumed", "1/yr^0.5", assumed,
+                        Params().common.sigma, "CommonParams.sigma")
+        elif label.startswith("Innovation Fund"):
+            fund = sum(a.shares.get("IF", 0.0) for a in rows)
+            yield Check("T8 market", "Innovation Fund receipts", "EUR",
+                        observed, fund, "sum of the workbook's IF column")
+            yield Check("T8 market", "one plant's support", "EUR", assumed,
+                        package, "s_max x 2.5e6 t/yr")
+            yield Check("T8 market", "fund / plant", "dimensionless", ratio,
+                        fund / package, "receipts / package")
+        del unit  # stated in the table header; the checks carry their own
+
+    for code, received, share, plants, _kind in tables.table_pot().rows:
+        amount = (total if str(code).startswith("ALL")
+                  else sum(a.shares.get(str(code), 0.0) for a in rows))
+        yield Check("T9 pot", f"{code}: received", "EUR", received, amount,
+                    "sum of the per-auction revenue")
+        yield Check("T9 pot", f"{code}: plants", "dimensionless", plants,
+                    amount / package, f"received / {units.eur(package)}")
+        if not str(code).startswith("ALL"):
+            # The cell prints a percent, so the comparison is on the percent
+            # scale: half-ULP of "10.5%" is 0.05 points, not 0.0005.
+            yield Check("T9 pot", f"{code}: share", "% of all auctions", share,
+                        amount / total * 100.0, "received / all auctions x 100")
 
 
 # ------------------------------------------------------- the gate, re-derived
@@ -295,6 +379,7 @@ def all_checks() -> list[Check]:
     return [
         *check_gate(), *check_units_table(), *check_npv_cases(),
         *check_capex(), *check_opex(), *check_energy(), *check_support_shape(),
+        *check_market(),
     ]
 
 

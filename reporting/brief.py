@@ -26,7 +26,7 @@ import pathlib
 import subprocess
 from typing import Final
 
-from analysis import sourced, tables, units, verify
+from analysis import market, sourced, tables, units, verify
 from timing_model.params import Params
 from timing_model.results import outputs
 from timing_model.scenarios import published_base
@@ -40,31 +40,31 @@ def esc(s: object) -> str:
 
 
 CSS: Final[str] = """
-@page { size: A4; margin: 16mm 15mm 14mm; }
+@page { size: A4; margin: 13mm 13mm 11mm; }
 *{box-sizing:border-box}
 body{margin:0;color:#1a1a19;background:#fff;
-font:10.5pt/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-h1{font-size:19pt;line-height:1.15;margin:0 0 2mm}
+font:9.8pt/1.42 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+h1{font-size:17.5pt;line-height:1.12;margin:0 0 1.5mm}
 .sub{color:#5f5f5c;font-size:9.5pt;margin:0 0 5mm}
-h2{font-size:12pt;margin:6mm 0 2mm;padding-bottom:1mm;
+h2{font-size:11pt;margin:4.2mm 0 1.6mm;padding-bottom:0.8mm;
 border-bottom:1.5px solid #1a1a19}
-p{margin:0 0 2.5mm}
-.hero{display:flex;gap:6mm;margin:0 0 4mm;padding:3.5mm 4mm;
+p{margin:0 0 2mm}
+.hero{display:flex;gap:5mm;margin:0 0 3mm;padding:2.8mm 3.2mm;
 background:#f4f4f1;border-radius:2mm}
 .hero div{flex:1}
-.hero b{display:block;font-size:15pt;line-height:1.1}
+.hero b{display:block;font-size:13.5pt;line-height:1.08}
 .hero span{font-size:8pt;color:#5f5f5c;display:block;margin-top:0.5mm}
-table{border-collapse:collapse;width:100%;font-size:9pt;margin:0 0 2mm}
-th,td{padding:1.6mm 2mm;text-align:right;border-bottom:0.5px solid #d8d8d4}
+table{border-collapse:collapse;width:100%;font-size:8.3pt;margin:0 0 1.5mm}
+th,td{padding:1.1mm 1.8mm;text-align:right;border-bottom:0.5px solid #d8d8d4}
 th:first-child,td:first-child{text-align:left}
 thead th{font-size:7.5pt;text-transform:uppercase;letter-spacing:.04em;
 color:#5f5f5c;border-bottom:1px solid #1a1a19}
 thead tr.u th{text-transform:none;letter-spacing:0;font-style:italic;
 font-weight:400;border-bottom:1px solid #1a1a19}
 tbody tr.hi{background:#f4f4f1;font-weight:600}
-.note{font-size:8.5pt;color:#5f5f5c;margin:0 0 3mm}
+.note{font-size:8pt;color:#5f5f5c;margin:0 0 2.2mm}
 ul{margin:0 0 3mm;padding-left:5mm}
-li{margin:0 0 1.2mm}
+li{margin:0 0 0.9mm}
 .tag{display:inline-block;font:600 7.5pt/1 ui-monospace,monospace;
 border:0.5px solid #5f5f5c;border-radius:1mm;padding:1mm 1.5mm;color:#5f5f5c}
 .warn{color:#9c4316;font-weight:600}
@@ -118,6 +118,23 @@ def build() -> str:
     got, total = __import__("data.sourced", fromlist=["x"]).link_coverage()
     today = datetime.date.today().isoformat()
     i0_money = units.eur(units.absolute(Params().sector.I0, mt))
+
+    # The live half. Read once so the prose and the arithmetic below cannot
+    # disagree about which auction session they are describing.
+    gap = market.carbon_gap(offline=True)
+    carbon_year, carbon_assumed = market.anchor_for()
+    carbon_observed, carbon_period = gap.observed, gap.period
+    carbon_money = gap.money or 0.0
+    emissions_mt = market.annual_emissions(mt) / 1e6
+    entries = dict((code, amount) for code, amount, _ in market.pot(offline=True))
+    pot_total = entries.get("ALL auctions", 0.0)
+    pot_fund = entries.get("IF", 0.0)
+    package = units.absolute(Params().policy.s_max, mt)
+    vol_rung, _vol_sigma, at_rung = market.volatility_implies(offline=True)
+    vol_observed = market.volatility_gap(offline=True).observed
+    vol_trigger, vol_crossing = at_rung.trigger, at_rung.crossing_year
+    base_trigger, base_crossing = o.trigger, o.crossing_year
+    n_tests, _ = __import__('reporting.deck', fromlist=['x']).source_counts()
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <title>Steel decarbonisation timing &mdash; brief</title>
 <style>{CSS}</style></head><body>
@@ -164,6 +181,32 @@ retrofit and a scheme ArcelorMittal cancelled, forfeiting &euro;1.3bn of
 approved German aid.</p>
 
 <div class="pb"></div>
+<h2>Does it still hold today? <span class="tag">T8</span></h2>
+<p>Three inputs can be checked against a live primary source &mdash; the
+EU&nbsp;ETS auctions, which publish every clearing price and the money each
+member state and fund receives, the day it clears ({esc(carbon_period)}).</p>
+<ul>
+<li><b>Carbon price.</b> Anchored at &euro;{carbon_assumed:,.0f}/tCO&#8322; for
+{esc(carbon_year)}; the auctions cleared <b>&euro;{carbon_observed:,.2f}</b>.
+On {emissions_mt:.2f}&nbsp;MtCO&#8322; a year that is
+<b>{esc(units.eur(abs(carbon_money)))} a year</b> on the plant&rsquo;s carbon
+bill &mdash; waiting is dearer, not cheaper.</li>
+<li><b class="warn">Volatility &mdash; the one that moves the answer.</b>
+&sigma; is assumed {Params().common.sigma:.2f}; realised is
+<b>{vol_observed:.2f}</b>, the specification&rsquo;s own
+&lsquo;{esc(vol_rung)}&rsquo; rung. There the trigger is
+&euro;{vol_trigger:,.0f} not &euro;{base_trigger:,.0f}, and the path crosses it
+in <b>{esc(vol_crossing)}</b> not {esc(base_crossing)} &mdash;
+{vol_crossing - base_crossing} more years of waiting.</li>
+<li><b>The pot.</b> Auctions paid out <b>{esc(units.eur(pot_total))}</b> this
+year; the Innovation Fund, which <code>s_max</code> is modelled on, got
+{esc(units.eur(pot_fund))}. The model hands <em>one</em> plant
+{esc(units.eur(package))} &mdash; <b>{package / pot_fund:.0%}</b> of that fund,
+and none of it earmarked for steel.</li>
+</ul>
+<p class="note">None of this recalibrates anything: <code>Params()</code> still
+carries the published base case. A year of auctions is not a path to 2050.</p>
+
 <h2>What is checked</h2>
 <ul>
 <li><b>The validation gate.</b> Nine published quantities reproduce to 1e-3
@@ -175,7 +218,7 @@ raw CSV cell or cached statistic &mdash; not from the function that prints them
 <li><b>The specification, quantity by quantity.</b> 54 of 62 published figures
 reproduce; all eight differences are NPV <em>levels</em>, high by 1.1&ndash;8.0%.
 No year, trigger or crossing year differs.</li>
-<li>290 tests and 41 standard-library self-checks, run on every build.</li>
+<li>{n_tests} tests and 41 standard-library self-checks, run on every build.</li>
 </ul>
 
 <h2>What is not</h2>

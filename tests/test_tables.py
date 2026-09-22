@@ -22,7 +22,7 @@ def test_every_money_or_quantity_column_declares_its_unit() -> None:
         "project", "instrument", "status", "source", "shape", "outcome",
         "quantity", "unit", "comment", "what exists now", "blocked by", "#",
         "state", "cost line", "basis", "legal", "years", "premium",
-        "case",
+        "case", "recipient", "what it is",
     }
     for table in tables.all_tables():
         for col in table.columns:

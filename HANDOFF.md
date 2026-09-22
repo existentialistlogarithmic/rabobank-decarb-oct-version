@@ -6,8 +6,10 @@ commit on this branch.
 **Repo:** `existentialistlogarithmic/rabobank-decarbonization-final-version`
 **Branch:** `main` (single branch; history was flattened to one root commit)
 
-**Run everything:** `python run_all.py` (13 sections, ~40 s). Python 3.11+,
-**zero dependencies**; `pytest` and `ruff` optional. Currently **318 tests +
+**Run everything:** `python run_all.py` (13 sections; ~40 s offline, a few
+minutes on a cold run that fetches Eurostat, the ECB and the EEX auction
+record). Python 3.11+,
+**zero dependencies**; `pytest` and `ruff` optional. Currently **347 tests +
 41 self-checks** green, ruff clean, `run_all` exits 0.
 
 **Read in this order:** this file → `CALIBRATION.md` (sourced vs fitted) →
@@ -34,20 +36,22 @@ Built from a v12 specification. The MATLAB reference (`timing_model.m`) was
 | `data/observed.py` | Shared series type and the offline caching contract |
 | `data/eurostat.py` | Energy prices, producer prices, capacity utilisation → `data/eurostat_cache.json` |
 | `data/ecb.py` | Yield curve and policy rate → `data/ecb_cache.json` |
+| `data/eex.py` | The EU ETS auction record → `data/eex_cache.json`: the clearing price (the model's `p`, observed) and the revenue every member state and EU fund received |
 | `analysis/findings.py` | Derives the five structural findings + their evidence |
 | `analysis/grounding.py` | Model inputs vs observed data, one verdict per row |
 | `analysis/sourcing.py` | The hydrogen sourcing frontier: `p_H2` and `eps_cln` as one input |
 | `analysis/reconcile.py` | The model against every quantity the v11 specification published |
+| `analysis/market.py` | The model against the **live** market, in euros: the carbon price vs the path anchor, and `s_max` vs the Innovation Fund's actual receipts. Reports the gap; recalibrates nothing |
 | `analysis/units.py` | The denominator, restored: EUR/t capacity → money for a real plant |
-| `analysis/verify.py` | Re-derives every table cell from its raw source; 114 checks, half-ULP tolerance |
+| `analysis/verify.py` | Re-derives every table cell from its raw source; 145 checks, half-ULP tolerance |
 | `analysis/tables.py` | The finalised tables, one per review comment, units in every header |
 | `analysis/sourced.py` | The published base case against the Sept-2026 sourced recalibration |
 | `data/sourced.py` + `data/sourced/*.csv` | The research pass's parameters, projects, H2 prices, support shapes |
 | `docs/research-*.md` | That pass's findings, sources with tiers, and its documented holes |
 | `reporting/sources.py` | → `SOURCES.md`, the provenance register — audited against the code on every run |
 | `reporting/brief.py` | → `brief.html` + `brief.pdf`, the two-page version to send on |
-| `reporting/results.py` | → `results.html`, **the page to open first**: all 8 tables with handles (T0–T7), what each answers, and its sources |
-| `reporting/plots.py` | → `charts.html`, 14 SVG charts (5 decision, 4 review comments, 5 structure), no matplotlib |
+| `reporting/results.py` | → `results.html`, **the page to open first**: all 10 tables with handles (T0–T9), what each answers, and its sources |
+| `reporting/plots.py` | → `charts.html`, 16 SVG charts (5 decision, 4 review comments, 2 live market, 5 structure), no matplotlib |
 | `reporting/surface.py` | → `surface.html`, rotatable 3D fleet surface (Canvas) |
 | `reporting/findings_report.py` | → `findings.html`, the derivations in full |
 | `reporting/article.py` | → `article.html`, **the finished article** |
@@ -215,6 +219,57 @@ Nothing here has been promoted into `reporting/sources.py`, and
 someone revisiting the statuses. Of the links that *were* captured, most are
 Tier C trade press.
 
+## 4d. The live market layer (September 2026)
+
+`data/eex.py` reads the EU ETS primary-market auction record from EEX — the
+settlement file for the auctions EEX runs on behalf of the Member States,
+republished the day each one clears. It is the first observation of the model's
+own state variable: `p` in eq (1) is the EUA price, and until this the build
+had none. The earlier note that a carbon price needs a market-data terminal
+was wrong.
+
+`analysis/market.py` puts each observation beside the assumption it bears on
+and states the gap in euros. `T8 market` and `T9 real pot` on `results.html`;
+two charts on `charts.html`; one slide near the end of the deck.
+
+| Input | Assumed | Observed | What it means |
+|---|---|---|---|
+| carbon price, 2026 | €76/tCO₂ | ~€84/tCO₂ (20-auction VWAP) | ≈ €38m a year on the reference plant's carbon bill. Makes waiting *dearer*. |
+| **volatility σ** | **0.20** | **≈0.31** | The specification's own *crisis* rung. Trigger €140 not €110; crossing **2035** not 2030. |
+| Innovation Fund, YTD | €500m for one plant | €2.0bn collected, all sectors | The model hands a single works ~25% of a Europe-wide fund. |
+
+The σ row is the one that matters. Finding 1 makes it the only parameter that
+moves the trigger without moving the break-even, so it is the only live
+observation that changes *when*. The estimator is the GBM MLE on irregular
+spacing over the EU-wide auctions only — the national pools are much smaller
+and clear on their own calendar, and interleaving them would read the spread
+between pools as price movement.
+
+**Nothing here feeds the model.** `Params()` still carries the published base
+case; `test_the_live_layer_changes_no_model_input` asserts it. A year of
+auctions is not a price path to 2050, and `volatility_implies()` deliberately
+snaps to a published ladder rung rather than re-running at an off-ladder σ.
+
+Two failure modes are specific to data arriving over a network, and both are
+tested in `tests/test_market.py`:
+
+1. **A silent column shift.** The report is an Excel workbook and EEX has
+   rearranged it before; reading a volume where a price belongs would produce a
+   number five orders of magnitude wrong that still renders as a number. The
+   parser checks the header row and refuses a moved layout, and the mapping is
+   proved independently — a uniform-price auction has one clearing price, so
+   revenue ÷ volume must equal the price column on every row. It does, on all
+   161.
+2. **A run that depends on the weather.** Same offline rule as Eurostat and the
+   ECB: fetch, cache to `data/eex_cache.json`, never raise on a network
+   failure, and say `cached` in the citation.
+
+One bug this caught, worth knowing about: a cell holding an empty string stores
+an *index* into the workbook's shared string table, so an unresolved blank read
+back as a small integer. Member states that received nothing from a national
+auction were reporting a few euros, and the per-recipient split no longer
+summed to the revenue. The sum test found it.
+
 ## 4c. `newcomments.md` — the five review comments, and where each stands
 
 The file lives on `main`. Status of each, honestly:
@@ -233,10 +288,18 @@ are blocked on documented holes rather than on effort.
 ## 5. OPEN ITEMS — what to work on next
 
 ### Blocked without external data
-1. **EUA price series** → measured σ and µ instead of an assumed 4-rung ladder.
-   σ is the *only* pure threshold lever (finding 1), so this is the highest-value
-   upgrade left. No free feed reachable (Ember API 404, Sandbag no CSV). Needs
-   ICE/EEX/Refinitiv.
+1. ~~**EUA price series** → measured σ instead of an assumed 4-rung ladder.~~
+   **PARTLY CLOSED.** The earlier note here — "no free feed reachable, needs
+   ICE/EEX/Refinitiv" — was wrong. EEX publishes the EU ETS primary-market
+   auction record openly, same day, and `data/eex.py` reads it: 161 cleared
+   auctions for 2026, each with price, volume and the revenue split by member
+   state and fund. From the EU-wide series, **realised σ ≈ 0.31**, against the
+   model's assumed 0.20 — nearest the specification's own *crisis* rung (0.30),
+   which puts the trigger at €140 rather than €110 and moves the crossing from
+   2030 to **2035**. Reported in `T8 market`; the model still runs on 0.20,
+   because one year of auctions is not a path to 2050.
+   *Still open:* µ, which a single year cannot identify, and an implied
+   volatility, which needs an options feed. Both still need a terminal.
 2. **Per-plant reline dates** → turns `surface.html` into a named target list and
    replaces the calibrated 2032 with real dates.
 

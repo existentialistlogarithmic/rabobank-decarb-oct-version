@@ -294,6 +294,29 @@ def test_the_brief_states_what_is_not_checked() -> None:
     assert "unverified" in page
 
 
+def test_the_brief_carries_the_live_market_section() -> None:
+    """The brief is the page most people read, so the live check belongs on it.
+
+    All three rows, with the volatility one named as the consequential one -
+    it is the only live observation that changes the timing answer.
+    """
+    page = brief.build()
+    assert "Does it still hold today?" in page
+    for row in ("Carbon price.", "Volatility", "The pot."):
+        assert row in page, f"the brief dropped the {row} row"
+    assert "not a path to 2050" in page, "the no-recalibration caveat is missing"
+
+
+def test_the_brief_stays_two_pages_of_content() -> None:
+    """Length is the feature, and the live section is what nearly broke it.
+
+    The PDF is printed by Chromium and its page count cannot be asserted
+    without it, so the proxy is the rendered size: the section pushed the HTML
+    past two A4 pages once already and the typography had to be tightened.
+    """
+    assert len(brief.build()) < 11_000
+
+
 def test_the_brief_quotes_the_live_verification_count() -> None:
     """The count must come from running the checks, not from memory."""
     from analysis import verify as vf

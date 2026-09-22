@@ -10,14 +10,14 @@ records what each one *asserts about the world*, and what would falsify it.
 
 | Status | What would falsify a claim carrying it | Count |
 |---|---|---|
-| `gate` | re-derived by the validation gate on every run | 19 |
+| `gate` | re-derived by the validation gate on every run | 20 |
 | `sourced` | a primary, openly reachable publication says this | 21 |
-| `observed` | an official statistic, cached with its period | 5 |
-| `assumed` | a modelling choice with a rationale and no external authority | 15 |
+| `observed` | an official statistic, cached with its period | 7 |
+| `assumed` | a modelling choice with a rationale and no external authority | 17 |
 | `fitted` | solved backwards from a published result; no independent content | 1 |
 | `unverified` | traceable to a source we could not open - a live to-do | 1 |
 
-**Audit:** clean — 62 inputs, every parameter field covered, every quoted value equal to the value the model runs on.
+**Audit:** clean — 67 inputs, every parameter field covered, every quoted value equal to the value the model runs on.
 
 ## `gate` — re-derived by the validation gate on every run
 
@@ -42,6 +42,7 @@ records what each one *asserts about the world*, and what would falsify it.
 | `cost.SUPPORT_END` | 2035 | year | `spec_v11` | v11 eq (9): linear taper from 2031, nothing from 2035. Support ran flat to 2050 before, which made a late commitment look better funded than any published rule allows. |
 | `cost.SUPPORT_PRE_WINDOW` | 0.35 | share of s_max | `spec_v11` | v11 eq (9), first branch: before the Booster window there is still the Innovation Fund and national aid, worth 0.35·s_max = €70/t. The code returned zero here, which put a €200 step at 2028 where the specification works out €130 by hand — overstating the value of waiting, which is the quantity the model exists to measure. |
 | `eurostat.CURRENCY_BASE_YEAR` | 2022 | year | `appendix_a` | The currency year every monetary parameter is tagged with. Producer prices are read at this year and the latest one so a EUR 2022 figure can be restated rather than assumed current. |
+| `eex.DAYS_PER_YEAR` | 365.25 | days | `eex_auction` | Annualisation factor for a volatility estimated on calendar gaps between auctions. Calendar days, not trading days, because the gaps themselves are measured on the calendar. |
 
 ## `sourced` — a primary, openly reachable publication says this
 
@@ -76,6 +77,8 @@ records what each one *asserts about the world*, and what would falsify it.
 | `scenario.deflator` | 0.02 | 1/yr | `eurostat_hicp` | Used only on the real basis. Euro-area HICP came back at 2.1%/yr, within 1pp - the model's 2.0% stands. |
 | `ecb.YIELD_10Y` | YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y | series key | `ecb_rates` | 10-year AAA euro-area government spot rate: the risk-free rate at the model's horizon scale. Deflated by HICP it gives the real risk-free rate the 8% hurdle is a premium over. |
 | `ecb.POLICY_RATE` | FM/B.U2.EUR.4F.KR.MRR_FR.LEV | series key | `ecb_rates` | Main refinancing operations, fixed rate: the policy anchor under the term structure. |
+| `eex.SOURCE` | EEX EU ETS primary market auction report | dataset | `eex_auction` | The EUA price observed rather than assumed. The v11 central path anchors 2026 at EUR 76/tCO2; the auctions cleared a 20-session volume-weighted mean above it, which on the reference plant's 4.75 MtCO2 a year is real money on the carbon bill. Reported in T8, and it recalibrates nothing: a year of auctions is not a path to 2050. |
+| `eex.REPORT_PAGE` | https://www.eex.com/en/market-data/market-data-hub/environmentals/eex-eua-primary-auction-spot-download | URL | `eex_auction` | The page the workbook is published on. eurostat.py used to state that the EUA series needed a market-data terminal; it does not, and this is where it is free. |
 | `eurostat.CAPUTIL_SOURCE` | Eurostat ei_bsin_q_r2 (business survey) | dataset | `eurostat_bs` | Euro-area capacity utilisation, the reference point for the load factor u. Observed 78.2% (2025-Q4) against a model default of 0.85 and a published base row of 1.00. |
 | `eurostat.PPI_SOURCE` | Eurostat sts_inppd_a | dataset | `eurostat_ppi` | Capital goods (MIG_CAG) 107.0 -> 116.0 and basic metals (C24) 124.7 -> 111.0 between 2022 and 2025: plant got dearer while steel got cheaper, in a model whose central error class is confusing per tonne of capacity with per tonne of product. |
 
@@ -96,6 +99,8 @@ records what each one *asserts about the world*, and what would falsify it.
 | `scenario.legacy_mode` | False | flag | `appendix_a` | DIFF FIXTURE ONLY: reproduces the uncorrected model for reconciliation. |
 | `params.SIGMA_REGIMES` | cfd:0.100 crisis:0.300 long_run:0.200 realised:0.450 | 1/yr^0.5 | `appendix_a` | §3.4. A ladder rather than a calibrated sigma(t): each rung is defensible line by line. At 0.450 the trigger is crossed in 2043 - beyond any recognisable investment horizon, which is not 'never'. |
 | `eurostat.KWH_GAS_PER_KG_H2` | 41.1 | kWh gas/kg H2 | `iea_h2` | LHV 33.3 kWh/kg at 81% reforming efficiency, the top of the 79-81% band reported for large-scale SMR - the favourable end, because this builds a floor. The IEA reference covers the route and its emissions, not this efficiency figure: treat the number as a modelling choice. |
+| `eex.MIN_VOL_SAMPLE` | 30 | auctions | `eex_auction` | Fewest EU-wide auctions that will support a volatility estimate. Below this the standard error swamps the estimate; a sigma quoted without one is worse than no sigma at all. |
+| `eex.MEAN_WINDOW` | 20 | auctions | `eex_auction` | Averaging window for the clearing price, about a calendar month of auction days. Long enough that one thin session cannot move it, short enough to still be a statement about now. Volume-weighted, because a national auction is a fraction of the size of an EU one. |
 | `scenarios.SOURCED_RANGES.I0` | 600.0 .. 1400.0 | EUR/t capacity (2022) | `diw2082`, `appendix_a` | Lower bound is DIW's €600/t₂₀₂₂. The upper bound is widened past DIW's €1000 for first-of-a-kind European projects, and is a judgement. |
 | `scenarios.SOURCED_RANGES.a` | -320.0 .. -25.0 | EUR/t product/yr | `appendix_a` | Published band. Note it is NOT the image of the p_H2 band under the endogenous a(·): a(2.50) = -54.5 and a(8.29) = -372.95, so the top of the hydrogen range falls below the bottom of this one. The two §3.3 rows are inconsistent with each other; the model uses a(p_H2). |
 
@@ -179,6 +184,7 @@ model runs offline and the numbers below are the numbers it used.
 - **`eurostat_ppi`** — [sts_inppd_a — producer prices in industry, annual](https://ec.europa.eu/eurostat/databrowser/view/sts_inppd_a/default/table), Eurostat. Euro-area output prices, 2021 = 100. MIG_CAG (capital goods) restates a EUR 2022 capex figure in today's money; C24 (basic metals) does the same for anything per tonne of product. They have moved in opposite directions since 2022.
 - **`eurostat_bs`** — [ei_bsin_q_r2 — business surveys in industry, quarterly](https://ec.europa.eu/eurostat/databrowser/view/ei_bsin_q_r2/default/table), Eurostat. Current level of capacity utilisation, euro area, seasonally adjusted. All-industry rather than steel, so it is a reference point for the load factor, not a measurement of furnace load.
 - **`ecb_rates`** — [ECB Data Portal — yield curve and official interest rates](https://data.ecb.europa.eu/), European Central Bank. Series YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y (10-year AAA euro-area government spot rate) and FM/B.U2.EUR.4F.KR.MRR_FR.LEV (main refinancing rate). Decomposes the 8% hurdle rate into an observed risk-free rate and the premium above it.
+- **`eex_auction`** — [EU ETS primary market auction report — clearing prices, volumes and revenue](https://www.eex.com/en/market-data/market-data-hub/environmentals/eex-eua-primary-auction-spot-download), European Energy Exchange (EEX). The settlement record of the auctions EEX runs for the Member States, republished the day each one clears: the clearing price in EUR/tCO2, the volume, and the revenue split across every member state, the Innovation Fund and the Modernisation Fund. Grounds the model's price variable p, which had no observation at all before, and is the only subsidy figure in the build that is money received rather than money announced.
 - **`iea_h2`** — [Global Hydrogen Review 2024 — GHG emissions of hydrogen and its derivatives](https://www.iea.org/reports/global-hydrogen-review-2024/ghg-emissions-of-hydrogen-and-its-derivatives), International Energy Agency. Unabated hydrogen from natural gas at 10–12 kgCO₂e/kg once upstream methane is counted. Refuses automated clients (403); opens in a browser.
 - **`spec_v11`** — *Investment timing model for industrial decarbonisation — equations, sensitivity results and sources (v11)*, RaboResearch Energy Transition, August 2026 — **not openly reachable**. The specification itself, supplied as PDF. Base-case parameter table, governing equations (1)–(12), the validation table, and the five sensitivity phases. Cited for values read directly off it.
 - **`appendix_a`** — *v12 specification, Appendix A*, internal — **not openly reachable**. The build's numerical reference. Sections cited inline. The MATLAB implementation it describes (timing_model.m) was never available.

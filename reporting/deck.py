@@ -5,9 +5,13 @@ slide carries the equation that produced it and a table saying what each symbol
 means. Nothing is a screenshot and nothing is typed in by hand, so the deck
 cannot quote a number the code no longer produces.
 
-Structure: 20 slides in 8 sections, timed to 39 minutes, which leaves the
-40-minute slot a minute of slack and the questions their own time. Arrow keys or space to advance, ``g`` for the grid, ``n`` for
-speaker notes, ``t`` to start the timer. Printing gives one slide per page.
+Structure: 21 slides in 8 sections, timed to 39.5 minutes, which leaves the
+40-minute slot a little slack and the questions their own time. The live-market
+slide near the end reads the EU ETS auction record at build time, so the deck
+says what the assumptions look like on the morning it is given rather than on
+the day it was written. Arrow keys or space to advance, ``g`` for the grid,
+``n`` for speaker notes, ``t`` to start the timer. Printing gives one slide per
+page.
 
 Equations are MathML, which every current browser renders natively - no
 library, no CDN, consistent with the rest of the build.
@@ -22,7 +26,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from analysis import findings as fnd
-from analysis import grounding, regimes, sourcing, units
+from analysis import grounding, market, regimes, sourcing, units
 from data import ecb, eurostat
 from timing_model import cost, objective, option, primitives
 from timing_model.benefit import carbon_price_path, free_allocation_factor
@@ -837,7 +841,7 @@ announces.</p>
                        W, 340),
                    f"Sweden needs {cross['SE'] * eua26:,.0f} &euro;/tCO2; Italy "
                    f"needs {cross['IT'] * eua26:,.0f}. The model's path starts at "
-                   f"{eua26:.0f} and its trigger is {base.trigger:.0f}.")), 2.0,
+                   f"{eua26:.0f} and its trigger is {base.trigger:.0f}.")), 1.5,
         "I asserted the ratio mechanism first and the test caught it. Worth "
         "saying out loud - it is why the test asserts both halves."))
 
@@ -925,7 +929,7 @@ announces.</p>
                    "<span class='k s3'></span>allowances handed over free &nbsp; "
                    "<span class='k s2'></span>carbon actually paid for. They cross "
                    f"in <b>{cross}</b>: before it the ETS is a transfer, after it "
-                   "a cost.")), 2.5,
+                   "a cost.")), 2.0,
         "This answers the standing comment: plot the no-investment case and show "
         "the free allowances rather than folding them into a coefficient."))
 
@@ -1006,7 +1010,7 @@ announces.</p>
                 "<b>commit at the window</b>, <b>commit now</b>.",
                 "Opex, capex, carbon exposure, subsidy and allocation each map "
                 "onto one of them &mdash; that is the map the note asked for.",
-            ])), 2.5,
+            ])), 2.0,
         "The signs matter: a year of delay costs real money, but a longer free "
         "allocation HELPS the switcher, because with resale on the allowances "
         "are an asset. That is finding 1 arriving from a different direction."))
@@ -1017,6 +1021,66 @@ announces.</p>
     verdicts = {}
     for row in ground:
         verdicts.setdefault(row.verdict, []).append(row.param)
+    # ------------------------------------- the live check, before the close
+    vol_rung, vol_sigma, at_rung = market.volatility_implies(offline=True)
+    gaps = {g.what.split(",")[0]: g for g in market.all_gaps(offline=True)}
+    carbon = gaps.get("EUA price")
+    sigma_gap = gaps.get("volatility sigma")
+    fund = gaps.get("Innovation Fund")
+    slides.append(Slide(
+        "Exposure", "Is any of this still true this morning?",
+        two_col(
+            "<p class='lede'>Three inputs have a live primary source: the "
+            "EU&nbsp;ETS auctions publish every clearing price and the money "
+            "each state and fund receives, the day it clears.</p>"
+            "<table class='grid'><thead><tr><th>input</th><th>assumed</th>"
+            "<th>observed</th></tr></thead><tbody>"
+            + (f"<tr><td>carbon price, {p.common.t0}</td>"
+               f"<td class='val'>&euro;{carbon.assumed:,.0f}</td>"
+               f"<td class='val'>&euro;{carbon.observed:,.2f}</td></tr>"
+               if carbon else "")
+            + (f"<tr><td><b>volatility &sigma;</b></td>"
+               f"<td class='val'>{sigma_gap.assumed:.2f}</td>"
+               f"<td class='val'><b>{sigma_gap.observed:.2f}</b></td></tr>"
+               if sigma_gap else "")
+            + (f"<tr><td>Innovation Fund, YTD</td>"
+               f"<td class='val'>{esc(units.eur(fund.assumed))}</td>"
+               f"<td class='val'>{esc(units.eur(fund.observed))}</td></tr>"
+               if fund else "")
+            + "</tbody></table>"
+            + f"<p class='note'>Source: EEX primary-market auction report, "
+              f"{esc(carbon.period) if carbon else 'cached'}. Read by "
+              f"<code>data/eex.py</code>; every figure in this deck is "
+              f"re-derived from it by <code>analysis/verify.py</code>.</p>",
+            keypoints([
+                f"<b>&sigma; is the row that moves the answer.</b> The model "
+                f"runs on {p.common.sigma:.2f}; a year of auctions gives "
+                f"{sigma_gap.observed:.2f} — the specification's own "
+                f"&lsquo;{esc(vol_rung)}&rsquo; rung ({vol_sigma:.2f}). There "
+                f"the trigger is &euro;{at_rung.trigger:,.0f} instead of "
+                f"&euro;{base.trigger:,.0f}, and the path crosses it in "
+                f"<b>{at_rung.crossing_year}</b>, not {base.crossing_year}."
+                if sigma_gap else "No live volatility on this run.",
+                "<b>The carbon price above its anchor does not offset that.</b> "
+                "It makes the do-nothing bill dearer, which pulls the decision "
+                "in; &sigma; pushes it out, and &sigma; wins because it moves "
+                "the threshold rather than the level.",
+                f"<b>The pot is real but not ours.</b> The auctions paid out "
+                f"{esc(units.eur(next((a for c, a, _ in market.pot(offline=True) if c.startswith('ALL')), 0.0)))} "
+                f"this year. The model hands one plant "
+                f"{esc(units.eur(fund.assumed))} of it — a quarter of what the "
+                f"Innovation Fund collected for every sector in Europe."
+                if fund else "No live fund figure on this run.",
+                "<b>Nothing here was fed back in.</b> Every other number in "
+                "this deck is the published base case. One year of auctions is "
+                "not a price path to 2050.",
+            ])), 2.0,
+        "The honesty slide, and the one they will remember. Lead with sigma: "
+        "it is the only parameter that moves the trigger without moving the "
+        "break-even, so it is the only live observation that changes WHEN. "
+        "If asked why we did not just re-fit: one year, and the ladder is the "
+        "specification's own sensitivity axis."))
+
     slides.append(Slide(
         "Close", "What is checked, and what is not",
         two_col(
@@ -1055,7 +1119,7 @@ announces.</p>
               f"so the 8% hurdle embeds a "
               f"{p.common.r * 100 - ecb.real_risk_free(rates['yield_10y'].value, series['hicp'].value) * 100:.1f}pp "
               f"premium — and adopting the observed rate would trip the model's "
-              f"own r&minus;&mu; guard.</p>"), 1.5,
+              f"own r&minus;&mu; guard.</p>"), 1.0,
         "Credibility slide. Say what is not tested before anyone asks."))
 
     slides.append(Slide(

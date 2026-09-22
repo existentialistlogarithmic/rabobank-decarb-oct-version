@@ -12,7 +12,8 @@ trigger on the carbon price — and reports where the two disagree.
 Python 3.11+. **No third-party dependencies.** `pytest` is optional.
 
 ```
-python run_all.py     # 13 sections, ~40 s, exits non-zero if anything fails
+python run_all.py     # 13 sections, exits non-zero if anything fails
+                      # ~40 s from the caches; longer on a cold fetch
 ```
 
 Read `CALIBRATION.md` before quoting a number, and `SOURCES.md` before calling
@@ -83,6 +84,7 @@ data/                observed inputs — may NOT import the model
   observed.py          shared series type; the fetch-then-cache contract
   eurostat.py          energy prices, producer prices, capacity utilisation
   ecb.py               yield curve and policy rate
+  eex.py               EU ETS auction record: the carbon price, and who got the money
   *_cache.json         committed, so the model runs with no network
 
 analysis/            studies that run on the model without changing it
@@ -91,12 +93,13 @@ analysis/            studies that run on the model without changing it
   sourcing.py          the hydrogen sourcing frontier
   regimes.py           the scenario map: which decision each situation implies
   reconcile.py         the model against every published v11 quantity
+  market.py            the model against the live market, in euros
 
 reporting/           generated deliverables — nothing imports these
   sources.py           -> SOURCES.md, the provenance register (audited)
   brief.py             -> brief.html + brief.pdf, the two-page version to send on
   results.py           -> results.html, START HERE: every table, named and explained
-  plots.py             -> charts.html, 14 SVG charts, no matplotlib
+  plots.py             -> charts.html, 16 SVG charts, no matplotlib
   surface.py           -> surface.html, rotatable 3D fleet surface
   findings_report.py   -> findings.html, the derivations in full
   article.py           -> article.html, the written piece
@@ -116,7 +119,7 @@ assumption, so a test forbids it outright.
 ```
 python run_all.py               # gate, ladders, reconciliation, pages, checks
 python selfcheck.py             # 41 assertions, standard library only
-python -m pytest tests          # 208 test functions, 318 cases after parametrisation
+python -m pytest tests          # 236 test functions, 347 cases after parametrisation
 python -m analysis.sourcing     # the frontier, as a table
 python -m analysis.grounding    # inputs against observed data
 python -m analysis.regimes      # the scenario map and the what-ifs
@@ -127,6 +130,8 @@ python -m reporting.results     # -> results.html, the step-by-step walkthrough
 python -m analysis.tables       # the finalised tables, one per review comment
 python -m analysis.units        # what the per-tonne figures are in actual money
 python -m analysis.sourced      # the published case against the sourced one
+python -m analysis.market       # assumptions vs the live market, in money
+python -m data.eex              # what the EU ETS auctions cleared at, and paid out
 python -m data.sourced          # what the research pass returned, and how much is linked
 python -m reporting.explorer    # rebuild explorer.html
 python -m reporting.deck        # rebuild deck.html
@@ -155,10 +160,10 @@ exists:
 
 | Status | Count | Meaning |
 |---|---|---|
-| `gate` | 18 | re-derived by the validation gate, or read off the specification |
+| `gate` | 20 | re-derived by the validation gate, or read off the specification |
 | `sourced` | 21 | a primary, openly reachable publication says this |
-| `observed` | 5 | an official statistic, cached with its period |
-| `assumed` | 15 | a modelling choice with a rationale and no external authority |
+| `observed` | 7 | an official statistic, cached with its period |
+| `assumed` | 17 | a modelling choice with a rationale and no external authority |
 | `fitted` | 1 | solved backwards from a published result |
 | `unverified` | 1 | rests on a document nobody here has opened |
 
@@ -171,6 +176,28 @@ One `unverified` entry remains: the €8.29/kg Platts assessment, which is
 licensed market data taken from the specification. A test fails if it is ever
 presented as sourced. The COM(2026) allocation schedule used to be the other
 two — it is now read off the specification's own annex.
+
+### The live half
+
+Three sources are fetched rather than quoted, and cached so a run with no
+network produces the same numbers and says it did:
+
+| Source | What it grounds |
+|---|---|
+| Eurostat | industrial electricity and gas, producer prices, HICP, capacity utilisation |
+| ECB | the yield curve and policy rate behind the 8% hurdle |
+| **EEX** | the EU ETS auction record: the carbon price, its realised volatility, and the money every member state and fund received |
+
+The EEX feed is the one that grounds the model's own state variable. `p` in
+eq (1) is the EUA price and the build had no observation of it at all until
+`data/eex.py`; the note here used to say a carbon price needed a market-data
+terminal, which was wrong. `analysis/market.py` puts each observation next to
+the assumption it bears on and states the gap in euros — `T8 market` on
+`results.html`.
+
+**It recalibrates nothing.** `Params()` still carries the published base case
+and every other table is unchanged by what cleared this morning. The gap is
+reported; the parameter is left alone, and a test asserts that.
 
 ### Observed data
 
@@ -342,17 +369,24 @@ headline numbers on the title slide match a fresh `outputs()` call.
 |---|---|
 | validation gate | nine published quantities to 1e-3 relative, before anything prints |
 | feasibility guards | `r − mu`, `u ∈ (0,1]`, monotone allocation, non-negative residual, capex clamp — all raise, never return a flag |
-| 208 test functions | units, layering, findings, provenance, observed data, the specification, generated pages — 318 cases after parametrisation |
+| 236 test functions | units, layering, findings, provenance, observed and live data, the specification, generated pages — 347 cases after parametrisation |
 | 41 self-checks | the same load-bearing claims with no third-party packages |
 | diff harness | 50-case grid, self-diff, and a negative control that must flag exactly two |
+| `analysis/verify.py` | 145 table cells re-derived from the raw CSV cell or cached series, compared at the precision each one displays |
 | `ruff` | clean on `F, E, W, I, UP, B, C4, SIM, RET`; config and exceptions in `pyproject.toml` |
 
-Two of those exist because of specific misses. `tests/test_reporting.py` builds
-every page, because a variable rename once passed the linter and the whole unit
-suite and then broke three pages: code that only runs inside `run_all.py` is
-code that is tested nowhere. And the provenance audit exists because editing
-docs by string replacement silently no-ops on a miss, which cost three README
-sections once.
+Three of those exist because of specific misses. `tests/test_reporting.py`
+builds every page, because a variable rename once passed the linter and the
+whole unit suite and then broke three pages: code that only runs inside
+`run_all.py` is code that is tested nowhere. The provenance audit exists
+because editing docs by string replacement silently no-ops on a miss, which
+cost three README sections once. And `tests/test_market.py` proves the auction
+workbook's columns are the columns the parser thinks they are — by checking
+that revenue ÷ volume equals the price column on every row, which it must,
+because a uniform-price auction has exactly one clearing price. That check
+found a real bug: blank cells in the per-recipient columns store an index into
+the workbook's shared string table, and reading the index as a number gave
+states that received nothing a few euros each.
 
 **What none of this covers.** The model has never been diffed against the
 MATLAB reference, because there is no reference. The harness, the fixture and

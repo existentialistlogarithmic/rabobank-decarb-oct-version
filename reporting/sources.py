@@ -279,6 +279,20 @@ SOURCES: Final[Mapping[str, Source]] = {s.key: s for s in (
         "risk-free rate and the premium above it.",
     ),
     Source(
+        "eex_auction",
+        "EU ETS primary market auction report — clearing prices, volumes and revenue",
+        "European Energy Exchange (EEX)",
+        "https://www.eex.com/en/market-data/market-data-hub/environmentals/"
+        "eex-eua-primary-auction-spot-download",
+        "The settlement record of the auctions EEX runs for the Member States, "
+        "republished the day each one clears: the clearing price in EUR/tCO2, "
+        "the volume, and the revenue split across every member state, the "
+        "Innovation Fund and the Modernisation Fund. Grounds the model's price "
+        "variable p, which had no observation at all before, and is the only "
+        "subsidy figure in the build that is money received rather than "
+        "money announced.",
+    ),
+    Source(
         "iea_h2",
         "Global Hydrogen Review 2024 — GHG emissions of hydrogen and its derivatives",
         "International Energy Agency",
@@ -507,6 +521,33 @@ REGISTER: Final[tuple[Claim, ...]] = (
           "observed", ("ecb_rates",),
           "Main refinancing operations, fixed rate: the policy anchor under the "
           "term structure."),
+    Claim("eex.SOURCE", "EEX EU ETS primary market auction report", "dataset",
+          "observed", ("eex_auction",),
+          "The EUA price observed rather than assumed. The v11 central path "
+          "anchors 2026 at EUR 76/tCO2; the auctions cleared a 20-session "
+          "volume-weighted mean above it, which on the reference plant's 4.75 "
+          "MtCO2 a year is real money on the carbon bill. Reported in T8, and "
+          "it recalibrates nothing: a year of auctions is not a path to 2050."),
+    Claim("eex.MIN_VOL_SAMPLE", 30, "auctions", "assumed", ("eex_auction",),
+          "Fewest EU-wide auctions that will support a volatility estimate. "
+          "Below this the standard error swamps the estimate; a sigma quoted "
+          "without one is worse than no sigma at all."),
+    Claim("eex.DAYS_PER_YEAR", 365.25, "days", "gate", ("eex_auction",),
+          "Annualisation factor for a volatility estimated on calendar gaps "
+          "between auctions. Calendar days, not trading days, because the gaps "
+          "themselves are measured on the calendar."),
+    Claim("eex.MEAN_WINDOW", 20, "auctions", "assumed", ("eex_auction",),
+          "Averaging window for the clearing price, about a calendar month of "
+          "auction days. Long enough that one thin session cannot move it, "
+          "short enough to still be a statement about now. Volume-weighted, "
+          "because a national auction is a fraction of the size of an EU one."),
+    Claim("eex.REPORT_PAGE",
+          "https://www.eex.com/en/market-data/market-data-hub/environmentals/"
+          "eex-eua-primary-auction-spot-download",
+          "URL", "observed", ("eex_auction",),
+          "The page the workbook is published on. eurostat.py used to state "
+          "that the EUA series needed a market-data terminal; it does not, and "
+          "this is where it is free."),
     Claim("eurostat.CAPUTIL_SOURCE", "Eurostat ei_bsin_q_r2 (business survey)",
           "dataset", "observed", ("eurostat_bs",),
           "Euro-area capacity utilisation, the reference point for the load "
@@ -577,6 +618,7 @@ GAPS: Final[tuple[tuple[str, str], ...]] = (
 _PROVIDER_MODULES: Final[Mapping[str, str]] = {
     "eurostat": "data.eurostat",
     "ecb": "data.ecb",
+    "eex": "data.eex",
     "observed": "data.observed",
     "grounding": "analysis.grounding",
     "sourcing": "analysis.sourcing",

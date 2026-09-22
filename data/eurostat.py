@@ -25,9 +25,15 @@ which is what this module does:
 * **Capacity utilisation** - what European industry actually runs at, against
   the model's load factor.
 
-Two inputs still cannot be sourced from open data and need a market-data
-terminal: the EUA price series (which sets the price path, the drift and the
-volatility) and commercial hydrogen price assessments.
+One input still cannot be sourced from open data and needs a market-data
+terminal: commercial hydrogen price assessments.
+
+The EUA price used to be on that list, on the assumption that a carbon price
+means a futures curve behind a paywall. It does not: EEX publishes every
+primary-market auction the EU ETS holds, with the clearing price and the money
+each member state received, the same day it clears. :mod:`eex` reads it, and
+the grey-hydrogen floor below is now charged at the observed price rather than
+at the specification's path anchor.
 """
 
 from __future__ import annotations
@@ -251,9 +257,35 @@ def refresh(offline: bool = False) -> dict[str, Series]:
     return out
 
 
-def main() -> int:
+def observed_carbon_price(offline: bool = False) -> tuple[float, str]:
+    """The EUA price to charge grey hydrogen's emissions at, and where it came from.
+
+    Read from the auction record and from nothing else. The floor this feeds is
+    the argument that EUR 2.60/kg can only be unabated fossil hydrogen, and
+    that argument is stronger the more of it rests on an observation: charging
+    the emissions at an assumed price would make the conclusion partly an
+    artefact of the assumption.
+
+    Deliberately does NOT fall back to the specification's price path. This
+    module sits in ``data``, which answers *what is true* and may not read what
+    the model assumes - see ``test_observed_data_does_not_depend_on_the_model``.
+    With no observation reachable and none cached it returns zero and says so,
+    which understates the grey floor rather than inventing a carbon price; the
+    floor is still a floor, just a lower one, and the caption says which.
+    """
+    from data import eex
+
+    try:
+        series = eex.price_mean(eex.cache_read(eex.CACHE), offline)
+    except (LookupError, ValueError, OSError):
+        return 0.0, "no auction observation reachable; the ETS bill is omitted"
+    tag = "fetched" if series.live else "cached"
+    return series.value, f"observed EUA auction mean, {series.period}, {tag}"
+
+
+def main(offline: bool = False) -> int:
     """Print the observed inputs and the two hydrogen floors they imply."""
-    s = refresh()
+    s = refresh(offline)
     print("Observed inputs\n" + "=" * 72)
     for key in ("hicp", "caputil", "ppi_steel", "ppi_steel_base",
                 "ppi_capex", "ppi_capex_base"):
@@ -261,11 +293,14 @@ def main() -> int:
             print(" ", s[key].cite())
     print()
 
+    carbon, carbon_where = observed_carbon_price(offline)
+
     print("Hydrogen cost floors from energy alone\n" + "=" * 72)
     print(f"  Green: {KWH_PER_KG_H2:.0f} kWh of electricity per kg, system basis.")
     print(f"  Grey:  {KWH_GAS_PER_KG_H2:.1f} kWh of gas per kg at 81% reforming")
-    print(f"         efficiency, plus {KG_CO2_PER_KG_H2_SMR:.0f} kg CO2 at the 2026")
-    print("         EUA price of EUR 76/t.")
+    print(f"         efficiency, plus {KG_CO2_PER_KG_H2_SMR:.0f} kg CO2 at "
+          f"EUR {carbon:.2f}/t")
+    print(f"         ({carbon_where}).")
     print("  Both exclude every capital and delivery cost, so a real price is")
     print("  strictly above whichever floor applies.\n")
 
@@ -277,7 +312,7 @@ def main() -> int:
         if power is None or gas is None:
             continue
         green = hydrogen_power_floor(power.value)
-        grey = hydrogen_gas_floor(gas.value, 76.0)
+        grey = hydrogen_gas_floor(gas.value, carbon)
         rows.append((geo, green, grey, min(green, grey)))
     for geo, green, grey, floor in sorted(rows, key=lambda r: r[3]):
         print(f"  {geo:<4}{green:>14.2f}{grey:>13.2f}{floor:>13.2f}{floor / 2.60:>9.1f}x")

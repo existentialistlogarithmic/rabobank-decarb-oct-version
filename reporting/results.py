@@ -128,6 +128,40 @@ GUIDE: Final[dict[str, dict[str, str]]] = {
                  "strike prices were never disclosed, so these are the "
                  "mechanism's range, not observed awards.",
     },
+    "T8 market": {
+        "look": "You want to know whether the model's assumptions still hold "
+                "today, and what it costs where they do not.",
+        "read": "Each row pairs a published assumption with a live "
+                "observation carrying its own date. The money column converts "
+                "the gap for a 2.5 Mt/yr plant where it converts at all; a "
+                "dash means the quantity is a rate or a ratio and does not.",
+        "means": "Stop at the volatility row. Sigma is the only parameter that "
+                 "moves the trigger without moving the break-even, and one "
+                 "year of auctions puts realised volatility half again above "
+                 "the 0.20 the model runs on - which on the specification's "
+                 "own ladder is five more years before the price path reaches "
+                 "the trigger. The carbon price is above its 2026 anchor, "
+                 "which is tens of millions a year on the plant's carbon bill "
+                 "and makes waiting more expensive, not less. And the model "
+                 "hands one plant a quarter of everything the Innovation Fund "
+                 "has collected this year for every sector in Europe. Nothing "
+                 "here feeds the model: it is a statement about the "
+                 "assumptions, not a replacement for them.",
+    },
+    "T9 real pot": {
+        "look": "You want the subsidy pot as money that exists, not money "
+                "that was announced.",
+        "read": "Receipts from the EU ETS auctions, year to date, by "
+                "recipient. The plants column divides each row by the EUR 500m "
+                "the model hands one reference plant, so the scale is legible "
+                "without doing arithmetic.",
+        "means": "The pot is real and large - EUR 27.5bn so far this year - "
+                 "but it is not a fund this project can draw on. The "
+                 "Directive's spending clause is a target on national budgets. "
+                 "Read against T6: that table lists envelopes governments have "
+                 "announced, this one lists cash the auctions have already "
+                 "paid, and the two are different kinds of object.",
+    },
 }
 
 CSS: Final[str] = """

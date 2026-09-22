@@ -60,6 +60,18 @@ def get_json(url: str) -> dict:
         return json.loads(response.read().decode())
 
 
+def get_bytes(url: str) -> bytes:
+    """GET a binary document. Raises on anything but a clean 200.
+
+    Needed because not every primary source publishes JSON: the EU ETS auction
+    results are an Excel workbook, which is a zip of XML and therefore readable
+    with the standard library alone.
+    """
+    req = urllib.request.Request(url, headers={"User-Agent": "timing-model/1.0"})
+    with urllib.request.urlopen(req, timeout=TIMEOUT) as response:
+        return bytes(response.read())
+
+
 def cache_read(path: pathlib.Path) -> dict:
     """Cached observations, or an empty dict if there is no readable cache."""
     try:

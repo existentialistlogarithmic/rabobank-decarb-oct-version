@@ -29,12 +29,13 @@ base case; these tables report what is known about it and what is not.
 
 from __future__ import annotations
 
+import datetime as _dt
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Final
 
-from analysis import sourced, units
-from data import eurostat
+from analysis import market, sourced, units
+from data import eex, eurostat
 from data import sourced as src
 from timing_model.params import Params
 from timing_model.results import outputs
@@ -157,7 +158,7 @@ class Table:
             out.append("\n  Sources:")
             for ref in self.sources:
                 where = ref.url or f"see SOURCES.md / docs ({ref.tier})"
-                out.append(f"    {ref.key:<16}{where}")
+                out.append(f"    {ref.key:<18}{where}")
         return "\n".join(out)
 
 
@@ -392,12 +393,13 @@ def table_power_vs_gas() -> Table:
     data rather than an assumption.
     """
     series = eurostat.refresh(offline=True)
+    carbon, carbon_where = eurostat.observed_carbon_price(offline=True)
     rows = []
     for geo in eurostat.STEEL_GEOS:
         power = series[f"power_{geo}"].value
         gas = series[f"gas_{geo}"].value
         green = eurostat.hydrogen_power_floor(power)
-        grey = eurostat.hydrogen_gas_floor(gas, 76.0)
+        grey = eurostat.hydrogen_gas_floor(gas, carbon)
         rows.append([geo, f"{power:.4f}", f"{gas:.4f}", f"{power / gas:.1f}x",
                      f"{green:.2f}", f"{grey:.2f}"])
     rows.sort(key=lambda r: float(r[1]))
@@ -410,10 +412,11 @@ def table_power_vs_gas() -> Table:
         rows,
         ["Both price columns EXCLUDE taxes and levies (Eurostat bands IE and I5,"
          "\n  2025-S2). Electricity runs 2-4x gas per kWh in every member state.",
-         "The two hydrogen columns are FLOORS, not prices: green is power x 55"
-         "\n  kWh/kg and nothing else; grey is gas x 41.1 kWh/kg plus its ETS bill"
-         "\n  at EUR 76/tCO2. Electrolyser capex, compression and transport are"
-         "\n  excluded from both, so the real gap is wider than shown.",
+         f"The two hydrogen columns are FLOORS, not prices: green is power x 55"
+         f"\n  kWh/kg and nothing else; grey is gas x 41.1 kWh/kg plus its ETS "
+         f"bill\n  at EUR {carbon:.2f}/tCO2 ({carbon_where}). Electrolyser capex, "
+         f"compression and\n  transport are excluded from both, so the real gap "
+         f"is wider than shown.",
          "WHAT IS MISSING (holes H6, H9): the decomposition into energy / network"
          "\n  charges / taxes / levies / exemptions, and the ETS indirect-cost"
          "\n  compensation each state pays. Those are exactly what 'fiscal"
@@ -511,7 +514,7 @@ def table_comment_status() -> Table:
         ["3", "real cases, diff companies", "DONE",
          "5 named projects, capex + boundary + outcome", "-"],
         ["4", "subsidy pot and its shape", "DONE",
-         "SHAPE column; stream valued against the lump", "H1 strikes"],
+         "SHAPE column; stream vs lump; T9 adds money received", "H1 strikes"],
         ["5", "opex tied to the industry", "OPEN",
          "still one lumped hydrogen-driven constant", "H10"],
     ]
@@ -525,8 +528,156 @@ def table_comment_status() -> Table:
         ["Blockers are IDs in docs/research-open-items.md. H10 is the one that"
          "\n  matters most: a line-by-line BF-BOF vs H2-DRI-EAF opex stack at a"
          "\n  single consistent boundary. Without it, comment 5 cannot be closed"
-         "\n  honestly - only plausibly."],
+         "\n  honestly - only plausibly.",
+         "Comment 4 is closed twice over: T6 lists the envelopes governments"
+         "\n  have ANNOUNCED, T9 lists the money the EU ETS auctions have already"
+         "\n  PAID, by recipient. Those are different kinds of object and the"
+         "\n  second one is the shape the comment was asking about."],
         resolve("S4_COM2026"),
+    )
+
+
+# --------------------------------------------- the live market, in real money
+
+#: The auction record, cited the way the research sources are. Tier A without
+#: qualification: it is not a report about the market, it is the market's own
+#: settlement file, republished the day each auction clears.
+EEX_REF: Final[SourceRef] = SourceRef("EEX_AUCTION", eex.REPORT_PAGE, "Tier A")
+
+#: The workbook itself, so a reader can re-derive every figure in T8 and T9
+#: rather than take the table's word for it.
+EEX_DATA_REF: Final[SourceRef] = SourceRef(
+    "EEX_AUCTION_DATA", eex.REPORT_URL.format(year=_dt.date.today().year), "Tier A")
+
+
+def _volatility_note() -> str:
+    """The sigma row's consequence, stated in years because it has no money.
+
+    Built as a function because it runs the model at a ladder rung, and a note
+    that quoted a crossing year from memory would be exactly the kind of
+    unchecked figure the table exists to stop.
+    """
+    try:
+        rung, rung_sigma, at_rung = market.volatility_implies(offline=True)
+    except (LookupError, KeyError, ValueError, OSError):
+        return ("The volatility row has no observation on this run, so no "
+                "crossing year\n  is quoted for it.")
+    base = outputs(*published_base())
+    return (f"THE SIGMA ROW IS THE ONE THAT MOVES THE ANSWER. A year of auctions "
+            f"puts\n  realised volatility nearest the specification's '{rung}' "
+            f"rung ({rung_sigma:.2f}), not the\n  'long_run' base the model runs "
+            f"on ({Params().common.sigma:.2f}). At that rung the trigger is "
+            f"{at_rung.trigger:,.0f}\n  rather than {base.trigger:,.0f} EUR/tCO2 "
+            f"and the price path crosses it in {at_rung.crossing_year}, not\n  "
+            f"{base.crossing_year} - "
+            f"{at_rung.crossing_year - base.crossing_year} more years of waiting. "
+            "The model still runs on 0.20.")
+
+
+def table_market() -> Table:
+    """What the model assumes against what the market did, in money.
+
+    The table that answers *is this still true today*. Every row pairs a
+    published assumption with an observation carrying its own date, and where
+    the gap converts to money for the reference plant the money is shown - a
+    carbon price EUR 8 above the anchor is abstract; EUR 38m a year on the
+    plant's carbon bill is not.
+
+    Nothing here recalibrates the model. The rows are a statement about the
+    assumptions, not a replacement for them.
+    """
+    rows: list[list[object]] = []
+    for g in market.all_gaps(offline=True):
+        rows.append([
+            g.what,
+            g.show(g.assumed),
+            g.show(g.observed),
+            f"{g.ratio:.2f}x",
+            g.unit,
+            units.eur(g.money) if g.money is not None else "-",
+            g.period + ("" if g.live else " (cached)"),
+        ])
+    return Table(
+        "T8 market",
+        "The model against the market today - assumption, observation, money",
+        [Column("quantity", "", 28, "<"), Column("assumed", "as published", 13),
+         Column("observed", "as measured", 13), Column("ratio", "obs/asm", 8),
+         Column("unit", "", 15, "<"),
+         # Wide enough for "for 2.5 Mt/yr" and for a two-date period carrying
+         # the "(cached)" marker: both overflowed at the first offline render.
+         Column(f"for {REFERENCE_MT:g} Mt/yr", "money", 13),
+         Column("as of", "period", 32, "<")],
+        rows,
+        ["The money column is a FLOW for the carbon row - EUR a year on the "
+         "carbon\n  bill at the incumbent route's 1.9 tCO2/t - and a STOCK for "
+         "the support row.\n  They do not add.",
+         "The support row is a share, not a ratio: the model hands ONE plant "
+         "EUR 500m,\n  which is a quarter of what the Innovation Fund has "
+         "collected all year for\n  every sector in Europe.",
+         _volatility_note(),
+         "The rate row is not an error. A risk-free rate is not a hurdle rate; "
+         "the\n  difference is the risk premium the 8% embeds, and finding 4 "
+         "shows the\n  trigger moves further on r than on anything else.",
+         "EVERY row here is marked (cached), and that is by design. The "
+         "providers\n  refresh once, up front; the pages then render from that "
+         "one snapshot, so\n  two artefacts built minutes apart cannot quote "
+         "different numbers for the\n  same quantity. The period column says "
+         "which snapshot. Run\n  `python -m analysis.market` for a live read.",
+         "Nothing in this table feeds the model. Params() carries the published "
+         "base\n  case and every other table is unchanged by what cleared this "
+         "morning."],
+        [EEX_REF, EEX_DATA_REF, *resolve("S45_EUROSTAT")],
+    )
+
+
+def table_pot() -> Table:
+    """Comment 4 - the subsidy pot, in money that has actually been collected.
+
+    ``T6 subsidy pots`` lists announced envelopes: political statements about
+    money that may be spent. This lists receipts: money the auctions have
+    already paid, by recipient, from the settlement record. The difference
+    between the two tables is the difference between a commitment and a bank
+    balance, and comment 4 asked about the shape of the pot, which only the
+    second one has.
+    """
+    rows: list[list[object]] = []
+    entries = market.pot(offline=True)
+    total = entries[0][1] if entries else 0.0
+    package = units.absolute(Params().policy.s_max, REFERENCE_MT)
+    for code, amount, kind in entries:
+        rows.append([
+            code,
+            units.eur(amount),
+            f"{amount / total:.1%}" if total and code != "ALL auctions" else "-",
+            f"{amount / package:.1f}" if package else "-",
+            kind,
+        ])
+    return Table(
+        "T9 real pot",
+        "Comment 4 - the subsidy pot as money received, not money announced",
+        [Column("recipient", "", 14, "<"), Column("received", "EUR, YTD", 12),
+         Column("share", "of all", 8), Column("plants", "at EUR 500m", 12),
+         Column("what it is", "", 40, "<")],
+        rows,
+        [f"The plants column is that recipient's receipts divided by "
+         f"{units.eur(package)},\n  which is what the model hands ONE reference "
+         f"plant (s_max = EUR 200/t\n  capacity at {REFERENCE_MT:g} Mt/yr). It "
+         "is a unit of scale, not an entitlement.",
+         "YEAR TO DATE, not an annual figure. The window is the first auction "
+         "of\n  the year to the most recent one, which is shorter than a year "
+         "for most\n  of the year.",
+         "NOT earmarked for steel. The ETS Directive asks member states to "
+         "spend\n  auction revenue on climate purposes; that is a target on a "
+         "budget, not a\n  commitment to any plant, and no row here is money "
+         "this project could draw.",
+         "Member states receive both their national auctions and a share of "
+         "the\n  EU-wide ones under the Directive's allocation key. Both halves "
+         "are counted;\n  the Netherlands holds no national auctions at all and "
+         "would otherwise read zero.",
+         "The Innovation Fund is the instrument policy.s_max = EUR 200/t "
+         "capacity is\n  modelled on. See T8 for what one plant's claim is "
+         "against its intake."],
+        [EEX_REF, EEX_DATA_REF],
     )
 
 
@@ -541,6 +692,8 @@ def all_tables() -> list[Table]:
         table_power_vs_gas(),
         table_subsidies(),
         table_support_shape(),
+        table_market(),
+        table_pot(),
     ]
 
 

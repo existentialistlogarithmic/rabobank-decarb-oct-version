@@ -144,17 +144,27 @@ def section_csv() -> None:
 def section_observed() -> None:
     """Observed inputs, and what they say about the model's own assumptions.
 
-    Three parts: the Eurostat series and the two hydrogen floors they imply,
-    the ECB rates behind the discount rate, and the grounding table that puts
-    every checkable input next to the statistic that bears on it.
+    Five parts: the Eurostat series and the two hydrogen floors they imply, the
+    ECB rates behind the discount rate, the EU ETS auction record - which
+    grounds the model's price variable and is the only subsidy figure here that
+    is money received rather than announced - the gaps between the two in
+    euros, and the grounding table that puts every checkable input next to the
+    statistic that bears on it.
     """
-    banner(8, "OBSERVED DATA (Eurostat, ECB)")
-    from analysis import grounding
-    from data import ecb, eurostat
+    banner(8, "OBSERVED DATA (Eurostat, ECB, EEX)")
+    from analysis import grounding, market
+    from data import ecb, eex, eurostat
 
     eurostat.main()
     print()
     ecb.main()
+    print()
+    eex.main()
+    print()
+    # offline: the three providers above have just refreshed their caches, so
+    # this reads that snapshot rather than fetching the same series twice. It
+    # is also the snapshot every page in section 10 renders from.
+    market.main(offline=True)
     print()
     grounding.main(offline=True)
 
@@ -306,6 +316,17 @@ def main() -> int:
         print(f"Base case: T* = {o.t_star}, NPV0 = {o.npv0:.2f} EUR/t capacity "
               f"({_u.eur(_u.absolute(o.npv0, 2.5))} for 2.5 Mt/yr), "
               f"trigger crossed {o.crossing_year}.")
+        from analysis import market as _m
+
+        try:
+            rung, _sig, at_rung = _m.volatility_implies(offline=True)
+            sigma = _m.volatility_gap(offline=True)
+            print(f"Live check: realised sigma {sigma.observed:.2f} against the "
+                  f"assumed {sigma.assumed:.2f} - the '{rung}' rung, where the "
+                  f"crossing is {at_rung.crossing_year}, not {o.crossing_year}. "
+                  f"See T8; the model still runs on {sigma.assumed:.2f}.")
+        except (LookupError, KeyError, ValueError, OSError):
+            print("Live check: no auction observation reachable or cached.")
         print(f"Charts written to {plots_out()}; provenance to SOURCES.md.")
         print("Start at results.html: every table, named and explained.")
         print("brief.pdf is the two-page version, for sending on.")
