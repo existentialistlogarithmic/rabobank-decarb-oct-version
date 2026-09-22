@@ -227,8 +227,15 @@ def table_section(t: tables.Table, number: int) -> str:
             f"table {t.name!r} has no entry in results.GUIDE. A table without "
             "an explanation is what both these pages exist to prevent.")
     notes = " ".join(str(n).replace("\n", " ") for n in t.notes)
+    theory = figures.TABLE_THEORY.get(t.name)
+    if theory is None:
+        raise KeyError(
+            f"table {t.name!r} has no entry in figures.TABLE_THEORY. Every "
+            "table on this page states the mechanism behind it, not only the "
+            "conclusion.")
     rows = (
         ("What am I looking at", table_shape(t)),
+        ("The theory behind it", figures.inline(theory)),
         ("Where the numbers come from", results.sources_html(t.sources)
          or "Computed by the model from its own parameters; no external "
             "citation applies."),

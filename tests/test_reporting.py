@@ -361,6 +361,49 @@ def test_every_figure_states_what_it_does_not_show() -> None:
         assert len(f.not_shown.split()) >= 12, f.key
 
 
+def test_every_figure_carries_a_full_explanation() -> None:
+    """300 words each, because below that an explanation states the conclusion
+    and skips the mechanism - which is the failure these pages exist to fix."""
+    from reporting import figures
+
+    for f in figures.FIGURES:
+        assert f.words() >= figures.MIN_WORDS, f"{f.key}: {f.words()} words"
+
+
+def test_every_table_carries_a_full_explanation() -> None:
+    """The same floor for tables, counted over the typed theory and the notes.
+
+    The derived halves - the column list and the citation block - carry the
+    rest, so only these two are prose somebody had to write.
+    """
+    from analysis import tables as tbl
+    from reporting import figures
+
+    for t in tbl.all_tables():
+        theory = figures.TABLE_THEORY.get(t.name)
+        assert theory is not None, t.name
+        words = len(theory.split()) + sum(len(str(n).split()) for n in t.notes)
+        assert words >= figures.MIN_WORDS, f"{t.name}: {words} words"
+
+
+def test_the_theory_is_not_a_restatement_of_the_caption() -> None:
+    """A theory row that repeated the caption would pass the word count.
+
+    Checked by requiring the mechanism's own vocabulary: each figure's theory
+    has to name something the caption does not - an equation, an estimator, a
+    parameter, an identity.
+    """
+    from reporting import figures
+
+    machinery = ("beta", "Bellman", "annuity", "derivative", "discount",
+                 "Spearman", "efficiency", "denominator", "increment",
+                 "boundary", "identity", "allocation", "auction", "option",
+                 "variance", "index", "constant", "correction")
+    for f in figures.FIGURES:
+        assert any(w in f.theory for w in machinery), f.key
+        assert f.theory != f.what_it_means, f.key
+
+
 def test_the_gallery_holds_every_figure_on_one_page(tmp_path: pathlib.Path) -> None:
     """The complaint: the graphs were spread across five files."""
     from reporting import figures, gallery
@@ -370,7 +413,8 @@ def test_the_gallery_holds_every_figure_on_one_page(tmp_path: pathlib.Path) -> N
     assert page.count("<svg") >= len(figures.FIGURES)
     for f in figures.FIGURES:
         assert f'id="{f.key}"' in page, f.key
-        assert f.question in page, f.key
+        # Titles, not questions: the gallery carries no explanatory words.
+        assert f.title in page, f.key
     for href, _title, _note in gallery.INTERACTIVE:
         assert href in page, f"{href} is not linked from the gallery"
 
@@ -387,8 +431,10 @@ def test_the_explainer_answers_all_five_questions_per_figure(
         assert f'id="{f.key}"' in page, f.key
         for label, _text in f.explanation():
             assert label in page, f"{f.key}: {label}"
-    # Every figure AND every table gets the same five parts.
+    # Every figure AND every table gets the same six parts.
     assert page.count("What it does NOT show") == (
+        len(figures.FIGURES) + len(tbl.all_tables()))
+    assert page.count("The theory behind it") == (
         len(figures.FIGURES) + len(tbl.all_tables()))
 
 
@@ -522,3 +568,43 @@ def test_the_new_pages_do_not_collide_with_the_chart_stylesheet() -> None:
     assert ".band{" in plots.CSS, "the collision this guards moved; re-check both pages"
     for name, css in (("gallery", gallery.CSS), ("explained", explained.CSS)):
         assert ".band" not in css, f"{name}.CSS reuses a plots.CSS class name"
+
+
+def test_the_gallery_carries_titles_and_no_explanatory_prose() -> None:
+    """"Only titles" means the words are gone, not hidden with CSS.
+
+    The three prose shapes that would otherwise ride along: the sentence under
+    each chart's caption heading, the note paragraphs under the plot, and the
+    section ledes. Legends, axis labels and the table views stay - a legend is
+    identity and an axis label is a unit, and neither explains anything.
+    """
+    import re
+
+    from analysis import tables as tbl
+    from reporting import figures, gallery
+
+    page = gallery.build()
+    assert '<p class="note">' not in page, "chart notes survived into the gallery"
+    assert "</h3><p>" not in page, "a caption paragraph survived into the gallery"
+    for _name, lede in figures.SECTIONS:
+        assert lede not in page, "a section lede survived into the gallery"
+    assert figures.TABLE_SECTION[1] not in page
+
+    # But every title is present, and so is every figure and table.
+    assert len(re.findall(r"<figcaption><h3>", page)) == len(figures.FIGURES)
+    for f in figures.FIGURES:
+        assert f.title in page, f.key
+    for t in tbl.all_tables():
+        assert t.name in page, t.name
+
+
+def test_stripping_prose_leaves_the_chart_intact() -> None:
+    """The negative control for titles_only: it must remove words, not marks."""
+    from reporting import gallery, plots
+
+    full = plots.chart_npv()
+    bare = gallery.titles_only(full)
+    assert "<svg" in bare and bare.count("<path") == full.count("<path")
+    assert "NPV by commitment year" in bare, "the title was stripped too"
+    assert "<p class=\"note\">" not in bare
+    assert len(bare) < len(full), "nothing was removed"

@@ -100,8 +100,8 @@ reporting/           generated deliverables — nothing imports these
   brief.py             -> brief.html + brief.pdf, the two-page version to send on
   results.py           -> results.html, START HERE: every table, named and explained
   figures.py           the figure registry: every chart + its full explanation
-  gallery.py           -> gallery.html, ALL 16 figures + ALL 10 tables, one page
-  explained.py         -> explained.html, the same 26, each explained in full
+  gallery.py           -> gallery.html, all 16 figures + 10 tables, titles only
+  explained.py         -> explained.html, the same 26, 300+ words on each
   plots.py             -> charts.html, 16 SVG charts, no matplotlib
   surface.py           -> surface.html, rotatable 3D fleet surface
   findings_report.py   -> findings.html, the derivations in full
@@ -122,7 +122,7 @@ assumption, so a test forbids it outright.
 ```
 python run_all.py               # gate, ladders, reconciliation, pages, checks
 python selfcheck.py             # 42 assertions, standard library only
-python -m pytest tests          # 236 test functions, 347 cases after parametrisation
+python -m pytest tests          # 256 test functions, 368 cases after parametrisation
 python -m analysis.sourcing     # the frontier, as a table
 python -m analysis.grounding    # inputs against observed data
 python -m analysis.regimes      # the scenario map and the what-ifs
@@ -130,8 +130,8 @@ python -m analysis.reconcile    # the model against the v11 specification
 python -m reporting.brief       # -> brief.pdf, two pages, for sending on
 python -m analysis.verify       # re-derive every table cell from its raw source
 python -m reporting.results     # -> results.html, the step-by-step walkthrough
-python -m reporting.gallery     # -> gallery.html, every graph AND table, one page
-python -m reporting.explained   # -> explained.html, all of it explained in full
+python -m reporting.gallery     # -> gallery.html, every graph and table, no prose
+python -m reporting.explained   # -> explained.html, 300+ words on each of them
 python -m analysis.tables       # the finalised tables, one per review comment
 python -m analysis.units        # what the per-tonne figures are in actual money
 python -m analysis.sourced      # the published case against the sourced one
@@ -374,7 +374,7 @@ headline numbers on the title slide match a fresh `outputs()` call.
 |---|---|
 | validation gate | nine published quantities to 1e-3 relative, before anything prints |
 | feasibility guards | `r − mu`, `u ∈ (0,1]`, monotone allocation, non-negative residual, capex clamp — all raise, never return a flag |
-| 236 test functions | units, layering, findings, provenance, observed and live data, the specification, generated pages — 347 cases after parametrisation |
+| 256 test functions | units, layering, findings, provenance, observed and live data, the specification, generated pages — 368 cases after parametrisation |
 | 42 self-checks | the same load-bearing claims with no third-party packages |
 | diff harness | 50-case grid, self-diff, and a negative control that must flag exactly two |
 | `analysis/verify.py` | 145 table cells re-derived from the raw CSV cell or cached series, compared at the precision each one displays |

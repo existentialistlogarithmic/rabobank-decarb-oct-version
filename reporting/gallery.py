@@ -1,36 +1,40 @@
-"""gallery.py -> gallery.html: every figure AND every table, on one page.
+"""gallery.py -> gallery.html: every figure and table, titles and nothing else.
 
-The complaint this answers came in two parts. First the graphs were scattered -
-``charts.html`` had sixteen, ``article.html`` drew its own, the deck had more,
-and ``surface.html`` and ``explorer.html`` were separate again, so "show me the
-graphs" meant opening five files and knowing which. Then, once they were
-gathered: *which one has all the graphs AND tables?* Nothing did. The gallery
-and the explainer were figures only and ``results.html`` was tables only.
+The contact sheet. All sixteen figures in argument order, then all ten tables,
+with a sticky index over the lot - and no explanatory words anywhere: no
+section ledes, no chart caption sentences, no notes under the plots. Each item
+carries its title and a link to its full explanation in ``explained.html``,
+and that is the whole page.
 
-So this page carries both: all sixteen figures in argument order, then all ten
-tables, with a sticky contents rail over the lot and a link from every item to
-its full explanation in ``explained.html``. Nothing here is new work - the
-figures come from ``figures.FIGURES`` and the tables from
-``analysis.tables.all_tables()``, rendered with ``results.table_html``, so no
-content lives only on this page and none of the three can drift apart.
+"No words" is enforced rather than intended. :func:`titles_only` strips the
+two prose shapes ``plots.py`` bakes into every chart before the chart is
+placed, and a test fails if either survives. Stripping rather than hiding with
+CSS is deliberate: hidden text is still in the file, and "no words" should
+mean no words.
 
-Anchors match ``results.html`` exactly, so ``gallery.html#T3-capex`` and
+What stays: the caption heading, the legend, the axis labels and the table
+view under each chart. A legend is identity, an axis label is a unit, and a
+table view is the data - none of them explains anything, and removing them
+would make the figures unreadable rather than uncluttered.
+
+Nothing here is new work. The figures come from ``figures.FIGURES`` and the
+tables from ``analysis.tables.all_tables()`` via ``results.table_html``, so no
+content lives only on this page and the three pages cannot drift apart.
+Anchors match ``results.html``, so ``gallery.html#T3-capex`` and
 ``results.html#T3-capex`` are the same table.
 
-The two interactive figures stay where they are and are linked rather than
-inlined: the 3D fleet surface needs a canvas and a drag handler, and the
-frontier explorer embeds 891 model runs. Copying either into this page would
-double its weight for a worse version of each.
+The two interactive figures are linked rather than inlined: the 3D fleet
+surface needs a canvas and a drag handler, and the frontier explorer embeds
+891 model runs.
 """
 
 from __future__ import annotations
 
+import re
 from typing import Final
 
 from analysis import tables
 from reporting import figures, plots, results
-from timing_model.results import outputs
-from timing_model.scenarios import published_base
 
 OUT: Final[str] = "gallery.html"
 
@@ -92,6 +96,21 @@ font-style:italic;border-bottom:2px solid var(--line)}
 """
 
 
+#: The two prose shapes ``plots.py`` bakes into every chart: the sentence under
+#: the caption heading, and the note paragraphs under the plot. This page shows
+#: titles only, so both are removed at render rather than hidden with CSS -
+#: hiding them would leave the words in the file, and "no words" should mean no
+#: words. The heading itself, the legend and the axis labels stay: a legend is
+#: identity and an axis label is a unit, and neither is an explanation.
+_CAPTION_PROSE: Final = re.compile(r"(<figcaption>.*?</h3>)<p>.*?</p>", re.S)
+_NOTE = re.compile(r'<p class="note">.*?</p>', re.S)
+
+
+def titles_only(html: str) -> str:
+    """One chart with its explanatory prose removed, title intact."""
+    return _NOTE.sub("", _CAPTION_PROSE.sub(r"\1", html))
+
+
 def contents() -> str:
     """A sticky rail of every figure, grouped, that follows the reader down."""
     items: list[str] = []
@@ -111,45 +130,37 @@ def contents() -> str:
 
 
 def build() -> str:
-    """Every static figure, in argument order, each under the question it answers."""
-    o = outputs(*published_base())
+    """Every figure and table, in argument order, under its title and nothing else."""
     body: list[str] = []
-    for name, lede, figs in figures.by_section():
-        body.append(f'<section class="grp"><h2>{plots.esc(name)}</h2>'
-                    f"<p>{figures.inline(lede)}</p></section>")
+    for name, _lede, figs in figures.by_section():
+        body.append(f'<section class="grp"><h2>{plots.esc(name)}</h2></section>')
         for f in figs:
             body.append(
                 f'<div class="qline" id="{plots.esc(f.key)}">'
-                f'<span class="q">{plots.esc(f.question)}</span>'
+                f'<span class="q">{plots.esc(f.title)}</span>'
                 f'<a class="why" href="explained.html#{plots.esc(f.key)}">'
-                "full explanation &rarr;</a></div>"
-                + f.draw()
+                "explain &rarr;</a></div>"
+                + titles_only(f.draw())
             )
 
-    name, lede = figures.TABLE_SECTION
-    body.append(f'<section class="grp"><h2>{plots.esc(name)}</h2>'
-                f"<p>{figures.inline(lede)}</p></section>")
+    name, _lede = figures.TABLE_SECTION
+    body.append(f'<section class="grp"><h2>{plots.esc(name)}</h2></section>')
     for t in tables.all_tables():
         anchor = figures.table_anchor(t.name)
         body.append(
             f'<div class="qline" id="{plots.esc(anchor)}">'
-            f'<span class="q">{plots.esc(t.title)}</span>'
+            f'<span class="q">{plots.esc(t.name)}</span>'
             f'<a class="why" href="explained.html#{plots.esc(anchor)}">'
-            "full explanation &rarr;</a></div>"
-            f'<div class="card tbl"><div class="tag">{plots.esc(t.name)}</div>'
-            f"{results.table_html(t)}</div>"
+            "explain &rarr;</a></div>"
+            f'<div class="card tbl">{results.table_html(t)}</div>'
         )
 
     tiles = "".join(
-        f'<a class="tile" href="{plots.esc(href)}"><b>{plots.esc(title)}</b>'
-        f"<span>{figures.inline(note)}</span></a>"
-        for href, title, note in INTERACTIVE
+        f'<a class="tile" href="{plots.esc(href)}"><b>{plots.esc(title)}</b></a>'
+        for href, title, _note in INTERACTIVE
     )
     body.append(
-        '<section class="grp" id="interactive"><h2>Interactive, on their own pages</h2>'
-        "<p>Two figures are not static pictures and are linked rather than "
-        "copied in: inlining either would double this page's weight for a "
-        "worse version of it.</p></section>"
+        '<section class="grp" id="interactive"><h2>Interactive</h2></section>'
         f'<div class="links">{tiles}</div>'
     )
 
@@ -158,24 +169,11 @@ def build() -> str:
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         "<title>Investment timing - every figure and table</title>"
         f"<style>{plots.CSS}{figures.THEME_BRIDGE}{CSS}</style></head><body><div class=\"wrap\">"
-        "<h1>Everything on one page</h1>"
-        '<p class="sub">All sixteen charts <b>and all ten tables</b>, in the '
-        "order the argument runs: the decision, the objections to it, the live "
-        "check against the market, the structure underneath, and then the "
-        "tables that carry the figures and their sources. Generated by "
-        "<code>gallery.py</code> - no third-party libraries. Everything here "
-        "links to its full explanation in <code>explained.html</code>.</p>"
-        f'<p class="cond">Published base case: T* = <b>{o.t_star}</b> &middot; '
-        f"NPV0 <b>{o.npv0:,.0f}</b> EUR/t capacity &middot; trigger "
-        f"<b>{o.trigger:,.2f}</b> EUR/tCO2 &middot; crossing "
-        f"<b>{o.crossing_year}</b>. Every figure is drawn from a live model run "
-        "at build time.</p>"
+        "<h1>Every figure and table</h1>"
         + contents() + "".join(body) +
-        "<footer>Explanatory framework, not investment advice. Read "
-        "<code>CALIBRATION.md</code> before quoting any figure, and "
-        "<code>explained.html</code> before drawing a conclusion from one: "
-        "every chart here has a stated boundary and several are easy to "
-        "over-read without it.</footer>"
+        "<footer>Explanatory framework, not investment advice. "
+        "Every figure and table here is explained in full in "
+        "<code>explained.html</code>.</footer>"
         f'</div><script>{plots.JS}</script></body></html>'
     )
 
