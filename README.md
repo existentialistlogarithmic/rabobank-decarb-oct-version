@@ -99,6 +99,7 @@ analysis/            studies that run on the model without changing it
 reporting/           generated deliverables — nothing imports these
   sources.py           -> SOURCES.md, the provenance register (audited)
   brief.py             -> brief.html + brief.pdf, the two-page version to send on
+  handoff.py           -> handoff.pdf, the deck brief: 2 figures + all the data
   results.py           -> results.html, START HERE: every table, named and explained
   figures.py           the figure registry: every chart + its full explanation
   gallery.py           -> gallery.html, all 19 figures + 10 tables, titles only
@@ -129,6 +130,7 @@ python -m analysis.grounding    # inputs against observed data
 python -m analysis.regimes      # the scenario map and the what-ifs
 python -m analysis.reconcile    # the model against the v11 specification
 python -m reporting.brief       # -> brief.pdf, two pages, for sending on
+python -m reporting.handoff     # -> handoff.pdf, self-contained deck brief
 python -m analysis.verify       # re-derive every table cell from its raw source
 python -m reporting.results     # -> results.html, the step-by-step walkthrough
 python -m reporting.gallery     # -> gallery.html, every graph and table, no prose

@@ -706,3 +706,60 @@ def test_the_business_case_figures_are_registered_and_explained() -> None:
         fig = next(f for f in figures.FIGURES if f.key == key)
         assert fig.words() >= figures.MIN_WORDS
         assert fig.section == "The business case"
+
+
+def test_the_handoff_pdf_carries_the_figures_and_the_data(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The deck brief has to stand alone: it goes to a chat with no repo.
+
+    So both halves are required - the pictures, and every number underneath
+    them. A slide-builder reading only a chart has to estimate; reading the
+    table it can quote.
+    """
+    from analysis import cashflow
+    from reporting import handoff
+
+    assert handoff.main() == 0
+    page = (tmp_path / "handoff.html").read_text(encoding="utf-8")
+    assert page.count("<svg") == 2, "the two figures are not both embedded"
+    assert "<details" not in page, "a collapsed data drawer would print empty"
+
+    cf = cashflow.build()
+    for t in (cf.commit_year, cf.payback_year, 2050):
+        assert f"<td>{t}</td>" in page, f"year {t} missing from the data table"
+    assert page.count("<table") >= 5
+
+
+def test_the_handoff_states_the_caveats(tmp_path: pathlib.Path) -> None:
+    """A deck brief that drops the caveats is worse than no brief."""
+    from reporting import handoff
+
+    page = handoff.build()
+    for caveat in ("Opex has no time shape", "No tax layer",
+                   "No MATLAB reference", "not earmarked",
+                   "increment, not a P&amp;L"):
+        assert caveat in page, f"the handoff dropped: {caveat}"
+
+
+def test_the_handoff_does_not_double_escape_its_entities() -> None:
+    """kv() takes authored HTML; escaping it printed "&mdash;" literally."""
+    from reporting import handoff
+
+    page = handoff.build()
+    for leak in ("&amp;mdash;", "&amp;euro;", "&amp;sigma;", "&amp;nbsp;"):
+        assert leak not in page, f"double-escaped entity: {leak}"
+
+
+def test_the_handoff_prints_in_light_mode() -> None:
+    """A PDF must not follow the reader's system theme.
+
+    plots.CSS is theme-aware, which is right on a web page and wrong on paper:
+    the file would come out dark on a dark machine.
+    """
+    from reporting import handoff
+
+    assert "--surface:#ffffff !important" in handoff.LIGHT
+    page = handoff.build()
+    assert page.index(handoff.LIGHT) > page.index("--s0:#2a78d6"), (
+        "the light override must come after plots.CSS to win")

@@ -51,6 +51,7 @@ Built from a v12 specification. The MATLAB reference (`timing_model.m`) was
 | `docs/research-*.md` | That pass's findings, sources with tiers, and its documented holes |
 | `reporting/sources.py` | → `SOURCES.md`, the provenance register — audited against the code on every run |
 | `reporting/brief.py` | → `brief.html` + `brief.pdf`, the two-page version to send on |
+| `reporting/handoff.py` | → `handoff.pdf`, **the deck brief**: self-contained for a conversation with no repo access. Two figures embedded as vectors, every number written out under them, the two-slide structure, and the caveat list. Printed in pinned light mode, data drawers stripped |
 | `reporting/results.py` | → `results.html`, **the page to open first**: all 10 tables with handles (T0–T9), what each answers, and its sources |
 | `reporting/figures.py` | The figure registry: each chart's drawing function next to its five-part explanation. `gallery.py` and `explained.py` both render it, so neither can drift from the other |
 | `reporting/gallery.py` | → `gallery.html`, **all 19 figures and all 10 tables, titles only** — no ledes, no caption prose, no notes. `titles_only()` strips them and a test fails if any survives |

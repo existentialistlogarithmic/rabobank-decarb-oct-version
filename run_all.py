@@ -240,6 +240,7 @@ def section_documents() -> int:
         explorer,
         findings_report,
         gallery,
+        handoff,
         plots,
         results,
         sources,
@@ -255,6 +256,7 @@ def section_documents() -> int:
     deck.main()
     results.main()
     brief.main()
+    handoff.main()
     # These two return non-zero if the figure registry is incomplete - a chart
     # with no explanation, or one that exists in plots.py and nowhere else.
     failures += gallery.main()

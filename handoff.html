@@ -1,0 +1,286 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Steel decarbonisation timing &mdash; deck handoff</title>
+<style>
+:root{--surface:#fcfcfb;--plane:#f9f9f7;--ink:#0b0b0b;--ink2:#52514e;
+--muted:#898781;--grid:#e1e0d9;--axis:#c3c2b7;--ring:rgba(11,11,11,.10);
+--s0:#2a78d6;--s1:#eb6834;--s2:#1baf7a;--s3:#eda100;}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+--surface:#1a1a19;--plane:#0d0d0d;--ink:#fff;--ink2:#c3c2b7;--muted:#898781;
+--grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);
+--s0:#3987e5;--s1:#d95926;--s2:#199e70;--s3:#c98500;}}
+:root[data-theme="dark"]{--surface:#1a1a19;--plane:#0d0d0d;--ink:#fff;
+--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--axis:#383835;
+--ring:rgba(255,255,255,.10);
+--s0:#3987e5;--s1:#d95926;--s2:#199e70;--s3:#c98500;}
+*{box-sizing:border-box}
+body{margin:0;padding:28px 20px 60px;background:var(--plane);color:var(--ink);
+font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:1.5rem;margin:0 0 4px}
+.sub{color:var(--ink2);margin:0 0 6px}
+.cond{color:var(--ink2);font-size:.83rem;background:var(--surface);
+border:1px solid var(--ring);border-radius:10px;padding:10px 13px;margin:14px 0 26px}
+.cond b{color:var(--ink);font-weight:600}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:14px;
+padding:18px 18px 14px;margin:0 0 22px}
+figcaption h3{margin:0 0 3px;font-size:1.02rem}
+figcaption p{margin:0 0 10px;color:var(--ink2);font-size:.86rem;max-width:66ch}
+.plot{width:100%;height:auto;display:block;overflow:visible}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:2px 0 8px;font-size:.82rem;
+color:var(--ink2)}
+.lg{display:inline-flex;align-items:center;gap:6px}
+.sw{width:11px;height:11px;border-radius:3px;display:inline-block}
+.grid{stroke:var(--grid);stroke-width:1}
+.axis{stroke:var(--axis);stroke-width:1}
+.mark{stroke:var(--axis);stroke-width:1}
+.thr{stroke:var(--s1);stroke-width:2;stroke-dasharray:7 5}
+.ln{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.mk{stroke:var(--surface);stroke-width:2}
+.br{stroke:var(--surface);stroke-width:2}
+.tick{fill:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+.cat{fill:var(--ink2);font-size:12px}
+.val{fill:var(--ink2);font-size:11.5px;font-variant-numeric:tabular-nums}
+.note{fill:var(--ink2);font-size:11px}
+.axt{fill:var(--muted);font-size:11px;text-anchor:middle}
+.dl{font-size:11.5px;font-weight:600}
+.ar{text-anchor:end}.am{text-anchor:middle}.al{text-anchor:start}
+.s0{color:var(--s0)}.s1{color:var(--s1)}.s2{color:var(--s2)}.s3{color:var(--s3)}
+path.s0,line.s0{stroke:var(--s0)}path.s1,line.s1{stroke:var(--s1)}
+path.s2,line.s2{stroke:var(--s2)}path.s3,line.s3{stroke:var(--s3)}
+circle.s0,rect.s0{fill:var(--s0)}circle.s1,rect.s1{fill:var(--s1)}
+circle.s2,rect.s2{fill:var(--s2)}circle.s3,rect.s3{fill:var(--s3)}
+text.s0{fill:var(--s0)}text.s1{fill:var(--s1)}text.s2{fill:var(--s2)}
+text.s3{fill:var(--s3)}
+i.s0{background:var(--s0)}i.s1{background:var(--s1)}i.s2{background:var(--s2)}
+i.s3{background:var(--s3)}
+.cross{stroke:var(--axis);stroke-width:1}
+.tip{position:fixed;pointer-events:none;background:var(--surface);color:var(--ink);
+border:1px solid var(--ring);border-radius:8px;padding:7px 10px;font-size:12px;
+box-shadow:0 4px 14px rgba(0,0,0,.14);opacity:0;transition:opacity .08s;z-index:9}
+.tip b{font-variant-numeric:tabular-nums}
+.tv{margin-top:8px;font-size:.83rem;color:var(--ink2)}
+.tv summary{cursor:pointer;color:var(--ink2)}
+.tv table{border-collapse:collapse;margin-top:8px;width:100%}
+.tv th,.tv td{text-align:right;padding:3px 8px;border-bottom:1px solid var(--grid);
+font-variant-numeric:tabular-nums}
+.tv th:first-child,.tv td:first-child{text-align:left}
+.tvw{overflow-x:auto}
+footer{color:var(--muted);font-size:.8rem;margin-top:8px}
+.band{fill:var(--s1);opacity:.07}
+.cell{stroke:var(--surface);stroke-width:2}
+.cell.pos{fill:var(--s0)}.cell.neg{fill:#e34948}.cell.mid{fill:var(--axis)}
+.cellv{fill:var(--ink);font-size:12px;font-variant-numeric:tabular-nums;
+paint-order:stroke;stroke:var(--surface);stroke-width:3px}
+.scale{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--ink2);
+margin:2px 0 10px}
+.scale i{width:26px;height:11px;border-radius:3px;display:inline-block}
+.scale i.neg{background:#e34948}.scale i.mid{background:var(--axis)}
+.scale i.pos{background:var(--s0)}
+h2{font-size:1.22rem;margin:34px 0 4px}
+.findings{margin-top:10px}
+.fnd{background:var(--surface);border:1px solid var(--ring);border-radius:14px;
+padding:16px 18px;margin:0 0 16px}
+.fnd h3{margin:0 0 8px;font-size:1.02rem;display:flex;gap:10px;align-items:baseline}
+.num{display:inline-flex;align-items:center;justify-content:center;min-width:22px;
+height:22px;border-radius:6px;background:var(--s0);color:#fff;font-size:.76rem;
+font-weight:700;flex:0 0 auto}
+.claim{font-weight:600;color:var(--ink);margin:0 0 8px}
+.fnd p{margin:0 0 9px;color:var(--ink2);font-size:.9rem;max-width:74ch}
+.fnd .tv table td:first-child{color:var(--ink2)}
+.fnd .tv table td{text-align:left}
+[data-tip]{cursor:crosshair}
+.lead{stroke:var(--axis);stroke-width:1}
+
+:root, :root[data-theme="dark"] {
+--surface:#ffffff !important;--plane:#ffffff !important;--ink:#111 !important;
+--ink2:#4a4a47 !important;--muted:#6f6e69 !important;--grid:#e4e3dd !important;
+--axis:#bdbcb2 !important;--ring:rgba(0,0,0,.14) !important;
+--s0:#2a78d6 !important;--s1:#eb6834 !important;--s2:#1baf7a !important;
+--s3:#eda100 !important;}
+
+@page { size: A4; margin: 14mm 13mm 12mm; }
+*{box-sizing:border-box}
+body{margin:0;background:#fff;color:#111;
+font:10pt/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:none}
+h1{font-size:19pt;line-height:1.1;margin:0 0 2mm}
+h2{font-size:12.5pt;margin:7mm 0 2mm;padding-bottom:1mm;
+border-bottom:1.5px solid #111;page-break-after:avoid}
+h3{font-size:10.5pt;margin:4mm 0 1.5mm;page-break-after:avoid}
+p{margin:0 0 2.5mm}
+.sub{color:#4a4a47;font-size:9.5pt;margin:0 0 4mm}
+.use{background:#f4f4f1;border-left:3px solid #2a78d6;padding:3mm 4mm;
+margin:0 0 5mm;font-size:9.5pt}
+.use b{color:#111}
+table{border-collapse:collapse;width:100%;font-size:8.6pt;margin:0 0 3mm;
+page-break-inside:avoid}
+th,td{padding:1.3mm 2mm;text-align:right;border-bottom:0.4px solid #ddd}
+th:first-child,td:first-child{text-align:left}
+thead th{font-size:7.6pt;text-transform:uppercase;letter-spacing:.04em;
+color:#6f6e69;border-bottom:1px solid #111}
+tbody tr.hi{background:#f4f4f1;font-weight:600}
+.kv{width:100%;font-size:9.4pt}
+.kv td:last-child{font-weight:600}
+.note{font-size:8.6pt;color:#4a4a47;margin:0 0 3mm;
+border-left:2px solid #ddd;padding-left:3mm}
+ul{margin:0 0 3mm;padding-left:5mm}
+li{margin:0 0 1.3mm}
+.warn{color:#9c4316;font-weight:600}
+figure.card{border:0.5px solid #ddd;border-radius:2mm;padding:3mm 3mm 1mm;
+margin:0 0 3mm;page-break-inside:avoid;background:#fff}
+figcaption h3{margin:0 0 1mm;font-size:10.5pt}
+figcaption p{font-size:8.6pt;color:#4a4a47;margin:0 0 2mm}
+.plot{width:100%;height:auto;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:3mm;margin:0 0 2mm;font-size:8pt;
+color:#4a4a47}
+.lg{display:inline-flex;align-items:center;gap:1.5mm}
+.sw{width:2.4mm;height:2.4mm;border-radius:0.6mm;display:inline-block}
+.pb{page-break-before:always}
+footer{margin-top:5mm;padding-top:2mm;border-top:0.5px solid #ddd;
+font-size:8pt;color:#6f6e69}
+</style></head><body>
+
+<h1>Steel decarbonisation timing &mdash; handoff for the deck</h1>
+<p class="sub">Investment-timing model, European integrated works &middot;
+generated 2026-09-23 from a live model run &middot; every figure and number
+below is produced by the code, not typed in</p>
+
+<div class="use">
+<b>How to use this file.</b> It is self-contained: the narrative, two figures,
+and the numbers behind them. Two slides are wanted &mdash; a <b>WHY</b> slide
+and a <b>WHAT&nbsp;+&nbsp;HOW</b> slide &mdash; qualitative, one graph each, no
+equations. Section&nbsp;2 and section&nbsp;3 are those two slides. The figures
+are vector, so they can be lifted at any size. <b>Do not invent numbers:</b>
+everything quotable is in section&nbsp;5, and section&nbsp;6 lists what must
+not be claimed.
+</div>
+
+<h2>1. The one thing this work fixes</h2>
+<p>The model produced an optimum. The people who fund these projects do not
+read optima &mdash; they read cash flows: money out, money in, year by year,
+cumulative, and the date it turns positive. Capex, opex, subsidies and CO<sub>2</sub>
+were all inside the model, but entangled in its equations, and nothing drew
+them against time.</p>
+<p>That half step now exists. <b>The discounted cash flow equals the model's
+own NPV to the cent</b> &mdash; the same object, re-presented, checked on every
+build. Nothing was recalibrated to make it agree.</p>
+
+<h2>2. Slide one &mdash; WHY</h2>
+<h3>A multi-variable decision with no stable answer</h3>
+<p>Four inputs move independently, on different clocks, and the firm controls
+none of them. <b>Capex</b> falls with learning, but switching early forfeits
+undepreciated book value. <b>Opex</b> is dominated by the hydrogen price, the
+single largest swing factor. <b>Subsidies</b> are a window, not a pot &mdash;
+full weight to 2031, tapering to nothing by 2035. <b>CO<sub>2</sub></b> is a
+price that rises while free allocation phases out, and the two compound.</p>
+<p>The honest framing: <b>there is no single answer, and there should not
+be.</b> Every plant has a different asset age, balance sheet, cost of capital
+and tolerance for non-productive time. What this produces is a map and a
+method.</p>
+<figure class="card"><figcaption><h3>The four inputs, as they actually fall over time</h3><p>Capex, subsidy, opex and CO2 for a 2.5&nbsp;Mt/yr plant committing in 2029. Each panel has its own scale - a EUR 2.1bn spike and a EUR 150m/yr line do not share an axis usefully - and all four share the year axis.</p></figcaption><svg viewBox="0 0 760 598" role="img" class="plot"><line class="grid" x1="92" y1="60.9" x2="730" y2="60.9"/><text class="tick ar" x="84" y="126.7">-2.1bn</text><text class="tick ar" x="84" y="49.3">525m</text><text class="cat al" x="0" y="29.0">Capex (EUR/yr)</text><rect class="br s1" x="163.3" y="60.9" width="16.8" height="61.8" rx="2"><title>2029: -2.1bn</title></rect><rect class="br s1" x="402.6" y="45.3" width="16.8" height="15.6" rx="2"><title>2038: 525m</title></rect><line class="mark" x1="171.8" y1="36.0" x2="171.8" y2="132.0"/><line class="mark" x1="278.1" y1="36.0" x2="278.1" y2="132.0"/><line class="grid" x1="92" y1="254.7" x2="730" y2="254.7"/><text class="tick ar" x="84" y="181.3">500m</text><text class="cat al" x="0" y="161.0">Subsidy (EUR/yr)</text><rect class="br s2" x="163.3" y="177.3" width="16.8" height="77.4" rx="2"><title>2029: 500m</title></rect><line class="mark" x1="171.8" y1="168.0" x2="171.8" y2="264.0"/><line class="mark" x1="278.1" y1="168.0" x2="278.1" y2="264.0"/><line class="grid" x1="92" y1="309.3" x2="730" y2="309.3"/><text class="tick ar" x="84" y="390.7">-150m</text><text class="cat al" x="0" y="293.0">Opex penalty (EUR/yr)</text><path class="ln s3" d="M92.0,309.3 L118.6,309.3 L145.2,309.3 L171.8,386.7 L198.3,386.7 L224.9,386.7 L251.5,386.7 L278.1,386.7 L304.7,386.7 L331.2,386.7 L357.8,386.7 L384.4,386.7 L411.0,386.7 L437.6,386.7 L464.2,386.7 L490.8,386.7 L517.3,386.7 L543.9,386.7 L570.5,386.7 L597.1,386.7 L623.7,386.7 L650.2,386.7 L676.8,386.7 L703.4,386.7 L730.0,386.7"/><line class="mark" x1="171.8" y1="300.0" x2="171.8" y2="396.0"/><line class="mark" x1="278.1" y1="300.0" x2="278.1" y2="396.0"/><line class="grid" x1="92" y1="518.7" x2="730" y2="518.7"/><text class="tick ar" x="84" y="445.3">1.3bn</text><text class="cat al" x="0" y="425.0">CO2 avoided (EUR/yr)</text><path class="ln s0" d="M92.0,518.7 L118.6,518.7 L145.2,518.7 L171.8,490.4 L198.3,488.7 L224.9,487.4 L251.5,486.1 L278.1,484.7 L304.7,483.2 L331.2,481.5 L357.8,479.6 L384.4,477.7 L411.0,475.6 L437.6,473.4 L464.2,471.2 L490.8,468.8 L517.3,466.3 L543.9,463.7 L570.5,460.9 L597.1,458.0 L623.7,455.0 L650.2,451.8 L676.8,448.5 L703.4,445.0 L730.0,441.3"/><line class="mark" x1="171.8" y1="432.0" x2="171.8" y2="528.0"/><line class="mark" x1="278.1" y1="432.0" x2="278.1" y2="528.0"/><text class="val am" x="171.8" y="18.0">commit 2029</text><text class="val am" x="278.1" y="18.0">payback 2033</text><text class="tick am" x="145.2" y="582.0">2028</text><text class="tick am" x="251.5" y="582.0">2032</text><text class="tick am" x="357.8" y="582.0">2036</text><text class="tick am" x="464.2" y="582.0">2040</text><text class="tick am" x="570.5" y="582.0">2044</text><text class="tick am" x="676.8" y="582.0">2048</text><text class="axt am" x="411.0" y="596.0">year</text></svg><p class="note">CAPEX is a spike, not a profile: the model commits in one year, so there is no construction schedule. SUBSIDY is paid against capex in that same year and is worth less the later it comes - full weight to 2031, then a taper to nothing by 2035. CO2 steepens because the carbon price rises AND free allocation phases out. OPEX IS FLAT, and that is the model's limitation rather than a finding: it carries one constant, where a real plant's operating cost rises with age, jumps at the switch while the technology is learned, then settles. Hole H10, comment 5.</p></figure>
+<p class="note">Suggested for slide one. Four panels, shared year axis, each
+scaled to its own data &mdash; a &euro;2.1bn spike and a &euro;150m/yr line do
+not share an axis usefully. It makes the multi-variable point without a word of
+theory.</p>
+
+<div class="pb"></div>
+<h2>3. Slide two &mdash; WHAT and HOW</h2>
+<h3>Translated into the language of a cash flow</h3>
+<figure class="card"><figcaption><h3>The same decision as a cash flow</h3><p>Money out and money in, year by year, then accumulated. This is the form debt is sized against - not an optimum, but a trough and a date.</p></figcaption><svg viewBox="0 0 760 334" role="img" class="plot"><line class="grid" x1="92" y1="83.2" x2="730" y2="83.2"/><text class="tick ar" x="84" y="126.7">-1.2bn</text><text class="tick ar" x="84" y="49.3">1.2bn</text><text class="cat al" x="0" y="29.0">Net cash flow (EUR/yr)</text><rect class="br s0" x="163.3" y="83.2" width="16.8" height="39.5" rx="2"><title>2029: -1.2bn</title></rect><rect class="br s0" x="189.9" y="71.4" width="16.8" height="11.8" rx="2"><title>2030: 368m</title></rect><rect class="br s0" x="216.5" y="70.7" width="16.8" height="12.5" rx="2"><title>2031: 391m</title></rect><rect class="br s0" x="243.1" y="70.0" width="16.8" height="13.2" rx="2"><title>2032: 414m</title></rect><rect class="br s0" x="269.7" y="69.2" width="16.8" height="14.0" rx="2"><title>2033: 438m</title></rect><rect class="br s0" x="296.2" y="68.4" width="16.8" height="14.8" rx="2"><title>2034: 463m</title></rect><rect class="br s0" x="322.8" y="67.4" width="16.8" height="15.7" rx="2"><title>2035: 493m</title></rect><rect class="br s0" x="349.4" y="66.4" width="16.8" height="16.8" rx="2"><title>2036: 525m</title></rect><rect class="br s0" x="376.0" y="65.3" width="16.8" height="17.9" rx="2"><title>2037: 559m</title></rect><rect class="br s0" x="402.6" y="47.4" width="16.8" height="35.7" rx="2"><title>2038: 1.1bn</title></rect><rect class="br s0" x="429.2" y="63.0" width="16.8" height="20.2" rx="2"><title>2039: 632m</title></rect><rect class="br s0" x="455.7" y="61.8" width="16.8" height="21.4" rx="2"><title>2040: 671m</title></rect><rect class="br s0" x="482.3" y="60.5" width="16.8" height="22.7" rx="2"><title>2041: 712m</title></rect><rect class="br s0" x="508.9" y="59.1" width="16.8" height="24.1" rx="2"><title>2042: 755m</title></rect><rect class="br s0" x="535.5" y="57.6" width="16.8" height="25.6" rx="2"><title>2043: 800m</title></rect><rect class="br s0" x="562.1" y="56.1" width="16.8" height="27.1" rx="2"><title>2044: 848m</title></rect><rect class="br s0" x="588.7" y="54.5" width="16.8" height="28.7" rx="2"><title>2045: 898m</title></rect><rect class="br s0" x="615.2" y="52.9" width="16.8" height="30.3" rx="2"><title>2046: 950m</title></rect><rect class="br s0" x="641.8" y="51.1" width="16.8" height="32.1" rx="2"><title>2047: 1.0bn</title></rect><rect class="br s0" x="668.4" y="49.3" width="16.8" height="33.9" rx="2"><title>2048: 1.1bn</title></rect><rect class="br s0" x="695.0" y="47.3" width="16.8" height="35.9" rx="2"><title>2049: 1.1bn</title></rect><rect class="br s0" x="721.6" y="45.3" width="16.8" height="37.9" rx="2"><title>2050: 1.2bn</title></rect><line class="mark" x1="171.8" y1="36.0" x2="171.8" y2="132.0"/><line class="mark" x1="278.1" y1="36.0" x2="278.1" y2="132.0"/><line class="grid" x1="92" y1="248.5" x2="730" y2="248.5"/><text class="tick ar" x="84" y="258.7">-1.2bn</text><text class="tick ar" x="84" y="181.3">14.2bn</text><text class="cat al" x="0" y="161.0">Cumulative (EUR)</text><path class="ln s2" d="M92.0,248.5 L118.6,248.5 L145.2,248.5 L171.8,254.7 L198.3,252.9 L224.9,250.9 L251.5,248.8 L278.1,246.6 L304.7,244.3 L331.2,241.8 L357.8,239.2 L384.4,236.4 L411.0,230.7 L437.6,227.6 L464.2,224.2 L490.8,220.6 L517.3,216.8 L543.9,212.8 L570.5,208.6 L597.1,204.1 L623.7,199.3 L650.2,194.2 L676.8,188.9 L703.4,183.3 L730.0,177.3"/><line class="mark" x1="171.8" y1="168.0" x2="171.8" y2="264.0"/><line class="mark" x1="278.1" y1="168.0" x2="278.1" y2="264.0"/><text class="val am" x="171.8" y="18.0">commit 2029</text><text class="val am" x="278.1" y="18.0">payback 2033</text><text class="tick am" x="145.2" y="318.0">2028</text><text class="tick am" x="251.5" y="318.0">2032</text><text class="tick am" x="357.8" y="318.0">2036</text><text class="tick am" x="464.2" y="318.0">2040</text><text class="tick am" x="570.5" y="318.0">2044</text><text class="tick am" x="676.8" y="318.0">2048</text><text class="axt am" x="411.0" y="332.0">year</text></svg><p class="note">Peak exposure is -EUR 1.2bn in 2029: that is the financing requirement, and it is deeper than the capex alone because the cumulative keeps falling while the annual net is still negative. Cumulative turns positive in 2033 - 4 years after committing. Discounting this same series at 8% gives EUR 4.0bn, which is the model's own NPV(T*) of EUR 4.0bn - the two agree by construction, and analysis/verify.py checks it. Undiscounted and nominal-free: every figure is real EUR.</p></figure>
+<table class="kv"><tbody><tr><td>Commitment year (NPV-optimal)</td><td>2029</td></tr><tr><td>Peak exposure &mdash; the financing requirement</td><td>-EUR 1.2bn in 2029</td></tr><tr><td>Payback</td><td>2033 &mdash; 4 years after committing</td></tr><tr><td>NPV at that decision, published inputs</td><td>EUR 4.0bn</td></tr><tr><td>Carbon price that justifies committing</td><td>&euro;110/tCO2</td></tr></tbody></table>
+<p>Two points that make this research rather than a result. <b>The answer is a
+range that crosses zero</b> &mdash; which end you believe is the whole
+argument, and that is uncertainty about <em>inputs</em>, separate from the price
+uncertainty the option machinery handles. <b>Timing is far more robust than
+value</b>: the corrections move the level of the answer much more than they
+move the year. The model is better at <em>when</em> than at <em>how much</em>.</p>
+
+<h2>4. The single strongest point, if only one lands</h2>
+<p>Realised volatility from the EU&nbsp;ETS auction record is
+<b>&sigma;&nbsp;=&nbsp;0.31</b> against the
+<b>0.20</b> the model runs on. Sigma is the only parameter that
+moves the <em>threshold</em> without moving the break-even, so it is the only
+live observation that changes <em>when</em>. At the specification's own
+&lsquo;crisis&rsquo; rung (0.30) the trigger is
+&euro;140 instead of &euro;110, and the price
+path crosses it in <b>2035</b> rather than
+2030 &mdash;
+5 more years of waiting.</p>
+<p class="note">The model still runs on 0.20. One year of auctions
+is not a price path to 2050, and nothing observed has been fed back into the
+parameters.</p>
+
+<div class="pb"></div>
+<h2>5. The numbers</h2>
+<h3>5a. The cash flow, year by year &mdash; for a 2.5&nbsp;Mt/yr plant</h3>
+<p class="note">Real euros, undiscounted. Money out is negative. Highlighted
+rows are the commitment year and the payback year. Discounting this series at
+8% returns EUR 4.0bn, the model's NPV.</p>
+<table><thead><tr><th>year</th><th>capex</th><th>subsidy</th><th>opex</th><th>CO2 avoided</th><th>net</th><th>cumulative</th></tr></thead><tbody><tr><td>2028</td><td>EUR 0</td><td>EUR 0</td><td>EUR 0</td><td>EUR 0</td><td>EUR 0</td><td>EUR 0</td></tr><tr class='hi'><td>2029</td><td>-EUR 2.1bn</td><td>EUR 500m</td><td>-EUR 150m</td><td>EUR 488m</td><td>-EUR 1.2bn</td><td>-EUR 1.2bn</td></tr><tr><td>2030</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 518m</td><td>EUR 368m</td><td>-EUR 869m</td></tr><tr><td>2031</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 541m</td><td>EUR 391m</td><td>-EUR 479m</td></tr><tr><td>2032</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 564m</td><td>EUR 414m</td><td>-EUR 65m</td></tr><tr class='hi'><td>2033</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 588m</td><td>EUR 438m</td><td>EUR 373m</td></tr><tr><td>2034</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 613m</td><td>EUR 463m</td><td>EUR 836m</td></tr><tr><td>2035</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 643m</td><td>EUR 493m</td><td>EUR 1.3bn</td></tr><tr><td>2036</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 675m</td><td>EUR 525m</td><td>EUR 1.9bn</td></tr><tr><td>2037</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 709m</td><td>EUR 559m</td><td>EUR 2.4bn</td></tr><tr><td>2038</td><td>EUR 525m</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 745m</td><td>EUR 1.1bn</td><td>EUR 3.5bn</td></tr><tr><td>2039</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 782m</td><td>EUR 632m</td><td>EUR 4.2bn</td></tr><tr><td>2040</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 821m</td><td>EUR 671m</td><td>EUR 4.8bn</td></tr><tr><td>2041</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 862m</td><td>EUR 712m</td><td>EUR 5.5bn</td></tr><tr><td>2042</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 905m</td><td>EUR 755m</td><td>EUR 6.3bn</td></tr><tr><td>2043</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 950m</td><td>EUR 800m</td><td>EUR 7.1bn</td></tr><tr><td>2044</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 998m</td><td>EUR 848m</td><td>EUR 8.0bn</td></tr><tr><td>2045</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 1.0bn</td><td>EUR 898m</td><td>EUR 8.8bn</td></tr><tr><td>2046</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 1.1bn</td><td>EUR 950m</td><td>EUR 9.8bn</td></tr><tr><td>2047</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 1.2bn</td><td>EUR 1.0bn</td><td>EUR 10.8bn</td></tr><tr><td>2048</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 1.2bn</td><td>EUR 1.1bn</td><td>EUR 11.9bn</td></tr><tr><td>2049</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 1.3bn</td><td>EUR 1.1bn</td><td>EUR 13.0bn</td></tr><tr><td>2050</td><td>EUR 0</td><td>EUR 0</td><td>-EUR 150m</td><td>EUR 1.3bn</td><td>EUR 1.2bn</td><td>EUR 14.2bn</td></tr></tbody></table>
+
+<div class="pb"></div>
+<h3>5b. The answer as a range &mdash; four input sets</h3>
+<table><thead><tr><th>case</th><th>capex I0</th><th>hydrogen</th><th>NPV</th><th>NPV, 2.5 Mt/yr</th><th>trigger</th><th>T*</th></tr></thead><tbody><tr class='hi'><td>base</td><td>900</td><td>2.60</td><td>1,606</td><td>EUR 4.0bn</td><td>109.5</td><td>2029</td></tr><tr><td>low</td><td>1,200</td><td>3.69</td><td>991</td><td>EUR 2.5bn</td><td>172.4</td><td>2031</td></tr><tr class='hi'><td>central</td><td>1,420</td><td>5.00</td><td>537</td><td>EUR 1.3bn</td><td>239.4</td><td>2038</td></tr><tr><td>high</td><td>2,600</td><td>8.65</td><td>-124</td><td>-EUR 310m</td><td>460.4</td><td>none</td></tr></tbody></table>
+<p class="note">From the specification's published values down to ones taken
+from primary documents. The range crosses zero, so the sign of the answer is
+set by which inputs you accept, not by the model.</p>
+
+<h3>5c. The model against the live market</h3>
+<table><thead><tr><th>quantity</th><th>assumed</th><th>observed</th><th>ratio</th><th>unit</th><th>for 2.5 Mt/yr</th><th>as of</th></tr></thead><tbody><tr><td>EUA price, 2026</td><td>76.00</td><td>84.02</td><td>1.11x</td><td>EUR/tCO2</td><td>EUR 38m</td><td>2026-08-24..2026-09-22</td></tr><tr class='hi'><td>volatility sigma</td><td>0.20</td><td>0.31</td><td>1.57x</td><td>1/yr^0.5</td><td>-</td><td>2026-01-08..2026-09-22</td></tr><tr><td>Innovation Fund, YTD</td><td>EUR 500m</td><td>EUR 2.0bn</td><td>4.01x</td><td>EUR</td><td>EUR 500m</td><td>2026-01-07..2026-09-22</td></tr><tr><td>discount rate r</td><td>8.00</td><td>1.35</td><td>0.17x</td><td>% / yr real</td><td>-</td><td>2026-09-21</td></tr><tr><td>power vs gas, DE</td><td>0.04</td><td>0.14</td><td>3.86x</td><td>EUR/kWh</td><td>-</td><td>2025-S2</td></tr></tbody></table>
+<p class="note">Source: EEX EU&nbsp;ETS primary-market auction report, read at
+build time. Observed 2026-08-24..2026-09-22. Nothing here feeds the model.</p>
+
+<h3>5d. Context figures</h3>
+<table class="kv"><tbody><tr><td>Capex assumption I0</td><td>&euro;900/t capacity = EUR 2.2bn</td></tr><tr><td>&mdash; vs every project actually under construction</td><td>&euro;1,300+/t</td></tr><tr><td>Support s_max</td><td>&euro;200/t capacity = EUR 500m</td></tr><tr><td>EU ETS auction revenue, 2026 year to date</td><td>EUR 27.5bn</td></tr><tr><td>&mdash; of which the Innovation Fund</td><td>EUR 2.0bn (25% would go to one plant)</td></tr><tr><td>Discount rate</td><td>8% real, to 2026</td></tr><tr><td>Horizon</td><td>2050</td></tr></tbody></table>
+
+<div class="pb"></div>
+<h2>6. What must NOT be claimed</h2>
+<p>State these before anyone asks. They are the credibility of the work.</p>
+<ul>
+<li><b class="warn">Opex has no time shape.</b> The model carries one constant
+driven only by the hydrogen price. A real plant's operating cost rises with
+age, jumps at the switch while an unfamiliar technology is learned, then
+settles lower as contracts improve. None of that is modelled &mdash; the line
+is drawn flat and labelled flat rather than given a plausible curve. Open hole
+H10.</li>
+<li><b class="warn">No tax layer.</b> Electricity is 2&ndash;4&times; gas per
+kWh in every member state, and those prices exclude taxes, levies and network
+charges &mdash; exactly what &ldquo;fiscal harmonisation&rdquo; would
+change.</li>
+<li><b class="warn">No MATLAB reference.</b> The 50-case diff harness is built
+and its negative control works; there is no reference file to run it
+against.</li>
+<li><b class="warn">Ladder rows 4&ndash;7 do not reproduce</b> the published
+table. Documented case by case in <code>CALIBRATION.md</code>.</li>
+<li><b class="warn">One unverified input</b> &mdash; the &euro;8.29/kg Platts
+hydrogen assessment, licensed data taken from the specification.</li>
+<li><b class="warn">Subsidy money is not earmarked.</b> The ETS Directive's
+spending clause is a non-binding target on national budgets, not an
+entitlement any project can draw on.</li>
+<li><b class="warn">This is an increment, not a P&amp;L.</b> The cash flow is
+the difference between switching and not switching. Steel revenue, raw
+materials, debt service, tax and working capital net out by construction. A
+real sizing exercise starts here and adds the rest.</li>
+</ul>
+
+<h2>7. What is checked</h2>
+<ul>
+<li><b>Validation gate.</b> Nine published quantities reproduce to 1e-3
+relative before anything downstream prints.</li>
+<li><b>Every table cell re-derived</b> from the raw CSV or cached statistic
+&mdash; not from the function that prints it &mdash; and compared at the
+precision shown. <b>145/145 agree.</b></li>
+<li><b>The specification, quantity by quantity.</b> 54 of 62 published figures
+reproduce; all eight differences are NPV <em>levels</em>, high by
+1.1&ndash;8.0%. No year, trigger or crossing year differs.</li>
+<li>368 tests and 42 standard-library self-checks on every build; zero
+third-party dependencies.</li>
+</ul>
+
+<footer>Explanatory framework, not investment advice. Generated by
+<code>handoff.py</code> from a live model run. Full workings:
+<code>explained.html</code> (every figure and table, 300+ words each),
+<code>gallery.html</code> (all of them, titles only),
+<code>results.html</code> (the tables with sources). Read
+<code>CALIBRATION.md</code> before quoting any figure.</footer>
+</body></html>
