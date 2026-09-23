@@ -817,3 +817,35 @@ def test_the_subsidy_step_is_the_jump_at_the_window() -> None:
 def test_the_reline_bar_is_labelled_on_the_capex_panel() -> None:
     """A second capex bar nine years after commitment is unguessable."""
     assert "reline avoided" in plots.chart_inputs_over_time()
+
+
+def test_no_page_hardcodes_a_count_that_can_go_stale() -> None:
+    """Counts must be read from source, not typed.
+
+    The self-check count sat hardcoded at 41 in the brief and went stale the
+    moment a forty-second check was added. Both pages now derive it, and this
+    pins the two that quote it - including the separate verification count,
+    which is a different number and was briefly shadowed by this fix.
+    """
+    from reporting import brief, deck, handoff
+
+    n_tests, n_selfchecks = deck.source_counts()
+    for name, page in (("brief", brief.build()), ("handoff", handoff.build())):
+        assert str(n_selfchecks) in page, f"{name} does not quote {n_selfchecks}"
+        assert str(n_tests) in page, f"{name} does not quote {n_tests}"
+
+
+def test_the_brief_keeps_its_two_counts_apart() -> None:
+    """The verification count and the self-check count are different numbers.
+
+    Reusing one name for both turned "145/145 agree" into "42/42 agree" - the
+    page still rendered, and still looked like a fact.
+    """
+    from analysis import verify
+    from reporting import brief, deck
+
+    n_verify = len(verify.all_checks())
+    _n_tests, n_selfchecks = deck.source_counts()
+    assert n_verify != n_selfchecks, "pick a sharper test; the counts collided"
+    page = brief.build()
+    assert f"{n_verify}/{n_verify} agree" in page

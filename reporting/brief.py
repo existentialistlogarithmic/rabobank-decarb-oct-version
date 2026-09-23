@@ -134,7 +134,10 @@ def build() -> str:
     vol_observed = market.volatility_gap(offline=True).observed
     vol_trigger, vol_crossing = at_rung.trigger, at_rung.crossing_year
     base_trigger, base_crossing = o.trigger, o.crossing_year
-    n_tests, _ = __import__('reporting.deck', fromlist=['x']).source_counts()
+    # NOT n_checks - that name already holds the verification count above, and
+    # shadowing it turned "145/145 agree" into "42/42 agree".
+    n_tests, n_selfchecks = __import__(
+        'reporting.deck', fromlist=['x']).source_counts()
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <title>Steel decarbonisation timing &mdash; brief</title>
 <style>{CSS}</style></head><body>
@@ -218,7 +221,8 @@ raw CSV cell or cached statistic &mdash; not from the function that prints them
 <li><b>The specification, quantity by quantity.</b> 54 of 62 published figures
 reproduce; all eight differences are NPV <em>levels</em>, high by 1.1&ndash;8.0%.
 No year, trigger or crossing year differs.</li>
-<li>{n_tests} tests and 41 standard-library self-checks, run on every build.</li>
+<li>{n_tests} tests and {n_selfchecks} standard-library self-checks, run
+on every build.</li>
 </ul>
 
 <h2>What is not</h2>
