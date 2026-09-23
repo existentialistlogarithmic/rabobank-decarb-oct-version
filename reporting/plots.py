@@ -1259,22 +1259,39 @@ def money(v: float) -> str:
 
 
 def panels(
-    series, years, unit, title, caption, note=None, marks=(),
+    series, years, unit, title, caption, note=None, marks=(), annotate=(),
 ) -> str:
     """Stacked panels sharing one year axis, each with its own scale.
 
     ``series`` is a sequence of (label, {year: value}, slot, kind) where kind
-    is "bar" or "line". Each panel is scaled to its own data, which is the
+    is "bar" or "step". Each panel is scaled to its own data, which is the
     point: these quantities differ by an order of magnitude and the shape of
     each is what the reader needs, not their relative height.
 
+    **There is no sloped-line kind, deliberately.** Everything drawn here is an
+    annual flow or a year-end stock - a discrete series, not a sampled
+    continuous function - and a straight line between two annual points
+    invents a transition that does not exist. The first version drew the opex
+    penalty as a line, which sloped gently from zero in 2028 to -150m in 2029
+    and read as a year-long ramp; in fact nothing happens until the plant
+    commits and then the full penalty applies. Bars for flows, steps for
+    running totals.
+
     ``marks`` are (year, label) verticals drawn across every panel - the
     commitment year and the payback year, which is where a lender looks.
+    ``annotate`` is (panel index, year, label) for a bar whose meaning is not
+    obvious from position alone.
     """
     n = len(series)
     height = PAD_T + 10 + n * (PANEL_H + PANEL_GAP) + 34
     left, right = 92, W - 30
     y0, y1 = min(years), max(years)
+    # The pixel gap between CONSECUTIVE years, which is what X() actually
+    # steps by: (right-left) spans len(years)-1 intervals, not len(years).
+    # Dividing by the count instead left each step's right edge about a pixel
+    # short of the next step's left edge, so every connector in a step path
+    # came out as a 1px diagonal rather than a clean vertical.
+    step_px = (right - left) / max(len(years) - 1, 1)
 
     def X(t: float) -> float:
         return scale(t, y0, y1, left, right)
@@ -1293,44 +1310,80 @@ def panels(
             return scale(v, lo, hi, bot, top)
 
         zero = Y(0.0)
-        parts.append(f'<line class="grid" x1="{left}" y1="{zero:.1f}" '
+        parts.append(f'<line class="axis" x1="{left}" y1="{zero:.1f}" '
                      f'x2="{right}" y2="{zero:.1f}"/>')
-        # Ticks at the real extremes, not the padded ones, and never a bare
-        # zero - the zero line is already drawn and labelling it twice is
-        # noise. The panel label sits ABOVE the panel rather than inside it:
-        # at x=0 it collided with the tick labels on the first render.
-        for v in (min(vals), max(vals)):
-            if abs(v) > span * 0.02:
-                parts.append(f'<text class="tick ar" x="{left - 8}" '
-                             f'y="{Y(v) + 4:.1f}">{esc(money(v))}</text>')
+        # Ticks at the real extremes AND at zero. Zero has to be labelled: in
+        # a panel whose data is all negative it sits at the top, and a reader
+        # cannot otherwise tell the baseline from the top of the frame.
+        ticks = {0.0}
+        ticks.update(v for v in (min(vals), max(vals)) if abs(v) > span * 0.02)
+        # The gridline stays at the true value; only the LABEL is nudged. On a
+        # cumulative panel running -1.2bn to 14.2bn the zero and the minimum
+        # are eleven pixels apart and their labels overprinted.
+        placed: list[float] = []
+        for v in sorted(ticks, key=lambda v: -abs(Y(v) - zero)):
+            parts.append(f'<line class="grid" x1="{left}" y1="{Y(v):.1f}" '
+                         f'x2="{right}" y2="{Y(v):.1f}"/>')
+            ly = Y(v) + 4
+            while any(abs(ly - q) < 11.0 for q in placed):
+                ly += 11.0 if v <= 0.0 else -11.0
+            placed.append(ly)
+            parts.append(f'<text class="tick ar" x="{left - 8}" '
+                         f'y="{ly:.1f}">{esc(money(v))}</text>')
         parts.append(f'<text class="cat al" x="0" y="{top - 7:.1f}">'
                      f"{esc(label)}</text>")
 
         if kind == "bar":
-            width = max((right - left) / max(len(years), 1) * 0.66, 1.6)
+            width = max(step_px * 0.62, 1.8)
             for t in years:
                 v = values.get(t, 0.0)
                 if abs(v) < span * 1e-6:
                     continue
-                y_top = Y(max(v, 0.0))
                 parts.append(
                     f'<rect class="br s{slot}" x="{X(t) - width / 2:.1f}" '
-                    f'y="{y_top:.1f}" width="{width:.1f}" '
+                    f'y="{Y(max(v, 0.0)):.1f}" width="{width:.1f}" '
                     f'height="{abs(Y(v) - zero):.1f}" rx="2">'
                     f"<title>{esc(f'{t}: {money(v)}')}</title></rect>")
         else:
-            pts = " ".join(f"{X(t):.1f},{Y(values.get(t, 0.0)):.1f}" for t in years)
-            parts.append(f'<path class="ln s{slot}" d="M{pts.replace(" ", " L")}"/>')
+            # A running total holds through the year and jumps at year end, so
+            # the path is horizontal-then-vertical, never diagonal.
+            d = []
+            for j, t in enumerate(years):
+                y = Y(values.get(t, 0.0))
+                x_a, x_b = X(t) - step_px / 2, X(t) + step_px / 2
+                d.append(f"{'M' if j == 0 else 'L'}{max(x_a, left):.1f},{y:.1f}")
+                d.append(f"L{min(x_b, right):.1f},{y:.1f}")
+            parts.append(f'<path class="ln s{slot}" d="{" ".join(d)}"/>')
 
         for year, _lab in marks:
             if y0 <= year <= y1:
                 parts.append(f'<line class="mark" x1="{X(year):.1f}" '
                              f'y1="{top:.1f}" x2="{X(year):.1f}" y2="{bot:.1f}"/>')
+        for panel, year, lab in annotate:
+            if panel == i and y0 <= year <= y1:
+                v = values.get(year, 0.0)
+                above = v >= 0
+                parts.append(
+                    f'<text class="val am" x="{X(year):.1f}" '
+                    f'y="{Y(v) + (-7 if above else 13):.1f}">{esc(lab)}</text>')
 
-    for year, lab in marks:
-        if y0 <= year <= y1:
-            parts.append(f'<text class="val am" x="{X(year):.1f}" '
-                         f'y="{PAD_T - 8:.1f}">{esc(lab)}</text>')
+    # Mark labels are centred on their verticals and collide when two marks
+    # fall close together - "T* 2029" and "full to 2031" printed as one word.
+    # The rule is the same as the tick labels': the line stays put, the text
+    # moves. Width is estimated at 6px a character, which is close enough at
+    # this size to keep them apart without pushing them off the plot.
+    placed_x: list[tuple[float, float]] = []
+    for year, lab in sorted(marks, key=lambda m: m[0]):
+        if not (y0 <= year <= y1):
+            continue
+        half = len(lab) * 3.0
+        lx = X(year)
+        for px, pw in placed_x:
+            if abs(lx - px) < half + pw + 6.0:
+                lx = px + pw + half + 6.0
+        placed_x.append((lx, half))
+        parts.append(f'<text class="val am" x="{min(lx, right):.1f}" '
+                     f'y="{PAD_T - 8:.1f}">{esc(lab)}</text>')
     for t in [y for y in years if y % 4 == 0]:
         parts.append(f'<text class="tick am" x="{X(t):.1f}" '
                      f'y="{height - 16:.1f}">{t}</text>')
@@ -1353,23 +1406,34 @@ def chart_inputs_over_time() -> str:
     cf = cashflow.build()
     lines = cf.lines
     slots = {"capex": 1, "subsidy": 2, "opex": 3, "co2": 0}
+    # Bars throughout: all four are annual flows over discrete years. Drawing
+    # any of them as a line slopes between annual points and invents a
+    # transition - the opex penalty read as a year-long ramp into 2029, when
+    # in fact it is zero until the plant commits and full thereafter.
     series = [
-        (f"{lines[k].name} (EUR/yr)", lines[k].values, slots[k],
-         "bar" if k in ("capex", "subsidy") else "line")
+        (f"{lines[k].name} (EUR/yr)", lines[k].values, slots[k], "bar")
         for k in cashflow.COMPONENTS
     ]
     marks = [(cf.commit_year, f"commit {cf.commit_year}")]
     if cf.payback_year:
         marks.append((cf.payback_year, f"payback {cf.payback_year}"))
+    # The second capex bar is the avoided reline and nobody would guess that
+    # from its position, so it is labelled on the chart rather than only in
+    # the note.
+    reline = next((t for t in cf.years
+                   if t != cf.commit_year and lines["capex"].values[t]), None)
+    annotate = [(0, reline, "reline avoided")] if reline else []
 
     return panels(
         series, list(cf.years), "year",
         "The four inputs, as they actually fall over time",
         "Capex, subsidy, opex and CO2 for a "
         f"{cf.mt_per_yr:g}&nbsp;Mt/yr plant committing in {cf.commit_year}. "
+        "Bars throughout, because these are annual flows over discrete years. "
         "Each panel has its own scale - a EUR 2.1bn spike and a EUR 150m/yr "
-        "line do not share an axis usefully - and all four share the year axis.",
-        marks=marks,
+        "charge do not share an axis usefully - and all four share the year "
+        "axis.",
+        marks=marks, annotate=annotate,
         note="CAPEX is a spike, not a profile: the model commits in one year, "
              "so there is no construction schedule. SUBSIDY is paid against "
              "capex in that same year and is worth less the later it comes - "
@@ -1400,7 +1464,7 @@ def chart_cash_flow() -> str:
 
     series = [
         ("Net cash flow (EUR/yr)", cf.net, 0, "bar"),
-        ("Cumulative (EUR)", cf.cumulative, 2, "line"),
+        ("Cumulative (EUR)", cf.cumulative, 2, "step"),
     ]
     here, model = cf.npv_check
     return panels(
@@ -1436,6 +1500,12 @@ def chart_subsidy_window() -> str:
     mt = cashflow.REFERENCE_MT
     absolute = {t: v * mt * 1e6 for t, v in window.items()}
     cf = cashflow.build()
+    # The step is the jump AT the window's opening: full weight minus the
+    # pre-window floor. An earlier version wrote max minus the smallest
+    # positive value, which picks up the last taper year instead of the floor
+    # and overstated the step by EUR 50m.
+    opens = Params().policy.support_start
+    step = window[opens] - window[opens - 1]
 
     return panels(
         [("Support available (EUR)", absolute, 2, "bar")],
@@ -1452,7 +1522,7 @@ def chart_subsidy_window() -> str:
              f"{SUPPORT_FULL_UNTIL} the Booster pays full weight. Then a "
              f"linear taper to nothing by {SUPPORT_END}. For a "
              f"{mt:g}&nbsp;Mt/yr plant the step at the window's opening is "
-             f"{units.eur((max(window.values()) - min(v for v in window.values() if v > 0)) * mt * 1e6)} "
+             f"{units.eur(step * mt * 1e6)} "
              "- which is why the timing of a subsidy is not a detail. This is "
              "a published rule, not an observation: see T6 for the "
              "instruments and T9 for the money actually paid out.",

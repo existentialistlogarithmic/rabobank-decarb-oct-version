@@ -763,3 +763,57 @@ def test_the_handoff_prints_in_light_mode() -> None:
     page = handoff.build()
     assert page.index(handoff.LIGHT) > page.index("--s0:#2a78d6"), (
         "the light override must come after plots.CSS to win")
+
+
+# ------------------------------------------- the business-case chart mechanics
+
+def test_no_business_case_panel_draws_a_sloped_line() -> None:
+    """Annual flows are discrete; a sloped line invents a transition.
+
+    The first version drew the opex penalty as a line, so it fell gently from
+    zero in 2028 to -150m in 2029 and read as a year-long ramp. Nothing
+    happens until the plant commits, and then the full penalty applies. Bars
+    for flows; a step for a running total. A diagonal is always wrong here.
+    """
+    import re
+
+    for card in (plots.chart_inputs_over_time(), plots.chart_cash_flow(),
+                 plots.chart_subsidy_window()):
+        for d in re.findall(r'<path class="ln[^"]*" d="([^"]+)"', card):
+            coords = re.findall(r"[ML](-?[\d.]+),(-?[\d.]+)", d)
+            for (x1, y1), (x2, y2) in zip(coords, coords[1:], strict=False):
+                moved_x = abs(float(x2) - float(x1)) > 0.5
+                moved_y = abs(float(y2) - float(y1)) > 0.5
+                assert not (moved_x and moved_y), (
+                    f"a segment moves in both axes at once: "
+                    f"({x1},{y1})->({x2},{y2}) - that is a diagonal")
+
+
+def test_every_panel_labels_its_zero_line() -> None:
+    """In an all-negative panel zero sits at the top and is otherwise
+    indistinguishable from the frame."""
+    for card in (plots.chart_inputs_over_time(), plots.chart_cash_flow()):
+        assert ">0</text>" in card, "no zero tick label on a panel"
+
+
+def test_the_subsidy_step_is_the_jump_at_the_window() -> None:
+    """The step is full weight minus the PRE-WINDOW floor.
+
+    Written as max-minus-smallest-positive it picked up the last taper year
+    instead of the floor and overstated the step by EUR 50m. Re-derived here
+    from the support function rather than from the chart.
+    """
+    from analysis import cashflow, units
+    from timing_model.params import Params
+
+    window = cashflow.support_window()
+    opens = Params().policy.support_start
+    step = window[opens] - window[opens - 1]
+    assert step == pytest.approx(130.0)
+    money = units.eur(step * cashflow.REFERENCE_MT * 1e6)
+    assert money in plots.chart_subsidy_window(), money
+
+
+def test_the_reline_bar_is_labelled_on_the_capex_panel() -> None:
+    """A second capex bar nine years after commitment is unguessable."""
+    assert "reline avoided" in plots.chart_inputs_over_time()
