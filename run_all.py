@@ -188,12 +188,16 @@ def section_findings() -> None:
     built from primary documents, and leads with how much of that pass is
     actually linked rather than merely attributed. ``tables`` is the finalised
     set, one per review comment, with the unit of every column in its header
-    and documented holes left empty rather than filled.
+    and documented holes left empty rather than filled. ``allocation_check``
+    tests eq (4)'s carbon terms against benchmark-times-activity allocation,
+    and ``plant_case`` re-runs every number the October article quotes.
     """
     banner(9, "STRUCTURAL FINDINGS")
     from analysis import (
+        allocation_check,
         cashflow,
         findings,
+        plant_case,
         reconcile,
         regimes,
         sourced,
@@ -220,6 +224,10 @@ def section_findings() -> None:
     tables.main()
     print()
     cashflow.main()
+    print()
+    allocation_check.main()
+    print()
+    plant_case.main()
     print()
     _verify_failures.append(verify.main())
 

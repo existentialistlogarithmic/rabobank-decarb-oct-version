@@ -95,6 +95,8 @@ analysis/            studies that run on the model without changing it
   reconcile.py         the model against every published v11 quantity
   market.py            the model against the live market, in euros
   cashflow.py          the four inputs over TIME, and the cash flow they make
+  plant_case.py        the October article's 2.5 Mt plant in money: every number it quotes
+  allocation_check.py  eq (4)'s carbon terms against benchmark x activity allocation
 
 reporting/           generated deliverables — nothing imports these
   sources.py           -> SOURCES.md, the provenance register (audited)
@@ -124,7 +126,7 @@ assumption, so a test forbids it outright.
 ```
 python run_all.py               # gate, ladders, reconciliation, pages, checks
 python selfcheck.py             # 42 assertions, standard library only
-python -m pytest tests          # 256 test functions, 368 cases after parametrisation
+python -m pytest tests          # 302 test functions, 419 cases after parametrisation
 python -m analysis.sourcing     # the frontier, as a table
 python -m analysis.grounding    # inputs against observed data
 python -m analysis.regimes      # the scenario map and the what-ifs
@@ -140,6 +142,8 @@ python -m analysis.units        # what the per-tonne figures are in actual money
 python -m analysis.sourced      # the published case against the sourced one
 python -m analysis.market       # assumptions vs the live market, in money
 python -m analysis.cashflow     # capex/opex/subsidy/CO2 by year -> payback
+python -m analysis.plant_case   # every number in the October article, re-run
+python -m analysis.allocation_check  # free allocation after a switch: eq (4) checked
 python -m data.eex              # what the EU ETS auctions cleared at, and paid out
 python -m data.sourced          # what the research pass returned, and how much is linked
 python -m reporting.explorer    # rebuild explorer.html
@@ -378,7 +382,7 @@ headline numbers on the title slide match a fresh `outputs()` call.
 |---|---|
 | validation gate | nine published quantities to 1e-3 relative, before anything prints |
 | feasibility guards | `r − mu`, `u ∈ (0,1]`, monotone allocation, non-negative residual, capex clamp — all raise, never return a flag |
-| 256 test functions | units, layering, findings, provenance, observed and live data, the specification, generated pages — 368 cases after parametrisation |
+| 302 test functions | units, layering, findings, provenance, observed and live data, the specification, generated pages, the article's plant case — 419 cases after parametrisation |
 | 42 self-checks | the same load-bearing claims with no third-party packages |
 | diff harness | 50-case grid, self-diff, and a negative control that must flag exactly two |
 | `analysis/verify.py` | 145 table cells re-derived from the raw CSV cell or cached series, compared at the precision each one displays |
@@ -458,6 +462,26 @@ a source without linking it — `unverified` here, not `sourced`. Nothing has be
 promoted into the register, and a test fails if link coverage rises above 50%
 without the statuses being revisited.
 
+## The October article: the reference plant in money
+
+`analysis/plant_case.py` is the "steel cross-check case" the October draft of
+the article quotes from, written down so its numbers can be re-run: a 2.5 Mt/yr
+H2-DRI-EAF plant, 3.5 MtCO2/yr avoided, 143 kt/yr of hydrogen, EUR 3bn of capex
+built over four years from the FID. It reuses this model's allocation
+schedules, central path, support window and reline year, and adds what the
+article needs and the per-tonne model does not have: a construction lag, real
+2026 euros throughout, and an option layer solved two ways (an exact binomial
+lattice and Longstaff-Schwartz least-squares Monte Carlo, which a test holds
+within 3% of each other).
+
+Review corrections it carries, each pinned by a test: a switching plant keeps
+its free allocation (the hot-metal benchmark has covered DRI since Delegated
+Regulation (EU) 2024/873), so the carbon value of switching is `E x P`, not
+`E x P x s(t)`; nominal analyst prices are deflated before discounting at 8%
+real; one hydrogen intensity drives the opex. `CROSSCHECK.md` lists every
+number in Draft 1 against the re-run, and every review comment against what
+was done about it.
+
 ## Known limitations
 
 `analysis/reconcile.py` checks the model against every quantity the v11
@@ -481,6 +505,16 @@ another, and a test now pins the single standard.
 Closing the level gap by moving an input would break the §4.3 age ladder, which
 reproduces exactly across twelve values and is the stronger constraint. So it is
 documented rather than tuned away.
+
+**Free allocation after the switch.** `analysis/allocation_check.py` shows
+that eq (4) adds `u * alpha * eps_cln * p` to the carbon value of switching:
+the clean route's residual emissions are treated as covered free while the
+incumbent's whole allocation is also sold. With allocation tied to activity
+rather than emissions, the value with resale is `b * p`. The term is small,
+but it is the whole of the "+7.82 vintage delta with resale", and removing it
+moves the base NPV from 1,605.9 to 1,589.1, onto the v11 figure of 1,588 (five
+of the eight NPV-level gaps close). It is reported, not applied, because it
+moves every published level and the fitted `gamma`; the decision is the team's.
 
 Three places where the specification's own text does not hold, all pinned by
 tests:

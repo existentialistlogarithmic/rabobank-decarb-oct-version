@@ -261,7 +261,7 @@ def check_support_shape() -> Iterator[Check]:
                     ratio, derived / p.policy.s_max, "worth / s_max")
 
 
-def check_market() -> Iterator[Check]:
+def check_market(fetch: bool = False) -> Iterator[Check]:
     """T8 and T9, re-derived from the auction rows rather than from ``market``.
 
     This is the check that matters most for the live data, because a figure
@@ -273,13 +273,20 @@ def check_market() -> Iterator[Check]:
     The auctions are read once per process and cached, so the rows the table
     printed and the rows this sums are the same rows - a network refresh
     between the two would otherwise show up as a spurious failure.
+
+    Rendering must not touch the network (``test_market``), so by default
+    this re-derives only from auction rows already loaded in the process -
+    ``run_all.py`` loads them in its refresh section. ``fetch=True`` is for the
+    stand-alone verifier, which may download them.
     """
     from data import eex
 
     try:
-        rows = eex.auctions()
+        rows = eex.auctions() if fetch else eex.loaded_auctions()
     except (ValueError, OSError):
         return  # no auction record reachable or cached; nothing to re-derive
+    if not rows:
+        return
 
     window = rows[:eex.MEAN_WINDOW]
     volume = sum(a.volume_t for a in window)
@@ -374,18 +381,18 @@ def check_gate() -> Iterator[Check]:
         yield Check("gate", item, unit, f"{printed:.6f}", derived, how)
 
 
-def all_checks() -> list[Check]:
+def all_checks(fetch: bool = False) -> list[Check]:
     """Every re-derivation, in table order."""
     return [
         *check_gate(), *check_units_table(), *check_npv_cases(),
         *check_capex(), *check_opex(), *check_energy(), *check_support_shape(),
-        *check_market(),
+        *check_market(fetch),
     ]
 
 
 def main() -> int:
     """Print every check. Returns the number that failed."""
-    checks = all_checks()
+    checks = all_checks(fetch=True)
     bad = [c for c in checks if not c.ok]
     print("Every number re-derived from its raw source")
     print("=" * 78)

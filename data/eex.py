@@ -311,6 +311,17 @@ def auctions(year: int | None = None) -> tuple[Auction, ...]:
     return _loaded[year]
 
 
+def loaded_auctions(year: int | None = None) -> tuple[Auction, ...] | None:
+    """Auctions already downloaded in this process, or None. Never fetches.
+
+    The render layer reads this instead of :func:`auctions`: a page must be
+    built from what is already in memory or on disk, so two artefacts built
+    minutes apart cannot quote different numbers for the same quantity.
+    """
+    year = year or dt.date.today().year
+    return _loaded.get(year) or _loaded.get(year - 1)
+
+
 # ------------------------------------------------------------------- series
 
 def clearing_price(cache: dict, offline: bool = False) -> Series:
