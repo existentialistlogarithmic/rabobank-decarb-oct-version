@@ -206,7 +206,7 @@ def test_numbers_quoted_in_the_article() -> None:
     assert round(pc.pv(bill_h, 0.08) / 1000, 1) == 4.3
     assert round(pc.pv(pc.do_nothing_bill(st), 0.08) / 1000, 1) == 2.0
     law = pc.pv(pc.do_nothing_bill(replace(C, rulebook="law2023")), 0.08)
-    assert round((law - pc.pv(bill_c, 0.08)) / 1000, 1) == 0.2
+    assert round(law - pc.pv(bill_c, 0.08), -1) == 240  # "lowers it by about EUR 240m"
     cv = pc.carbon_value(C)
     assert round(cv[2026]) == 266 and round(cv[2035], -1) == 420
 

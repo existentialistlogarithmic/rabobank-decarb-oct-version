@@ -222,6 +222,30 @@ text quotes from the same export the charts are drawn from: 77 checks.
    not use it. Remove repo-wide if the source rule applies there too.
 8. `data/sourced/projects_capex.csv`: thyssenkrupp capacity 2.3Mt → 2.5Mt.
 
+## Final check of Draft 4 (27 October, afternoon)
+
+Draft 4 is Draft 3 with Achelijn's edits (header stamp, label, byline, the
+model no longer called "RaboResearch's", research question in bold). Every
+number was re-run against `plant_case.py`; every number that differs between
+Draft 4 and the checked version is listed here:
+
+| Where | Draft 4 | Checked | Why |
+|---|---|---|---|
+| Cost of doing nothing | proposal lowers the bill PV by "about EUR 200m" | about EUR 240m (central path) | 3,384.6 − 3,148.7 = 236; the test now pins 240 |
+| Table 1, carbon price | allowances at EUR 82–87/t | EUR 82–88/t | GMK Center has EUR 88.3/t on 12 October |
+| Calendar sentence | "the reline" | "the reline in 2038" | explicit |
+| Footnote 1 | CINEA, no date | 3 April 2025 | |
+| Footnote 31 | "see footnote on the central path" | "see footnote 25" | |
+
+Wording fixed for accuracy: Salzgitter deferred *decisions* on stages 2–3 to
+2028–2029 (Eurometal, Hydrogen Central); the gas price "more than tripled from
+its January level" (the source compares with January, not with March); the
+central and BloombergNEF paths are nominal, then converted to 2026 euros; cement
+uses carbon capture, not electrification. Figures 5 and 7 now use true minus
+signs; Figure 1 gives ArcelorMittal's country. Table A1 was tightened so it no
+longer leaves two rows on a last page in Word. `check_figures.py`: 77 checks,
+0 mismatches; `tests/test_plant_case.py`: 30 passed.
+
 ---
 
 ## 7. History: the 20 October cross-check (Draft 1 → Draft 2)

@@ -73,7 +73,7 @@ def end_label(ax, x, y, text, color, dy=0.0, ha="left", weight="bold"):
 #: ArcelorMittal 1.3 approved, forfeited (ArcelorMittal 19 Jun 2025).
 PROJECTS = [
     # label, capacity note, capex, support, status
-    ("ArcelorMittal\nBremen, Eisenhüttenstadt", 2.5, 1.3, "Cancelled, June 2025"),
+    ("ArcelorMittal\nBremen, Eisenhüttenstadt (DE)", 2.5, 1.3, "Cancelled, June 2025"),
     ("Stegra\nBoden (SE), 2.5Mt", 6.5, 0.515, "Building; needs more capital"),
     ("Salzgitter SALCOS\nstage 1 (DE), 1.9Mt", 2.7, 1.322, "Start H1 2027, mainly gas"),
     ("thyssenkrupp\nDuisburg (DE), 2.5Mt", 3.0, 2.0, "Start end-2027, on gas"),
@@ -225,7 +225,7 @@ def fig4(d, out):
     n_viable = sum(1 for row in d["sweep_marginal"] if row["t_star"] is not None)
     a2.set_title(f"Value of waiting one more year,\n{n_viable} viable scenarios of 81, EUR m",
                  fontsize=9.5, color=TEXT, loc="left")
-    a2.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
+    a2.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}".replace("-", "\u2212")))
     fig.tight_layout()
     fig.subplots_adjust(right=0.97)
     fig.savefig(out)
@@ -264,9 +264,9 @@ def fig6(d, out):
         color = NAVY if group == "project" else RUST
         ax.barh(i, dv / 1000.0, color=color, height=0.6)
         year = "no year pays" if t1 is None else f"best FID {t1}"
-        ax.text(dv / 1000.0 - 0.02, i, f"{dv / 1000.0:+.2f}  ", va="center", ha="right",
+        ax.text(dv / 1000.0 - 0.02, i, f"{dv / 1000.0:+.2f}  ".replace("-", "\u2212"), va="center", ha="right",
                 fontsize=8.5, fontweight="bold", color=TEXT)
-        labels.append(f"{label} ({year})")
+        labels.append(f"{label} ({year})".replace(" -", " \u2212"))
     ax.set_yticks(range(len(rows)))
     ax.set_yticklabels(labels, fontsize=8.5, color=TEXT)
     ax.axvline(0, color="#888888", lw=0.9)
