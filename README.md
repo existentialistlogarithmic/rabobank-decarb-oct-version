@@ -126,7 +126,7 @@ assumption, so a test forbids it outright.
 ```
 python run_all.py               # gate, ladders, reconciliation, pages, checks
 python selfcheck.py             # 42 assertions, standard library only
-python -m pytest tests          # 302 test functions, 419 cases after parametrisation
+python -m pytest tests          # 305 test functions, 420 cases after parametrisation
 python -m analysis.sourcing     # the frontier, as a table
 python -m analysis.grounding    # inputs against observed data
 python -m analysis.regimes      # the scenario map and the what-ifs
@@ -382,7 +382,7 @@ headline numbers on the title slide match a fresh `outputs()` call.
 |---|---|
 | validation gate | nine published quantities to 1e-3 relative, before anything prints |
 | feasibility guards | `r − mu`, `u ∈ (0,1]`, monotone allocation, non-negative residual, capex clamp — all raise, never return a flag |
-| 302 test functions | units, layering, findings, provenance, observed and live data, the specification, generated pages, the article's plant case — 419 cases after parametrisation |
+| 305 test functions | units, layering, findings, provenance, observed and live data, the specification, generated pages, the article's plant case — 420 cases after parametrisation |
 | 42 self-checks | the same load-bearing claims with no third-party packages |
 | diff harness | 50-case grid, self-diff, and a negative control that must flag exactly two |
 | `analysis/verify.py` | 145 table cells re-derived from the raw CSV cell or cached series, compared at the precision each one displays |
@@ -478,9 +478,16 @@ Review corrections it carries, each pinned by a test: a switching plant keeps
 its free allocation (the hot-metal benchmark has covered DRI since Delegated
 Regulation (EU) 2024/873), so the carbon value of switching is `E x P`, not
 `E x P x s(t)`; nominal analyst prices are deflated before discounting at 8%
-real; one hydrogen intensity drives the opex. `CROSSCHECK.md` lists every
-number in Draft 1 against the re-run, and every review comment against what
-was done about it.
+real; one hydrogen intensity drives the opex. The pre-reform path is anchored
+on BloombergNEF's April 2026 estimates (non-bank sources only, from Draft 3),
+and two sensitivities came out of the 27 October source check: a reline at
+recent-reline cost (EUR 150m rather than the v11 EUR 525m) and the scale of
+operating costs the model does not separate out.
+
+`docs/article/` draws the seven Draft 3 figures from `plant_case.export()` and
+`docs/article/check_figures.py` recomputes everything they print and the text
+quotes (77 checks). `CROSSCHECK.md` maps every review comment and tracked edit
+to Draft 3, logs the source check, and lists what is still open.
 
 ## Known limitations
 

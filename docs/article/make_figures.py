@@ -1,5 +1,9 @@
 """Article figures, drawn from analysis/plant_case.py's JSON export.
 
+Figure 1 (capex and support of the first EU projects) is drawn from the
+PROJECTS table below, each value with its source; the other six come from the
+model run, so the charts and the text cannot disagree.
+
 Style follows the October draft's charts: Liberation Sans, navy / orange /
 grey, no box, light grid, labels at line ends rather than legends where
 possible. Run:  python make_figures.py plant_case.json outdir
@@ -56,6 +60,52 @@ def end_label(ax, x, y, text, color, dy=0.0, ha="left", weight="bold"):
                 color=color, fontsize=8.5, fontweight=weight, va="center", ha=ha)
 
 
+#: The first EU hydrogen-ready steel projects, as of October 2026. EUR bn.
+#: capex: thyssenkrupp ~3.0 (industriemagazin.at; GMK Center 14 Aug 2026);
+#: Salzgitter SALCOS stage 1 ~2.7 (ms-aktuell.de 20 Sep 2026; 2.2-2.4 in the
+#: 23 Mar 2023 ad-hoc release); Stegra ~6.5 financing lined up (Hydrogen Fuel
+#: News 4 Sep 2025; EUR 6bn in the Commission's 2024 aid decision) and costs
+#: "significantly higher than assumed" (ESG Today 1 Oct 2026); ArcelorMittal
+#: Bremen + Eisenhuettenstadt 2.5 planned (GMK Center 26 Feb 2024).
+#: support: thyssenkrupp 2.0 (GMK Center 27 Jul 2023); Salzgitter 1.322 (EUR 1bn
+#: in 2023, +0.322 approved Feb 2026; ms-aktuell.de); Stegra 0.265 Swedish aid
+#: (GMK Center 28 Jun 2024) + 0.25 EU Innovation Fund (CINEA 3 Apr 2025);
+#: ArcelorMittal 1.3 approved, forfeited (ArcelorMittal 19 Jun 2025).
+PROJECTS = [
+    # label, capacity note, capex, support, status
+    ("ArcelorMittal\nBremen, Eisenhüttenstadt", 2.5, 1.3, "Cancelled, June 2025"),
+    ("Stegra\nBoden (SE), 2.5Mt", 6.5, 0.515, "Building; needs more capital"),
+    ("Salzgitter SALCOS\nstage 1 (DE), 1.9Mt", 2.7, 1.322, "Start H1 2027, mainly gas"),
+    ("thyssenkrupp\nDuisburg (DE), 2.5Mt", 3.0, 2.0, "Start end-2027, on gas"),
+    ("Reference plant\nin this article, 2.5Mt", 3.0, 0.5, "Standard EU facility"),
+]
+
+
+def fig_projects(out):
+    fig, ax = plt.subplots(figsize=(W, H + 0.25))
+    h = 0.36
+    for i, (label, capex, sup, status) in enumerate(PROJECTS):
+        ref = label.startswith("Reference")
+        ax.barh(i + h / 2, capex, height=h, color=GREY if ref else NAVY)
+        ax.barh(i - h / 2, sup, height=h, color=LIGHT if ref else ORANGE)
+        ax.text(capex + 0.08, i + h / 2, f"{capex:.1f}", va="center", fontsize=8.5,
+                color=TEXT, fontweight="bold")
+        ax.text(sup + 0.08, i - h / 2, f"{sup:.1f}", va="center", fontsize=8.5, color=TEXT)
+        ax.text(7.35, i, status, va="center", fontsize=8, color=MUTED)
+    ax.set_yticks(range(len(PROJECTS)))
+    ax.set_yticklabels([p[0] for p in PROJECTS], fontsize=8.5, color=TEXT)
+    ax.set_xlim(0, 7.2)
+    ax.set_xlabel("EUR bn", fontsize=9)
+    ax.grid(axis="y", visible=False)
+    from matplotlib.patches import Patch
+    ax.legend(handles=[Patch(color=NAVY, label="Announced investment"),
+                       Patch(color=ORANGE, label="Public support")],
+              frameon=False, fontsize=8.5, loc="lower right", bbox_to_anchor=(1.0, 0.0))
+    fig.subplots_adjust(left=0.25, right=0.76, top=0.97, bottom=0.13)
+    fig.savefig(out)
+    plt.close(fig)
+
+
 def fig1(d, out):
     fig, ax = plt.subplots(figsize=(W, H))
     for rb, color, label in (("law2023", NAVY, "Current law (Directive 2023/959)"),
@@ -80,13 +130,13 @@ def fig1(d, out):
 def fig2(d, out):
     fig, ax = plt.subplots(figsize=(W, H))
     spec = [("Pre-reform outlook", NAVY, "Pre-reform outlook"),
-            ("Central (RaboResearch working path)", ORANGE, "Central path"),
+            ("Central (RaboResearch carbon price foresight)", ORANGE, "Central (foresight)"),
             ("Price stall", GREY, "Price stall")]
     for key, color, label in spec:
         x, y = series(d["bills"][key])
         ax.plot(x, y, color=color, lw=2.2)
         end_label(ax, x[-1], y[-1], f"{label}: EUR {y[-1]:,.0f}m", color)
-    x, y = series(d["carbon_value"]["Central (RaboResearch working path)"])
+    x, y = series(d["carbon_value"]["Central (RaboResearch carbon price foresight)"])
     ax.plot(x, y, color=ORANGE, lw=1.6, ls=(0, (4, 2.5)))
     ax.annotate("Full carbon value, central path\n(the cost of emitting when unused\nallowances can be sold)",
                 xy=(2035.5, 421), xytext=(2038.4, 318), fontsize=8, color=ORANGE,
@@ -142,7 +192,7 @@ def fig3(d, out):
 def fig4(d, out):
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(W, H + 0.2), gridspec_kw={"width_ratios": [1.15, 1]})
     spec = [("Pre-reform outlook", NAVY, "Pre-reform outlook"),
-            ("Central (RaboResearch working path)", ORANGE, "Central path"),
+            ("Central (RaboResearch carbon price foresight)", ORANGE, "Central (foresight)"),
             ("Price stall", GREY, "Price stall")]
     for key, color, label in spec:
         x, y = series(d["curves"][key])
@@ -166,15 +216,15 @@ def fig4(d, out):
         x, y = series(row["marginal"])
         keep = [(a, b) for a, b in zip(x, y, strict=True) if 2027 <= a <= 2034]
         a2.plot([k for k, _ in keep], [v for _, v in keep], color=NAVY, lw=0.8, alpha=0.45)
-    x, y = series(d["sweep_marginal"][0]["marginal"])  # placeholder axis
     a2.axhline(0, color=RUST, lw=1.2)
     a2.axvspan(2027.5, 2031.5, color=LIGHT, alpha=0.6, lw=0)
     a2.set_xlim(2026.6, 2034.4)
     a2.set_xticks(range(2027, 2035))
     a2.tick_params(axis="x", labelsize=8.5)
     a2.set_xlabel("Waiting from this FID year to the next", fontsize=8.5, color=TEXT)
-    a2.set_title("Value of waiting one more year,\n25 viable scenarios of 81, EUR m", fontsize=9.5,
-                 color=TEXT, loc="left")
+    n_viable = sum(1 for row in d["sweep_marginal"] if row["t_star"] is not None)
+    a2.set_title(f"Value of waiting one more year,\n{n_viable} viable scenarios of 81, EUR m",
+                 fontsize=9.5, color=TEXT, loc="left")
     a2.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
     fig.tight_layout()
     fig.subplots_adjust(right=0.97)
@@ -184,7 +234,7 @@ def fig4(d, out):
 
 def fig5(d, out):
     fig, ax = plt.subplots(figsize=(W, H))
-    spec = [("high", NAVY, "Pre-reform outlook"), ("central", ORANGE, "Central path"),
+    spec = [("high", NAVY, "Pre-reform outlook"), ("central", ORANGE, "Central (foresight)"),
             ("stall", GREY, "Price stall")]
     for key, color, label in spec:
         x, y = series(d["prices_real"][key])
@@ -208,7 +258,7 @@ def fig5(d, out):
 def fig6(d, out):
     rows = d["one_at_a_time"]
     rows = sorted(rows, key=lambda r: r[2])
-    fig, ax = plt.subplots(figsize=(W, H + 0.35))
+    fig, ax = plt.subplots(figsize=(W, H + 0.6))
     labels = []
     for i, (label, group, dv, t0, t1) in enumerate(rows):
         color = NAVY if group == "project" else RUST
@@ -237,12 +287,14 @@ def main():
         d = json.load(fh)
     out = Path(sys.argv[2])
     out.mkdir(parents=True, exist_ok=True)
-    fig1(d, out / "fig1.png")
-    fig2(d, out / "fig2.png")
-    fig3(d, out / "fig3.png")
-    fig4(d, out / "fig4.png")
-    fig5(d, out / "fig5.png")
-    fig6(d, out / "fig6.png")
+    # numbered as in Draft 3 (Pablo's structure)
+    fig_projects(out / "fig1.png")
+    fig1(d, out / "fig2.png")
+    fig2(d, out / "fig3.png")
+    fig3(d, out / "fig4.png")
+    fig4(d, out / "fig5.png")
+    fig5(d, out / "fig6.png")
+    fig6(d, out / "fig7.png")
 
 
 if __name__ == "__main__":

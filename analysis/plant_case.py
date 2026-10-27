@@ -68,16 +68,21 @@ LAST_DECISION: Final[int] = 2040
 PATHS: Final[tuple[str, ...]] = ("stall", "central", "high")
 RULEBOOKS: Final[tuple[str, ...]] = ("law2023", "com2026")
 
-#: Nominal anchors of the pre-reform analyst outlook (ABN AMRO, Carbon Market
-#: Strategist, 13 May 2026: EUR 138/t in 2030 and EUR 191/t in 2035, revised
-#: down from 145 and 200). Interpolated linearly from the 2026 anchor shared
-#: with the central path, then grown at the central path's drift.
-HIGH_ANCHORS: Final[Mapping[int, float]] = {2026: 76.0, 2030: 138.0, 2035: 191.0}
+#: Nominal anchors of the pre-reform analyst outlook: BloombergNEF's April 2026
+#: estimates, made before the July 2026 proposal - EUR 142/t in 2031 and up to
+#: EUR 185/t in 2035 (Eurometal, citing Kallanish, 18 April 2026). Interpolated
+#: linearly from the 2026 anchor shared with the central path, then grown at
+#: the central path's drift. (Draft 2 used a bank's May 2026 outlook, 138/191;
+#: the authors asked for non-bank sources in Draft 3.)
+HIGH_ANCHORS: Final[Mapping[int, float]] = {2026: 76.0, 2031: 142.0, 2035: 185.0}
 #: Stall: the price stays at roughly its September-2026 level (EUR 85.6/t
 #: average, GMK Center from ICE data), held flat in 2026 euros.
 STALL_REAL: Final[float] = 85.0
 #: Nominal drift after the last anchor - the repository's ``mu``.
 DRIFT: Final[float] = Params().common.mu
+#: Reline cost in line with recent European relines (about EUR 60/t of
+#: capacity for a 2.5 Mt plant), EUR m. Sensitivity to the v11 EUR 525m.
+RELINE_OBSERVED: Final[float] = 150.0
 
 
 @dataclass(frozen=True)
@@ -95,11 +100,22 @@ class Plant:
     build_years: int = 4
     """FID to first steel."""
     fuel_saving_eur_m: float = 207.5
-    """Coke and coal avoided, net of extra power: EUR 83/t (repository c_avoided) x 2.5 Mt."""
+    """Blast-furnace-route costs avoided: EUR 83/t (repository ``c_avoided``) x 2.5 Mt.
+
+    An assumption, not a sum (open item H10): coke and coal avoided, with
+    furnace electricity, electrodes and pellet premiums not separated out.
+    :func:`unmodelled_opex_pv` scales what each EUR 10/t left out would cost.
+    """
     support_max_eur_m: float = 500.0
     """Capex grant at full weight: s_max = EUR 200/t capacity x 2.5 Mt."""
     reline_eur_m: float = 525.0
-    """Blast-furnace reline avoided: rho x K_s = EUR 210/t capacity x 2.5 Mt."""
+    """Blast-furnace reline avoided: rho x K_s = EUR 210/t capacity x 2.5 Mt.
+
+    The repository's v11 convention (reline at 25-50% of a new furnace). Recent
+    European relines cost less per tonne - Salzgitter's 2 Mt furnace A about
+    EUR 100m (2023), thyssenkrupp's ~4 Mt Schwelgern 2 over EUR 200m (2014) -
+    so :data:`RELINE_OBSERVED` is carried as a sensitivity (open item D6).
+    """
     reline_year: int = field(default_factory=lambda: reline_year(Params()))
     """Year the incumbent must be relined (repository T_rel = 2038)."""
     green_premium_eur_t: float = 0.0
@@ -352,6 +368,18 @@ def h2_break_even(T: int, c: Case) -> float:
     return -base / slope
 
 
+def unmodelled_opex_pv(T: int, c: Case, eur_per_t: float = 10.0) -> float:
+    """PV (EUR m, 2026) of an operating cost the model leaves out, per tonne.
+
+    ``eur_per_t`` a year on every tonne of capacity from first steel to the
+    horizon - the scale of, say, furnace electricity not netted in
+    ``fuel_saving_eur_m``. Subtract it from :func:`npv` to see its effect.
+    """
+    first = T + c.plant.build_years
+    return sum(c.plant.capacity_mt * eur_per_t * discount(t, c.r)
+               for t in range(first, HORIZON + 1))
+
+
 def irr(T: int, c: Case) -> float | None:
     """Real internal rate of return of a switch decided in T (bisection).
 
@@ -567,6 +595,8 @@ def one_at_a_time(base: Case) -> list[Shock]:
               base.with_plant(build_years=pl.build_years + 1)),
         Shock("No capex support", "project", replace(base, support_scale=0.0)),
         Shock("Cost of capital 10%", "project", replace(base, r=0.10)),
+        Shock(f"Reline EUR {RELINE_OBSERVED:.0f}m, not {pl.reline_eur_m:.0f}m", "project",
+              base.with_plant(reline_eur_m=RELINE_OBSERVED)),
         Shock("Carbon price path -20%", "market & rules", replace(base, price_scale=0.8)),
         Shock("Hydrogen +EUR 1/kg", "market & rules", replace(base, p_h2=base.p_h2 + 1.0)),
         Shock("Free allocation lost on switching", "market & rules",
@@ -678,10 +708,10 @@ def sobol(base: Case, T: int, n: int = 2048, seed: int = 7
 #: stall, which is a stress test on the central world.
 SCENARIOS: Final[Mapping[str, Case]] = {
     "Pre-reform outlook": Case(path="high", rulebook="law2023"),
-    "Central (RaboResearch working path)": Case(path="central", rulebook="com2026"),
+    "Central (RaboResearch carbon price foresight)": Case(path="central", rulebook="com2026"),
     "Price stall": Case(path="stall", rulebook="com2026"),
 }
-CENTRAL: Final[Case] = SCENARIOS["Central (RaboResearch working path)"]
+CENTRAL: Final[Case] = SCENARIOS["Central (RaboResearch carbon price foresight)"]
 
 #: Hydrogen reference points (EUR/kg), ACER European hydrogen markets 2025
 #: monitoring report: conventional SMR hydrogen a little over 2.00, abated
@@ -756,6 +786,13 @@ def article_numbers() -> dict[str, object]:
         for s_ in (0.10, 0.20, 0.30, 0.45)}
     out["never_by_sigma"] = {s_: lsm(replace(c, sigma=s_), n_paths=10000).never
                              for s_ in (0.10, 0.20, 0.30, 0.45)}
+    rel = c.with_plant(reline_eur_m=RELINE_OBSERVED)
+    out["reline_observed"] = {
+        "npv_2029": npv(2029, rel), "t_star": t_star(rel),
+        "drop_2034_2035": marginal_value(rel)[2034],
+        "h2_break_even_2029": h2_break_even(2029, rel),
+        "sweep_viable": sum(1 for r in sweep_81(rel) if r.t_star is not None)}
+    out["unmodelled_opex_10_per_t_2029"] = unmodelled_opex_pv(2029, c)
     shocks = []
     ts0 = t_star(c)
     v0 = max(npv_curve(c).values())
@@ -852,6 +889,13 @@ def report(print_: Callable[[str], None] = print) -> None:  # pragma: no cover -
     p("\n7. One change at a time (central)")
     for label, group, dv, t0_, t1_ in n["one_at_a_time"]:
         p(f"   {label:<36}{group:<16} value {dv:+7.0f}  best year {t0_} -> {t1_}")
+
+    ro = n["reline_observed"]
+    p(f"   reline EUR {RELINE_OBSERVED:.0f}m: NPV(2029) {eur(ro['npv_2029'])}, best year "
+      f"{ro['t_star']}, 2034->2035 {ro['drop_2034_2035']:+.0f}, H2 break-even "
+      f"EUR {ro['h2_break_even_2029']:.2f}/kg, sweep viable {ro['sweep_viable']}/81")
+    p(f"   each EUR 10/t a year of unmodelled opex: -{eur(n['unmodelled_opex_10_per_t_2029'])}"
+      " on a 2029 switch")
 
     p("\n8. 81-scenario sweep")
     p(f"   viable {n['sweep_viable']}/81; best year {n['sweep_t_star_range']}; value "

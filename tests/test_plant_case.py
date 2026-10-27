@@ -69,8 +69,8 @@ def test_prices_are_deflated_to_2026_euros() -> None:
     """The draft discounted at 8% real against nominal analyst prices."""
     real = pc.price_path(C)
     assert real[2030] == pytest.approx(112.0 / 1.02 ** 4)
-    assert pc.nominal_path("high")[2030] == pytest.approx(138.0)
-    assert pc.nominal_path("high")[2035] == pytest.approx(191.0)
+    assert pc.nominal_path("high")[2031] == pytest.approx(142.0)  # BloombergNEF, April 2026
+    assert pc.nominal_path("high")[2035] == pytest.approx(185.0)
 
 
 def test_one_hydrogen_intensity_drives_the_opex() -> None:
@@ -155,9 +155,9 @@ def test_headline_scenarios() -> None:
     n = {name: (pc.t_star(c), max(pc.npv_curve(c).values()))
          for name, c in pc.SCENARIOS.items()}
     assert n["Pre-reform outlook"][0] == 2028
-    assert n["Pre-reform outlook"][1] == pytest.approx(1369, abs=1)
-    assert n["Central (RaboResearch working path)"][0] == 2029
-    assert n["Central (RaboResearch working path)"][1] == pytest.approx(351, abs=1)
+    assert n["Pre-reform outlook"][1] == pytest.approx(1235, abs=1)
+    assert n["Central (RaboResearch carbon price foresight)"][0] == 2029
+    assert n["Central (RaboResearch carbon price foresight)"][1] == pytest.approx(351, abs=1)
     assert n["Price stall"][0] is None
 
 
@@ -181,7 +181,7 @@ def test_waiting_stops_paying_in_2029_on_the_central_path() -> None:
 def test_every_viable_sweep_scenario_commits_in_2028_to_2031() -> None:
     rows = pc.sweep_81()
     viable = [r for r in rows if r.t_star is not None]
-    assert len(viable) == 25
+    assert len(viable) == 23
     assert {r.t_star for r in viable} <= set(range(2028, 2032))
 
 
@@ -195,15 +195,15 @@ def test_central_irr_clears_the_hurdle() -> None:
     assert r is not None and r > C.r and math.isclose(r, 0.101, abs_tol=0.002)
 
 
-def test_numbers_quoted_in_draft_2() -> None:
-    """Every further figure the October rewrite quotes, at the precision it quotes it."""
+def test_numbers_quoted_in_the_article() -> None:
+    """Every further figure Draft 3 quotes, at the precision it quotes it."""
     from analysis.plant_case import H2_RENEWABLE, SCENARIOS
 
     hi, st = SCENARIOS["Pre-reform outlook"], SCENARIOS["Price stall"]
     bill_c, bill_h = pc.do_nothing_bill(C), pc.do_nothing_bill(hi)
     assert round(bill_c[2030], -1) == 150 and round(bill_c[2035], -1) == 360
-    assert round(bill_h[2035], -1) == 560
-    assert round(pc.pv(bill_h, 0.08) / 1000, 1) == 4.5
+    assert round(bill_h[2035], -1) == 540
+    assert round(pc.pv(bill_h, 0.08) / 1000, 1) == 4.3
     assert round(pc.pv(pc.do_nothing_bill(st), 0.08) / 1000, 1) == 2.0
     law = pc.pv(pc.do_nothing_bill(replace(C, rulebook="law2023")), 0.08)
     assert round((law - pc.pv(bill_c, 0.08)) / 1000, 1) == 0.2
@@ -215,7 +215,8 @@ def test_numbers_quoted_in_draft_2() -> None:
     assert round(-w["extra operating cost"] / 1000, 1) == 1.0
     assert round(w["capex support"] / 1000, 1) == 0.4
     assert round(w["reline avoided"] / 1000, 1) == 0.2
-    assert round(pc.npv(2029, hi) / 1000, 1) == 1.3
+    assert round(pc.npv(2029, hi) / 1000, 1) == 1.2
+    assert 0.25 < pc.npv(2029, hi) / pc.pv(bill_h, 0.08) < 0.3  # "more than a quarter"
     assert round(pc.npv(2029, st) / 1000, 1) == -0.7
     assert [pc.payback(2029, c).payback_year for c in (hi, C, st)] == [2038, 2040, 2047]
     assert round(pc.break_even(2029, replace(C, p_h2=H2_RENEWABLE)), -1) == 340
@@ -234,7 +235,10 @@ def test_numbers_quoted_in_draft_2() -> None:
 
     rows = pc.sweep_81()
     by_h2 = {h: sum(1 for r in rows if r.p_h2 == h and r.t_star) for h in pc.SWEEP_H2}
-    assert by_h2 == {2.60: 16, 3.80: 8, 5.00: 1}
+    assert by_h2 == {2.60: 16, 3.80: 7, 5.00: 0}
+    viable = [r for r in rows if r.t_star]
+    assert round(min(r.npv_star for r in viable), -1) == 60
+    assert round(max(r.npv_star for r in viable) / 1000, 1) == 2.5
     assert not [r for r in rows if r.path == "stall" and r.t_star]
 
     lost_law = pc.npv(2029, replace(C, allocation_after_switch="lost", rulebook="law2023"))
@@ -253,3 +257,20 @@ def test_ccfd_table() -> None:
     assert rows[120.0][0] == 2028 and round(rows[120.0][1] / 1000, 2) == 0.15
     assert rows[130.0][0] == 2028 and abs(rows[130.0][4]) < 10
     assert rows[130.0][2] > 0.99 and rows[120.0][2] > 0.85 and rows[110.0][3] > 0.5
+
+
+def test_numbers_added_in_draft_3() -> None:
+    """The October 27 review: reline cost and unmodelled opex, as Draft 3 quotes them."""
+    base_drop = pc.marginal_value(C)[2034]
+    rel = C.with_plant(reline_eur_m=pc.RELINE_OBSERVED)
+    assert pc.t_star(rel) == 2029
+    assert round(pc.npv(2029, rel), -1) == 200
+    assert 0.4 < pc.marginal_value(rel)[2034] / base_drop < 0.6  # "about halves"
+    assert sum(1 for r in pc.sweep_81(rel) if r.t_star is not None) == 21
+    assert round(pc.h2_break_even(2029, rel), 1) == 2.8
+    shock = {s.label: s for s in pc.one_at_a_time(C)}["Reline EUR 150m, not 525m"]
+    assert round(max(pc.npv_curve(shock.case).values()) - pc.npv(2029, C), -1) == -150
+    assert round(pc.unmodelled_opex_pv(2029, C), -1) == 150
+    # the reline is a project input: it moves value, not the best year, on the central path
+    assert {s.label for s in pc.one_at_a_time(C) if s.group == "project"} >= {
+        "Reline EUR 150m, not 525m"}
