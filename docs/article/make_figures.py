@@ -138,11 +138,12 @@ def fig2(d, out):
         end_label(ax, x[-1], y[-1], f"{label}: EUR {y[-1]:,.0f}m", color)
     x, y = series(d["carbon_value"]["Central (RaboResearch carbon price foresight)"])
     ax.plot(x, y, color=ORANGE, lw=1.6, ls=(0, (4, 2.5)))
-    ax.annotate("Full carbon value, central path\n(the cost of emitting when unused\nallowances can be sold)",
+    ax.annotate("Implied emission costs, central path\n(counting the allowances the plant\ncould sell if it stopped emitting)",
                 xy=(2035.5, 421), xytext=(2038.4, 318), fontsize=8, color=ORANGE,
                 arrowprops=dict(arrowstyle="-", color=ORANGE, lw=0.8))
-    ax.text(2026.2, 860, "2026: cash bill EUR 7m; full carbon value EUR 266m", fontsize=8.5,
-            color=TEXT)
+    ax.text(2026.2, 860, "2026: direct emission costs EUR 7m; implied emission costs EUR 266m",
+            fontsize=8.5, color=TEXT)
+    ax.text(2026.2, 800, "Solid lines: direct emission costs", fontsize=8, color=MUTED)
     ax.set_xlim(2025.5, 2050.5)
     ax.set_ylim(0, 950)
     ax.set_ylabel("EUR m per year (2026 euros)")
@@ -154,7 +155,7 @@ def fig2(d, out):
 
 def fig3(d, out):
     w = d["waterfall"]
-    steps = [("Carbon value\navoided", w["carbon value avoided"]),
+    steps = [("Emission costs\navoided", w["carbon value avoided"]),
              ("Extra operating\ncost (hydrogen)", w["extra operating cost"]),
              ("Capex", w["capex"]),
              ("Capex\nsupport", w["capex support"]),
@@ -177,7 +178,7 @@ def fig3(d, out):
     ax.bar(len(steps), npv, color=ORANGE, width=0.62)
     ax.text(len(steps), npv + 0.06, f"{npv:.2f}", ha="center", va="bottom", fontsize=9,
             fontweight="bold", color=TEXT)
-    xs.append("NPV of\nthe switch")
+    xs.append("NPV of\nthe DID")
     ax.set_xticks(range(len(xs)))
     ax.set_xticklabels(xs, fontsize=8.5, color=TEXT)
     ax.set_ylabel("EUR bn, present value 2026")
@@ -282,11 +283,101 @@ def fig6(d, out):
     plt.close(fig)
 
 
+def fig_plant(out):
+    """Block diagram of the reference plant: inputs, outputs and performance.
+
+    Every number comes from the model's Plant and Case defaults, so the diagram
+    cannot drift from the text. Figure 3 from Draft 10 on.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
+
+    from analysis.plant_case import Case, Plant
+
+    pl, cs = Plant(), Case()
+    kg_per_t = pl.h2_kt / pl.capacity_mt          # 57.2 kg of hydrogen per tonne of steel
+    co2_per_t = pl.co2_avoided_mt / pl.capacity_mt  # 1.4 t CO2 per tonne
+    extra_opex = pl.h2_kt * cs.p_h2 - pl.fuel_saving_eur_m  # EUR m a year
+    capex_per_t = pl.capex_eur_m / pl.capacity_mt   # EUR/t of annual capacity
+
+    fig = plt.figure(figsize=(W, 3.35))
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_xlim(0, 100)
+    ax.set_ylim(0, 44.7)
+    ax.axis("off")
+    pale = "#EEF0F8"
+
+    def box(x, y, w, h, lines, fc="white", ec=GREY, title=TEXT, body=TEXT, lh=2.55):
+        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0,rounding_size=0.9",
+                                    fc=fc, ec=ec, lw=1.0))
+        y0 = y + h / 2 + (len(lines) - 1) * lh / 2
+        for i, (text, bold) in enumerate(lines):
+            ax.text(x + w / 2, y0 - i * lh, text, ha="center", va="center",
+                    fontsize=8.6 if bold else 8, fontweight="bold" if bold else "normal",
+                    color=title if bold else body)
+
+    def arrow(p0, p1, color=MUTED, ls="-"):
+        ax.add_patch(FancyArrowPatch(p0, p1, arrowstyle="-|>", mutation_scale=9, lw=1.1,
+                                     color=color, linestyle=ls, shrinkA=0, shrinkB=0))
+
+    for x, text in ((13, "Inputs"), (50.5, f"Reference plant: {pl.capacity_mt:.1f}Mt of steel a year"),
+                    (87, "Outputs")):
+        ax.text(x, 42.6, text, ha="center", va="center", fontsize=8.8, fontweight="bold",
+                color=NAVY if x == 50.5 else MUTED)
+
+    # inputs
+    box(2, 34.0, 22, 5.2, [("Iron ore pellets", True)])
+    box(2, 19.5, 22, 12.4, [("Hydrogen", True), (f"{kg_per_t:.0f}kg per tonne of steel", False),
+                            ("(about 51kg before losses)", False),
+                            (f"{pl.h2_kt:.0f}kt a year at EUR {cs.p_h2:.2f}/kg", False)])
+    box(2, 11.4, 22, 6.0, [("Electricity", True), ("not modeled separately", False)])
+    # process
+    box(31, 18.2, 15.5, 17.0, [("Direct", True), ("reduction", True), ("shaft", True)],
+        fc=NAVY, ec=NAVY, title="white", lh=2.9)
+    box(55, 18.2, 15.5, 17.0, [("Electric", True), ("arc", True), ("furnace", True)],
+        fc=NAVY, ec=NAVY, title="white", lh=2.9)
+    ax.text(50.75, 29.6, "Direct\nreduced iron", ha="center", va="center", fontsize=7.6,
+            color=MUTED, linespacing=1.15)
+    # outputs
+    box(76, 28.0, 22, 8.2, [("Steel", True), (f"{pl.capacity_mt:.1f}Mt a year", False)],
+        ec=ORANGE, title=ORANGE)
+    box(76, 13.6, 22, 11.4, [("CO2 avoided", True), (f"{pl.co2_avoided_mt:.1f}Mt a year", False),
+                             (f"({co2_per_t:.1f}t per tonne of steel)", False),
+                             ("reduction gives off water", False)],
+        ec=ORANGE, title=ORANGE)
+    # flows
+    arrow((24, 36.6), (31, 31.0))
+    arrow((24, 25.7), (31, 25.7))
+    ax.plot([24, 62.75], [14.4, 14.4], color=MUTED, lw=1.1)
+    arrow((62.75, 14.4), (62.75, 18.2))
+    arrow((46.5, 26.7), (55, 26.7))
+    arrow((70.5, 29.5), (76, 32.1))
+    arrow((70.5, 22.5), (76, 19.3), color=ORANGE, ls=(0, (3, 2)))
+
+    # performance and cost strip
+    strip = [
+        [("Capex", True), (f"EUR {pl.capex_eur_m / 1000:.1f}bn (EUR {capex_per_t:,.0f}/t)", False),
+         (f"{['zero','one','two','three','four','five','six'][pl.build_years]} years to build", False)],
+        [("Capex support", True), (f"up to EUR {pl.support_max_eur_m:.0f}m", False),
+         ("in full for FIDs in 2028–2031", False)],
+        [("Extra operating cost", True), (f"EUR {extra_opex:.0f}m a year", False),
+         (f"(+EUR {pl.h2_kt:.0f}m per +EUR 1/kg H2)", False)],
+        [("Replaces", True), ("a blast furnace and its", False),
+         (f"EUR {pl.reline_eur_m:.0f}m reline due in {pl.reline_year}", False)],
+    ]
+    wbox = (96 - 3 * 1.4) / 4
+    for i, lines in enumerate(strip):
+        box(2 + i * (wbox + 1.4), 0.6, wbox, 8.6, lines, fc=pale, ec=pale, title=NAVY, lh=2.45)
+    fig.savefig(out)
+    plt.close(fig)
+
+
 def main():
     with open(sys.argv[1], encoding="utf-8") as fh:
         d = json.load(fh)
     out = Path(sys.argv[2])
     out.mkdir(parents=True, exist_ok=True)
+    fig_plant(out / "fig_plant.png")
     # numbered as in Draft 3 (Pablo's structure)
     fig_projects(out / "fig1.png")
     fig1(d, out / "fig2.png")
